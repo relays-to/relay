@@ -43,7 +43,7 @@ dependencies = [
   "redis>=8.1",
   "sentry-sdk>=2.73",
   "servestatic>=4.4",
-  "starlette>=1.10.0",
+  "starlette>=1.10",
   "threadmill[redis,sentry]>=0.10",
   "validators>=0.35",
 ]
