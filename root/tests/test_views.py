@@ -1,4 +1,3 @@
-import itertools
 from inspect import iscoroutinefunction
 
 import pytest
@@ -183,14 +182,7 @@ class TestNoIO:
 
     @pytest.mark.parametrize(
         "fn",
-        list(
-            itertools.chain(
-                *(
-                    backend.engine.template_context_processors
-                    for backend in engines.all()
-                )
-            )
-        ),
+        [*backend.engine.template_context_processors for backend in engines.all()],
     )
     def test_context_processors_do_not_touch_db(self, fn, rf, django_db_blocker):
         request = rf.get("/")

@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from email import message_from_bytes
 from email.utils import parseaddr
 from enum import StrEnum
-from typing import TYPE_CHECKING
 
 import aiosmtplib
 import botocore.exceptions
@@ -30,8 +29,7 @@ from services.email.spam.client import SpamAction, check_message
 from services.email.spam.retry import SPAM_SCAN_RETRY
 from services.email.tls import parse_peer_certificates
 
-if TYPE_CHECKING:
-    from .models import OutgoingMessage
+lazy from .models import OutgoingMessage
 
 logger = logging.getLogger(__name__)
 
