@@ -1,5 +1,3 @@
-# Parse and lint with the interpreter the project targets, so hooks accept
-# PEP 798 and PEP 810 syntax.
 default_language_version:
   python: python3.15
 repos:
