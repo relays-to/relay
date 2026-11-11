@@ -273,11 +273,7 @@ def verify_domain_dns(domain):
 
     domain.save(
         update_fields=[
-            *(
-                attribute
-                for field in checks
-                for attribute in (f"{field}_status", f"{field}_error")
-            ),
+            *(*(f"{field}_status", f"{field}_error") for field in checks),
             "dns_checked_at",
             "verified_at",
         ]

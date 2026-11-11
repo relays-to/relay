@@ -1,5 +1,4 @@
 import json
-from itertools import chain
 
 from django.contrib import messages
 from django.db import transaction
@@ -44,7 +43,7 @@ class IncomingMessageDetailView(MessageDetailView):
         self.deliveries = WebhookDelivery.objects.filter(
             message=message
         ).select_related("webhook")
-        return chain(super().get_timings(message), self.deliveries)
+        return (*it for it in (super().get_timings(message), self.deliveries))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

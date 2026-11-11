@@ -1,5 +1,3 @@
-from itertools import chain
-
 from django.db import models
 from django.db.models import Q
 from django.http import HttpResponse
@@ -112,9 +110,12 @@ class MessageDetailView(
 
     def get_timings(self, message):
         self.transmissions = message.transmissions.select_related("tls_certificate")
-        return chain(
-            self.transmissions,
-            message.spamcheck_set.select_related("message"),
+        return (
+            *it
+            for it in (
+                self.transmissions,
+                message.spamcheck_set.select_related("message"),
+            )
         )
 
     def get_delivery_summary(self, message, transmissions):

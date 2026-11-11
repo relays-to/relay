@@ -1,4 +1,3 @@
-import itertools
 from inspect import iscoroutinefunction
 
 import pytest
@@ -184,11 +183,9 @@ class TestNoIO:
     @pytest.mark.parametrize(
         "fn",
         list(
-            itertools.chain(
-                *(
-                    backend.engine.template_context_processors
-                    for backend in engines.all()
-                )
+            *it
+            for it in (
+                backend.engine.template_context_processors for backend in engines.all()
             )
         ),
     )
