@@ -6,11 +6,12 @@ from domains.models import DomainCheck
 
 PADDING = 72
 TEXT_WIDTH = 660
-# The card is 630 tall. Its golden section lands on 241 from the top, which
-# is where the domain and the tier sit, so the block is not dead centered.
+# The card is 630 tall. 630 / 1.618 lands on 389, which is the domain's
+# baseline. The mirrored line, 241 from the top, carries the tier.
+DOMAIN_BASELINE = 389
+KICKER_BASELINE = 200
+STATUS_BASELINE = 445
 GOLDEN_BAND = round(630 - 630 / 1.618)
-BAND_TEXT = GOLDEN_BAND - 58
-LABEL_BASELINE = 430
 
 
 def issue_phrase(count: int) -> str:
@@ -53,8 +54,8 @@ class DomainCheckImage(OpenGraphImage):
 
     padding: typing.ClassVar[int] = PADDING
     text_width: typing.ClassVar[int] = TEXT_WIDTH
-    tier_center: typing.ClassVar[tuple[int, int]] = (1000, GOLDEN_BAND)
-    tier_radius: typing.ClassVar[int] = 118
+    tier_center: typing.ClassVar[tuple[int, int]] = (968, GOLDEN_BAND)
+    tier_radius: typing.ClassVar[int] = 160
 
     def tier_color(self) -> RGB:
         if self.check.status != self.check.Status.COMPLETE:
@@ -63,8 +64,9 @@ class DomainCheckImage(OpenGraphImage):
 
     def draw(self, draw) -> None:
         self.draw_wordmark(draw)
-        self.draw_domain(draw)
         self.draw_kicker(draw, "email domain check")
+        self.draw_domain(draw)
+        self.draw_status(draw)
         self.draw_tier(draw)
         self.draw_footer(draw)
 
@@ -78,7 +80,7 @@ class DomainCheckImage(OpenGraphImage):
 
     def draw_kicker(self, draw, label: str) -> None:
         draw.text(
-            (self.padding, LABEL_BASELINE),
+            (self.padding, KICKER_BASELINE),
             label,
             font=self.font("fira-sans-500.ttf", 30),
             fill=(*self.ink, 200),
@@ -91,7 +93,11 @@ class DomainCheckImage(OpenGraphImage):
             candidate = self.font("fira-sans-700.ttf", size)
             if draw.textlength(name, font=candidate) <= self.text_width:
                 draw.text(
-                    (self.padding - 4, BAND_TEXT), name, font=candidate, fill=self.ink
+                    (self.padding - 4, DOMAIN_BASELINE),
+                    name,
+                    font=candidate,
+                    fill=self.ink,
+                    anchor="ls",
                 )
                 return
         head, _, tail = name.rpartition(".")
@@ -103,16 +109,18 @@ class DomainCheckImage(OpenGraphImage):
                     and draw.textlength(tail, font=candidate) <= self.text_width
                 ):
                     draw.text(
-                        (self.padding - 4, BAND_TEXT - 20),
+                        (self.padding - 4, DOMAIN_BASELINE - size - 12),
                         f"{head}.",
                         font=candidate,
                         fill=self.ink,
+                        anchor="ls",
                     )
                     draw.text(
-                        (self.padding - 4, BAND_TEXT - 20 + size + 12),
+                        (self.padding - 4, DOMAIN_BASELINE),
                         tail,
                         font=candidate,
                         fill=self.ink,
+                        anchor="ls",
                     )
                     return
         candidate = self.font("fira-sans-700.ttf", 42)
@@ -122,7 +130,20 @@ class DomainCheckImage(OpenGraphImage):
         ):
             trimmed = trimmed[:-1]
         draw.text(
-            (self.padding - 4, BAND_TEXT), f"{trimmed}…", font=candidate, fill=self.ink
+            (self.padding - 4, DOMAIN_BASELINE),
+            f"{trimmed}…",
+            font=candidate,
+            fill=self.ink,
+            anchor="ls",
+        )
+
+    def draw_status(self, draw) -> None:
+        draw.text(
+            (self.padding, STATUS_BASELINE),
+            status_line(self.check),
+            font=self.font("fira-sans-500.ttf", 34),
+            fill=(*self.ink, 225),
+            anchor="ls",
         )
 
     def draw_tier(self, draw) -> None:
@@ -140,7 +161,7 @@ class DomainCheckImage(OpenGraphImage):
             width=4,
         )
         letter = tier_letter(self.check)
-        font = self.font("fira-sans-700.ttf", 168 if len(letter) == 1 else 120)
+        font = self.font("fira-sans-700.ttf", 262 if len(letter) == 1 else 190)
         mask, (offset_x, offset_y) = font.getmask2(letter, mode="L")
         if (ink := mask.getbbox()) is not None:
             # Center the painted pixels, not the em box, which carries the side
@@ -153,13 +174,6 @@ class DomainCheckImage(OpenGraphImage):
                 font=font,
                 fill=color,
             )
-        draw.text(
-            (center_x, LABEL_BASELINE),
-            "Tier",
-            font=self.font("fira-sans-500.ttf", 24),
-            fill=(*self.ink, 170),
-            anchor="ms",
-        )
 
     def draw_footer(self, draw) -> None:
         draw.line(
@@ -172,11 +186,4 @@ class DomainCheckImage(OpenGraphImage):
             f"{self.host}/domain-check",
             font=self.font("fira-sans-500.ttf", 26),
             fill=(*self.ink, 185),
-        )
-        draw.text(
-            (self.width - self.padding, 566),
-            status_line(self.check),
-            font=self.font("fira-sans-500.ttf", 26),
-            fill=(*self.ink, 225),
-            anchor="ra",
         )
