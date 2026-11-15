@@ -39,7 +39,7 @@ export class IpAddress extends LitElement {
         ${this.address}
       </button>
       <dialog
-        class="m-auto w-full max-w-md bg-transparent p-0 backdrop:bg-black/80"
+        class="m-auto w-[calc(100%-2rem)] max-w-md bg-transparent p-0 backdrop:bg-black/80"
         aria-label=${this.address}
         @click=${this.closeOnBackdrop}
       >
