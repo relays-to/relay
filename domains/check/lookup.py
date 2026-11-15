@@ -1,4 +1,5 @@
 import dataclasses
+import datetime
 import ipaddress
 import time
 
@@ -24,10 +25,10 @@ class MxLookup:
 class Lookup:
     """Resolve the DNS records one check needs through a cached resolver."""
 
-    DNS_TIMEOUT_SECS = 2.0
+    DNS_TIMEOUT = datetime.timedelta(seconds=2)
     DNS_RETRIES = 3
-    DNS_RETRY_DELAY_SECS = 0.2
-    AUTHORITATIVE_TIMEOUT_SECS = 2.0
+    DNS_RETRY_DELAY = datetime.timedelta(seconds=0.2)
+    AUTHORITATIVE_TIMEOUT = datetime.timedelta(seconds=2)
     AUTHORITATIVE_TRIES = 2
     TRANSIENT_ERRORS = (
         dns.exception.Timeout,
@@ -38,7 +39,7 @@ class Lookup:
     def __init__(self) -> None:
         self._memo: dict[tuple[dns.rdatatype.RdataType, str], Answer] = {}
         self._resolver = dns.resolver.Resolver()
-        self._resolver.lifetime = self.DNS_TIMEOUT_SECS
+        self._resolver.lifetime = self.DNS_TIMEOUT.total_seconds()
         self._resolver.cache = dns.resolver.Cache()
 
     @staticmethod
@@ -69,7 +70,7 @@ class Lookup:
                 if attempt == self.DNS_RETRIES - 1:
                     answer = Answer(failed=True)
                     break
-                time.sleep(self.DNS_RETRY_DELAY_SECS * 2**attempt)
+                time.sleep((self.DNS_RETRY_DELAY * 2**attempt).total_seconds())
             except dns.exception.DNSException:
                 answer = Answer(failed=True)
                 break
@@ -119,7 +120,7 @@ class Lookup:
             try:
                 addresses = self._resolver.resolve(nameserver.target, dns.rdatatype.A)
                 authority = dns.resolver.Resolver(configure=False)
-                authority.lifetime = self.AUTHORITATIVE_TIMEOUT_SECS
+                authority.lifetime = self.AUTHORITATIVE_TIMEOUT.total_seconds()
                 authority.nameservers = [addresses[0].address]
                 answer = authority.resolve(name, record_type)
             except dns.exception.DNSException:

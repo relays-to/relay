@@ -68,14 +68,11 @@ class Check:
     label: str
     slug: str | None = None
     hints: Mapping[str, str] = {}
-    TTL_MIN_SECS = 3600
+    TTL_MIN = datetime.timedelta(hours=1)
     # Resolvers return the remaining TTL, so an hour-long record can answer with
     # minutes left. Absorb that countdown before calling a record too short-lived.
-    TTL_TOLERANCE_SECS = 300
-    TTL_HINT = (
-        "Raise the record's TTL to at least "
-        f"{human_duration(datetime.timedelta(seconds=TTL_MIN_SECS))}."
-    )
+    TTL_TOLERANCE = datetime.timedelta(minutes=5)
+    TTL_HINT = f"Raise the record's TTL to at least {human_duration(TTL_MIN)}."
     MAX_LISTED_ADDRESSES = 5
     TRANSITION_NETWORKS = (
         ipaddress.ip_network("64:ff9b::/96"),
@@ -127,7 +124,7 @@ class Check:
             # Some providers answer one second short of the published value.
             ttl_secs += 1
         detail = human_duration(datetime.timedelta(seconds=ttl_secs))
-        if ttl_secs + cls.TTL_TOLERANCE_SECS >= cls.TTL_MIN_SECS:
+        if datetime.timedelta(seconds=ttl_secs) + cls.TTL_TOLERANCE >= cls.TTL_MIN:
             return SubCheck(label, "pass", detail)
         return SubCheck(label, "fail", detail, severity="weak")
 
@@ -545,8 +542,8 @@ class MtaStsCheck(Check):
         "Enforced mode": "Set mode: enforce in the MTA-STS policy.",
         "MX match": "List every MX host in the policy's mx: lines.",
     }
-    FETCH_TIMEOUT_SECS = 5
-    FETCH_CACHE_SECS = 300
+    FETCH_TIMEOUT = datetime.timedelta(seconds=5)
+    FETCH_CACHE = datetime.timedelta(minutes=5)
     POLICY_LIMIT_BYTES = 64 * 1024
 
     @classmethod
@@ -602,12 +599,12 @@ class MtaStsCheck(Check):
             except httpx.TransportError, httpx.TimeoutException:
                 if attempt == Lookup.DNS_RETRIES - 1:
                     return None
-                time.sleep(Lookup.DNS_RETRY_DELAY_SECS * 2**attempt)
+                time.sleep((Lookup.DNS_RETRY_DELAY * 2**attempt).total_seconds())
             except httpx.HTTPError, httpx.InvalidURL:
                 return None
             else:
                 if body is not None:
-                    cache.set(cache_key, body, cls.FETCH_CACHE_SECS)
+                    cache.set(cache_key, body, cls.FETCH_CACHE.total_seconds())
                 return body
         return None
 
@@ -616,11 +613,13 @@ class MtaStsCheck(Check):
         cls, parsed, netloc: str, port: int | None, limit_bytes: int
     ) -> bytes | None:
         """Stream a policy body, stopping at the size limit or the deadline."""
-        deadline = time.monotonic() + cls.FETCH_TIMEOUT_SECS
+        deadline = time.monotonic() + cls.FETCH_TIMEOUT.total_seconds()
         headers = {"Host": f"{parsed.hostname}:{port}" if port else parsed.hostname}
         with (
             httpx.Client(
-                trust_env=False, follow_redirects=False, timeout=cls.FETCH_TIMEOUT_SECS
+                trust_env=False,
+                follow_redirects=False,
+                timeout=cls.FETCH_TIMEOUT.total_seconds(),
             ) as client,
             client.stream(
                 "GET",

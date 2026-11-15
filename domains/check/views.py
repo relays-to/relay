@@ -52,8 +52,8 @@ class DomainCheckDetailView(NoStoreCacheMixin, BreadcrumbViewMixin, generic.Deta
     parent = "domain_check:list"
     # Poll while a check runs, spread out so a burst of visitors does not
     # reload in lockstep.
-    REFRESH_INTERVAL_SECS = 2
-    REFRESH_JITTER_SECS = 2
+    REFRESH_INTERVAL = datetime.timedelta(seconds=2)
+    REFRESH_JITTER = datetime.timedelta(seconds=2)
 
     def get(self, request, *args, **kwargs):
         try:
@@ -84,8 +84,10 @@ class DomainCheckDetailView(NoStoreCacheMixin, BreadcrumbViewMixin, generic.Deta
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(**kwargs) | {
-            "refresh_secs": self.REFRESH_INTERVAL_SECS
-            + secrets.randbelow(self.REFRESH_JITTER_SECS + 1)
+            "refresh_secs": (
+                self.REFRESH_INTERVAL.total_seconds()
+                + secrets.randbelow(int(self.REFRESH_JITTER.total_seconds()) + 1)
+            )
         }
 
     def get_template_names(self):
