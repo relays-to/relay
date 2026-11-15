@@ -58,7 +58,6 @@ class DomainCheckImage(OpenGraphImage):
 
     def draw(self, draw) -> None:
         self.draw_wordmark(draw)
-        self.draw_rule(draw)
         self.draw_domain(draw)
         self.draw_kicker(draw, "email domain check")
         self.draw_tier(draw)
@@ -70,18 +69,6 @@ class DomainCheckImage(OpenGraphImage):
             "relay",
             font=self.font("space-mono-700-italic.ttf", 58),
             fill=self.ink,
-        )
-
-    def draw_rule(self, draw) -> None:
-        draw.line(
-            (
-                self.tier_center[0] - self.tier_radius,
-                self.padding + 32,
-                self.width - self.padding,
-                self.padding + 32,
-            ),
-            fill=(*self.ink, 70),
-            width=2,
         )
 
     def draw_kicker(self, draw, label: str) -> None:
