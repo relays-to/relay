@@ -858,24 +858,22 @@ def check_blocklists(name: str, lookup: Lookup) -> CheckResult:
     addresses = spf.addresses
     details = []
     subchecks = []
-    listed, unanswered = lookup_domain_listing(name, lookup)
+    listed, problems = lookup_domain_listing(name, lookup)
     if listed:
         detail = f"Listed on {', '.join(listed)}"
         details.append(f"Domain {detail.lower()}")
         subchecks.append(
             SubCheck("Domain blocklists", "fail", detail, severity="blocking")
         )
-    elif len(unanswered) == len(DOMAIN_PROVIDERS):
+    elif len(problems) == len(DOMAIN_PROVIDERS):
         details.append("Domain blocklist lookup unavailable")
-        subchecks.append(
-            SubCheck("Domain blocklists", "skip", "No answer from any provider")
-        )
+        subchecks.append(SubCheck("Domain blocklists", "skip", ", ".join(problems)))
     else:
         details.append("Domain not listed")
         subchecks.append(SubCheck("Domain blocklists", "pass", "Not listed"))
     if spf.sampled:
         details.append(f"sampled {spf.sampled} network ranges")
-    listed, address_unanswered = lookup_address_listings(addresses, lookup)
+    listed, address_problems = lookup_address_listings(addresses, lookup)
     queries = len(addresses) * len(PUBLIC_ADDRESS_PROVIDERS)
     if listed:
         detail = f"Listed on {', '.join(listed)}"
@@ -886,24 +884,26 @@ def check_blocklists(name: str, lookup: Lookup) -> CheckResult:
     elif not addresses:
         details.append("SPF address not checked")
         subchecks.append(SubCheck("SPF address blocklists", "skip", "No SPF address"))
-    elif len(address_unanswered) == queries:
+    elif len(address_problems) == queries:
         details.append("SPF address blocklist lookup unavailable")
         subchecks.append(
-            SubCheck("SPF address blocklists", "skip", "No answer from any provider")
+            SubCheck(
+                "SPF address blocklists",
+                "skip",
+                ", ".join(dict.fromkeys(address_problems)),
+            )
         )
     else:
         details.append("SPF address not listed")
         count = len(addresses)
-        subchecks.append(
-            SubCheck(
-                "SPF address blocklists",
-                "pass",
-                f"{count} address{'es' if count != 1 else ''} not listed",
-            )
-        )
-    unanswered.extend(address_unanswered)
-    if unanswered:
-        details.append(f"no answer from {', '.join(dict.fromkeys(unanswered))}")
+        detail = f"{count} address{'es' if count != 1 else ''} not listed"
+        refused = ", ".join(dict.fromkeys(address_problems))
+        if refused:
+            detail += f" ({refused})"
+        subchecks.append(SubCheck("SPF address blocklists", "pass", detail))
+    problems.extend(address_problems)
+    if problems:
+        details.append(f"unavailable: {', '.join(dict.fromkeys(problems))}")
     return CheckResult(
         "blocklists", "Blocklists", ", ".join(details) + ".", tuple(subchecks)
     )
@@ -911,27 +911,27 @@ def check_blocklists(name: str, lookup: Lookup) -> CheckResult:
 
 def lookup_domain_listing(name: str, lookup: Lookup) -> tuple[list[str], list[str]]:
     listed = []
-    unanswered = []
+    problems = []
     for provider in DOMAIN_PROVIDERS:
-        codes = resolve_blocklist_codes(f"{name}.{provider.zone}", lookup)
-        if codes is None:
-            unanswered.append(provider.name)
-        elif codes:
-            listed.append(f"{provider.name} ({', '.join(codes)})")
-    return listed, unanswered
+        answer = resolve_blocklist_codes(f"{name}.{provider.zone}", lookup)
+        if answer.problem:
+            problems.append(f"{provider.name} {answer.problem}")
+        elif answer.codes:
+            listed.append(f"{provider.name} ({', '.join(answer.codes)})")
+    return listed, problems
 
 
 def lookup_address_listing(address: str, lookup: Lookup) -> tuple[list[str], list[str]]:
     listed = []
-    unanswered = []
+    problems = []
     pointer = reverse_pointer(address)
     for provider in PUBLIC_ADDRESS_PROVIDERS:
-        codes = resolve_blocklist_codes(f"{pointer}.{provider.zone}", lookup)
-        if codes is None:
-            unanswered.append(provider.name)
-        elif codes:
+        answer = resolve_blocklist_codes(f"{pointer}.{provider.zone}", lookup)
+        if answer.problem:
+            problems.append(f"{provider.name} {answer.problem}")
+        elif answer.codes:
             listed.append(f"{provider.name} ({address})")
-    return listed, unanswered
+    return listed, problems
 
 
 def lookup_address_listings(
@@ -946,15 +946,30 @@ def lookup_address_listings(
             )
         )
     return (
-        [entry for listed, _ in results for entry in listed],
-        [name for _, unanswered in results for name in unanswered],
+        [*listed for listed, _ in results],
+        [*problems for _, problems in results],
     )
 
 
-def resolve_blocklist_codes(query: str, lookup: Lookup) -> tuple[str, ...] | None:
+@dataclasses.dataclass(frozen=True, slots=True)
+class BlocklistAnswer:
+    codes: tuple[str, ...] = ()
+    failed: bool = False
+    refused: bool = False
+
+    @property
+    def problem(self) -> str:
+        if self.refused:
+            return "refused the query"
+        if self.failed:
+            return "did not answer"
+        return ""
+
+
+def resolve_blocklist_codes(query: str, lookup: Lookup) -> BlocklistAnswer:
     answer = lookup.query(query, "A")
     if answer.failed:
-        return None
+        return BlocklistAnswer(failed=True)
     if any(ipaddress.ip_address(code) in REFUSAL_NETWORK for code in answer.records):
-        return None
-    return answer.records
+        return BlocklistAnswer(refused=True)
+    return BlocklistAnswer(codes=answer.records)
