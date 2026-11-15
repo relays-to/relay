@@ -172,7 +172,6 @@ class TestDomainCheckListView:
         assert len(response.context["page_obj"]) == 1
 
 
-@pytest.mark.django_db
 class TestDomainCheckSubmitView:
     def test_get__redirects_to_the_list(self, client):
         response = client.get("/domain-check/submit")
@@ -180,6 +179,7 @@ class TestDomainCheckSubmitView:
         assert response.status_code == 302
         assert response.headers["Location"] == "/domain-check/"
 
+    @pytest.mark.django_db
     def test_post__creates_and_queues_a_new_domain(self, client, queue):
         response = client.post("/domain-check/submit", {"name": "Example.COM"})
 
@@ -189,6 +189,7 @@ class TestDomainCheckSubmitView:
         assert response.status_code == 302
         assert response.headers["Location"] == "/domain-check/example.com/"
 
+    @pytest.mark.django_db
     def test_post__keeps_a_fresh_result(self, client, queue):
         make_check()
 
@@ -199,6 +200,7 @@ class TestDomainCheckSubmitView:
             "This domain was checked less than a day ago."
         ]
 
+    @pytest.mark.django_db
     def test_post__queues_a_stale_result(self, client, queue):
         backdate(make_check(), days=2)
 
@@ -206,6 +208,7 @@ class TestDomainCheckSubmitView:
 
         assert queue.calls == [{"name": "example.com"}]
 
+    @pytest.mark.django_db
     def test_post__rejects_an_internal_suffix(self, client, queue):
         response = client.post("/domain-check/submit", {"name": "printer.local"})
 
@@ -333,7 +336,7 @@ class TestDomainCheckDetailView:
     def test_get__redirects_an_idn_name(self, client):
         make_check(name="xn--mnich-kva.com")
 
-        response = client.get(f"/domain-check/{quote('münich.com')}")
+        response = client.get(f"/domain-check/{quote('münich.com')}/")
 
         assert response.headers["Location"] == "/domain-check/xn--mnich-kva.com/"
 
