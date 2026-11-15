@@ -13,7 +13,7 @@ import validators
 from cryptography.fernet import InvalidToken
 from django.conf import settings
 
-from abstract.mailauth import DmarcEvaluation
+from domains.mailauth import DmarcEvaluation
 from domains.models import Domain
 from kms import keys
 

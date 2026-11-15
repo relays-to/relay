@@ -1,7 +1,7 @@
 from email import message_from_bytes
 from email.message import EmailMessage, Message
 
-from abstract.mailauth import Alignment, AuthResult, Disposition, DmarcEvaluation
+from domains.mailauth import Alignment, AuthResult, Disposition, DmarcEvaluation
 
 
 def make_raw_email(subject: str = "Postmaster alert") -> bytes:

@@ -6,9 +6,9 @@ import authres
 import dkim
 import pytest
 
-from abstract.mailauth import Alignment, AuthResult, DmarcEvaluation
 from accounts.models import Organization
 from conftest import StubResolver
+from domains.mailauth import Alignment, AuthResult, DmarcEvaluation
 from domains.models import Domain
 from domains.resolver import dkim_record
 from kms import keys

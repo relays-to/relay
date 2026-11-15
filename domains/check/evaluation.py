@@ -18,7 +18,7 @@ from abstract.blocklists import (
     BlocklistProvider,
     reverse_pointer,
 )
-from abstract.mailauth import DmarcPolicy
+from domains.mailauth import DmarcPolicy
 from domains.mta_sts import MtaStsRecord
 
 from .lookup import Lookup

@@ -13,8 +13,8 @@ from django.utils import timezone
 
 from abstract.email_utils import decode_header_value
 from abstract.hostnames import resolve_hostname
-from abstract.mailauth import Disposition, DmarcEvaluation
 from abstract.signals import request_scoped
+from domains.mailauth import Disposition, DmarcEvaluation
 from domains.models import Domain
 from services.email.message.models import Transmission
 from services.email.proxy_protocol import (

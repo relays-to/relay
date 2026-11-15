@@ -9,7 +9,7 @@ from aiosmtpd.smtp import TLSSetupException
 from django.conf import settings
 from django.core import mail
 
-from abstract.mailauth import Alignment, AuthResult, Disposition
+from domains.mailauth import Alignment, AuthResult, Disposition
 from domains.models import Domain
 from services.email.message.models import Transmission
 from services.email.mta.handlers import (
@@ -432,7 +432,7 @@ class TestMXHandler:
 
         with (
             patch(
-                "abstract.mailauth.DmarcEvaluation.from_bytes",
+                "domains.mailauth.DmarcEvaluation.from_bytes",
                 return_value=make_dmarc_evaluation(Disposition.REJECT),
             ),
             patch("services.email.mta.handlers.check_incoming_spam") as spam_task,
@@ -483,7 +483,7 @@ class TestMXHandler:
 
         with (
             patch(
-                "abstract.mailauth.DmarcEvaluation.from_bytes",
+                "domains.mailauth.DmarcEvaluation.from_bytes",
                 return_value=make_dmarc_evaluation(Disposition.QUARANTINE),
             ),
             patch("services.email.mta.handlers.check_incoming_spam"),
@@ -507,7 +507,7 @@ class TestMXHandler:
 
         with (
             patch(
-                "abstract.mailauth.DmarcEvaluation.from_bytes",
+                "domains.mailauth.DmarcEvaluation.from_bytes",
                 return_value=make_dmarc_evaluation(Disposition.NONE),
             ),
             patch("services.email.mta.handlers.check_incoming_spam") as spam_task,
@@ -538,7 +538,7 @@ class TestMXHandler:
 
         with (
             patch(
-                "abstract.mailauth.DmarcEvaluation.from_bytes",
+                "domains.mailauth.DmarcEvaluation.from_bytes",
                 return_value=make_dmarc_evaluation(
                     Disposition.NONE, header_from="arf.mail.yahoo.com"
                 ),
@@ -571,7 +571,7 @@ class TestMXHandler:
 
         with (
             patch(
-                "abstract.mailauth.DmarcEvaluation.from_bytes",
+                "domains.mailauth.DmarcEvaluation.from_bytes",
                 return_value=make_dmarc_evaluation(
                     Disposition.NONE,
                     header_from="hotmail.com",
@@ -605,7 +605,7 @@ class TestMXHandler:
 
         with (
             patch(
-                "abstract.mailauth.DmarcEvaluation.from_bytes",
+                "domains.mailauth.DmarcEvaluation.from_bytes",
                 return_value=make_dmarc_evaluation(
                     Disposition.NONE, header_from="eu.arf.mail.yahoo.com"
                 ),
@@ -636,7 +636,7 @@ class TestMXHandler:
 
         with (
             patch(
-                "abstract.mailauth.DmarcEvaluation.from_bytes",
+                "domains.mailauth.DmarcEvaluation.from_bytes",
                 return_value=make_dmarc_evaluation(Disposition.NONE),
             ),
             patch("services.email.mta.handlers.check_incoming_spam") as spam_task,
@@ -661,7 +661,7 @@ class TestMXHandler:
 
         with (
             patch(
-                "abstract.mailauth.DmarcEvaluation.from_bytes",
+                "domains.mailauth.DmarcEvaluation.from_bytes",
                 return_value=make_dmarc_evaluation(Disposition.NONE),
             ),
             patch("services.email.mta.handlers.check_incoming_spam") as spam_task,
@@ -684,7 +684,7 @@ class TestMXHandler:
 
         with (
             patch(
-                "abstract.mailauth.DmarcEvaluation.from_bytes",
+                "domains.mailauth.DmarcEvaluation.from_bytes",
                 return_value=make_dmarc_evaluation(Disposition.NONE),
             ),
             patch("services.email.mta.handlers.check_incoming_spam") as spam_task,
@@ -709,7 +709,7 @@ class TestMXHandler:
 
         with (
             patch(
-                "abstract.mailauth.DmarcEvaluation.from_bytes",
+                "domains.mailauth.DmarcEvaluation.from_bytes",
                 return_value=make_dmarc_evaluation(Disposition.NONE),
             ),
             patch("services.email.mta.handlers.check_incoming_spam"),

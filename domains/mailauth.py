@@ -69,23 +69,25 @@ class DmarcPolicy:
             return cls()
         return cls.from_records(records)
 
+    @staticmethod
+    def text(record) -> str:
+        """Return a TXT record as plain text."""
+        if isinstance(record, str):
+            return record
+        return "".join(
+            chunk.decode() if isinstance(chunk, bytes) else chunk
+            for chunk in record.strings
+        )
+
     @classmethod
     def from_records(cls, records):
-        found = []
-        for record in records:
-            text = (
-                record
-                if isinstance(record, str)
-                else "".join(
-                    s.decode() if isinstance(s, bytes) else s for s in record.strings
-                )
-            )
-            if text.lower().startswith("v=dmarc1"):
-                found.append(text)
-        if not found:
-            return cls()
+        found = [
+            text
+            for record in records
+            if (text := cls.text(record)).lower().startswith("v=dmarc1")
+        ]
         fields = {}
-        for part in found[0].split(";"):
+        for part in found[0].split(";") if found else ():
             part = part.strip()
             if "=" in part:
                 key, value = (s.strip() for s in part.split("=", 1))
@@ -94,7 +96,7 @@ class DmarcPolicy:
                 elif key == "pct":
                     with suppress(ValueError):
                         fields[key] = int(value)
-        return cls(**fields, is_published=True, record_count=len(found))
+        return cls(**fields, is_published=bool(found), record_count=len(found))
 
     @property
     def rua_address(self):
