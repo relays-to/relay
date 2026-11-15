@@ -97,6 +97,9 @@ class TestCheckRetry:
 class TestCheckDomain:
     def test_check_domain__starts_a_fresh_check(self, queue):
         check = make_check(status=DomainCheck.Status.COMPLETE, checks=[{"key": "mx"}])
+        DomainCheck.objects.filter(pk=check.pk).update(
+            modified_at=timezone.now() - datetime.timedelta(days=2)
+        )
 
         check_domain.func(name="example.com")
 
@@ -108,9 +111,7 @@ class TestCheckDomain:
         assert queue.reputation.calls == [{"name": "example.com"}]
 
     def test_check_domain__leaves_a_fresh_check_alone(self, queue):
-        check = make_check(
-            status=DomainCheck.Status.COMPLETE, checked_at=timezone.now()
-        )
+        check = make_check(status=DomainCheck.Status.COMPLETE)
 
         check_domain.func(name="example.com")
 

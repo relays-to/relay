@@ -534,15 +534,9 @@ class DomainCheck(TimeStamped):
         default=list,
         help_text=_("One result per authentication check."),
     )
-    checked_at = models.DateTimeField(
-        _("checked at"),
-        null=True,
-        blank=True,
-        help_text=_("When the last check ran."),
-    )
 
     class Meta(TimeStamped.Meta):
-        ordering = ["penalty", "name"]
+        ordering = ["penalty", "-modified_at"]
 
     def __str__(self):
         return self.name
@@ -555,16 +549,9 @@ class DomainCheck(TimeStamped):
 
     @property
     def is_stale(self) -> bool:
-        if self.status == self.Status.FAILED:
+        if self.status in {self.Status.PENDING, self.Status.FAILED}:
             return True
-        if self.checked_at is None:
-            return True
-        reference = (
-            self.modified_at
-            if self.status in {self.Status.PENDING, self.Status.RUNNING}
-            else self.checked_at
-        )
-        return timezone.now() - reference > self.CHECK_INTERVAL
+        return timezone.now() - self.modified_at > self.CHECK_INTERVAL
 
     @staticmethod
     def build_check_row(check: dict) -> dict:
@@ -614,8 +601,7 @@ class DomainCheck(TimeStamped):
                 if len(checks) == len(Check.order()):
                     domain_check.penalty = cls.penalty_for(checks)
                     domain_check.status = cls.Status.COMPLETE
-                    domain_check.checked_at = timezone.now()
-                    update_fields += ["penalty", "status", "checked_at"]
+                    update_fields += ["penalty", "status"]
                 domain_check.checks = checks
                 domain_check.save(update_fields=update_fields)
 

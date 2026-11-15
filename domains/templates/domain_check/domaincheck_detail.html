@@ -27,9 +27,7 @@
       <div class="min-w-0 flex flex-col gap-1">
         <h1 class="m-0 break-all">{{ domain_check.name }}</h1>
         <p class="text-muted-foreground m-0">
-          {% if domain_check.checked_at %}
-            {% translate "checked" %} {{ domain_check.checked_at|naturaltime }}
-          {% endif %}
+          {% translate "checked" %} {{ domain_check.modified_at|naturaltime }}
         </p>
       </div>
       <div class="flex items-center gap-2">
@@ -182,7 +180,7 @@
         </p>
       </header>
       <section>
-        <form method="post" action="{% url 'domain_check:list' %}">
+        <form method="post" action="{% url 'domain_check:submit' %}">
           {% csrf_token %}
           <label class="sr-only" for="cta-domain">{% translate "domain"|capfirst context "noun" %}</label>
           <div class="input-group">
