@@ -1,7 +1,7 @@
 import dataclasses
 import typing
 
-from abstract.open_graph import OpenGraphImage
+from abstract.open_graph import RGB, OpenGraphImage
 from domains.models import DomainCheck
 
 PADDING = 72
@@ -30,6 +30,15 @@ def tier_letter(check) -> str:
     return str(check.tier) if check.status == check.Status.COMPLETE else "\u2013"
 
 
+TIER_COLORS = {
+    "default": (255, 255, 255),
+    "success": (71, 209, 122),
+    "outline": (196, 192, 214),
+    "warning": (250, 175, 46),
+    "destructive": (255, 100, 103),
+}
+
+
 @dataclasses.dataclass(kw_only=True)
 class DomainCheckImage(OpenGraphImage):
     """Share card for one domain check: the domain, its issues, and its grade."""
@@ -41,6 +50,11 @@ class DomainCheckImage(OpenGraphImage):
     text_width: typing.ClassVar[int] = TEXT_WIDTH
     tier_center: typing.ClassVar[tuple[int, int]] = (968, 300)
     tier_radius: typing.ClassVar[int] = 128
+
+    def tier_color(self) -> RGB:
+        if self.check.status != self.check.Status.COMPLETE:
+            return self.ink
+        return TIER_COLORS[self.check.tier_variant]
 
     def draw(self, draw) -> None:
         self.draw_wordmark(draw)
@@ -119,6 +133,7 @@ class DomainCheckImage(OpenGraphImage):
 
     def draw_tier(self, draw) -> None:
         center_x, center_y = self.tier_center
+        color = self.tier_color()
         draw.ellipse(
             (
                 center_x - self.tier_radius,
@@ -126,16 +141,16 @@ class DomainCheckImage(OpenGraphImage):
                 center_x + self.tier_radius,
                 center_y + self.tier_radius,
             ),
-            fill=(*self.ink, 24),
-            outline=(*self.ink, 72),
-            width=3,
+            fill=(*color, 30),
+            outline=(*color, 200),
+            width=4,
         )
         letter = tier_letter(self.check)
         draw.text(
             (center_x, center_y - 6),
             letter,
             font=self.font("fira-sans-700.ttf", 168 if len(letter) == 1 else 120),
-            fill=self.ink,
+            fill=color,
             anchor="mm",
         )
         draw.text(
