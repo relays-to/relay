@@ -28,16 +28,6 @@ class OpenGraphImage:
     def font(self, name: str, size: int) -> ImageFont.FreeTypeFont:
         return ImageFont.truetype(str(self.FONTS_DIR / name), size)
 
-    def fit(
-        self, draw, text: str, name: str, start: int, minimum: int, limit: int
-    ) -> ImageFont.FreeTypeFont:
-        size = start
-        while (
-            size > minimum and draw.textlength(text, font=self.font(name, size)) > limit
-        ):
-            size -= 2
-        return self.font(name, size)
-
     def background(self) -> Image.Image:
         start, end = self.BACKGROUND_START, self.BACKGROUND_END
         # The favicon angle, corner to corner. A tenth of the canvas holds the

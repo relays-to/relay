@@ -58,12 +58,7 @@ class CheckResult:
 
 
 class Check:
-    """
-    Grade one aspect of a domain's mail configuration.
-
-    A subclass owns the constants and the hints for its own subchecks. Anything
-    that more than one check needs lives here and is inherited.
-    """
+    """Grade one aspect of a domain's mail configuration."""
 
     KEY: typing.ClassVar[str]
     LABEL: typing.ClassVar[str]
@@ -620,7 +615,7 @@ class MtaStsCheck(Check):
         for attempt in range(Lookup.DNS_RETRIES):
             try:
                 body = cls.stream_body(parsed, netloc, port, limit_bytes)
-            except httpx.TransportError, httpx.TimeoutException:
+            except httpx.TransportError:
                 if attempt == Lookup.DNS_RETRIES - 1:
                     return None
                 time.sleep((Lookup.DNS_RETRY_DELAY * 2**attempt).total_seconds())

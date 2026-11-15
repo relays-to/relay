@@ -5,8 +5,6 @@ from django.utils.translation import gettext_lazy as _
 
 
 class Tier(enum.StrEnum):
-    """A grade with the variant and the colour its interfaces render."""
-
     S = "S", _("S tier"), "default", (240, 243, 248), True
     A_PLUS = "A+", _("A+ tier"), "success", (255, 200, 45), True
     A = "A", _("A tier"), "success", (255, 200, 45), True

@@ -167,6 +167,8 @@ the acceptance flow.
 
 ## Related pages
 
+- <a href="{% url 'docs:detail' slug='domain-check' %}">Domain check</a>.
+  Grade any public domain's records, free and without a signup.
 - <a href="{% url 'docs:detail' slug='encryption' %}">Encryption</a>. The
   MTA-STS policy served for your domains.
 - <a href="{% url 'docs:detail' slug='webhooks' %}">Webhooks</a>. Receiving

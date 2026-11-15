@@ -32,7 +32,6 @@ class Lookup:
     AUTHORITATIVE_TRIES = 2
     TRANSIENT_ERRORS = (
         dns.exception.Timeout,
-        dns.resolver.LifetimeTimeout,
         dns.resolver.NoNameservers,
     )
 
@@ -79,11 +78,7 @@ class Lookup:
                     tuple(
                         self.render_record(record, record_type) for record in answers
                     ),
-                    ttl=(
-                        datetime.timedelta(seconds=answers.rrset.ttl)
-                        if answers.rrset is not None
-                        else None
-                    ),
+                    ttl=datetime.timedelta(seconds=answers.rrset.ttl),
                 )
                 break
         self._memo[key] = answer
@@ -132,11 +127,7 @@ class Lookup:
             except dns.exception.DNSException:
                 ttl = None
             else:
-                ttl = (
-                    datetime.timedelta(seconds=answer.rrset.ttl)
-                    if answer.rrset is not None
-                    else None
-                )
+                ttl = datetime.timedelta(seconds=answer.rrset.ttl)
             if ttl is not None:
                 return ttl
         return None

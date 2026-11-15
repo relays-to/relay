@@ -609,9 +609,9 @@ class DomainCheck(TimeStamped):
                         for result in results
                     }
                 )
-                checks = [merged[key] for key in cls.order() if key in merged]
+                checks = [merged[key] for key in Check.order() if key in merged]
                 update_fields = ["checks"]
-                if len(checks) == len(cls.order()):
+                if len(checks) == len(Check.order()):
                     domain_check.penalty = cls.penalty_for(checks)
                     domain_check.status = cls.Status.COMPLETE
                     domain_check.checked_at = timezone.now()
@@ -666,19 +666,3 @@ class DomainCheck(TimeStamped):
     @property
     def tier_variant(self) -> str:
         return self.tier.variant
-
-    def evaluate(self):
-        results = sorted(
-            Check.evaluate(self.name),
-            key=lambda result: Check.order().index(result.key),
-        )
-        self.checks = [
-            dataclasses.asdict(result) | {"status": result.status} for result in results
-        ]
-        self.penalty = self.penalty_for(self.checks)
-        self.status = self.Status.COMPLETE
-        self.checked_at = timezone.now()
-        update_fields = (
-            ["checks", "penalty", "status", "checked_at"] if self.pk else None
-        )
-        self.save(update_fields=update_fields)

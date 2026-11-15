@@ -174,14 +174,14 @@ class DomainCheckImage(OpenGraphImage):
         letter = self.check.tier_letter
         font = self.font("fira-sans-700.ttf", 300 if len(letter) == 1 else 220)
         mask, (offset_x, offset_y) = font.getmask2(letter, mode="L")
-        if (ink := mask.getbbox()) is not None:
-            # Center the painted pixels, not the em box, which carries the side
-            # bearings and descender space the letter never fills.
-            left, top = offset_x + ink[0], offset_y + ink[1]
-            right, bottom = offset_x + ink[2], offset_y + ink[3]
-            draw.text(
-                (center_x - (left + right) / 2, center_y - (top + bottom) / 2),
-                letter,
-                font=font,
-                fill=color,
-            )
+        ink = mask.getbbox()
+        # Center the painted pixels, not the em box, which carries the side
+        # bearings and descender space the letter never fills.
+        left, top = offset_x + ink[0], offset_y + ink[1]
+        right, bottom = offset_x + ink[2], offset_y + ink[3]
+        draw.text(
+            (center_x - (left + right) / 2, center_y - (top + bottom) / 2),
+            letter,
+            font=font,
+            fill=color,
+        )
