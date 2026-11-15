@@ -8,28 +8,6 @@ from abstract.open_graph import RGB, OpenGraphImage
 from domains.models import DomainCheck
 
 
-def issue_phrase(count: int) -> str:
-    if count == 0:
-        return "All checks pass"
-    suffix = "s" if count != 1 else ""
-    verb = "needs" if count == 1 else "need"
-    return f"{count} issue{suffix} {verb} attention"
-
-
-def status_line(check) -> str:
-    match check.status:
-        case check.Status.COMPLETE:
-            return issue_phrase(check.issue_count)
-        case check.Status.FAILED:
-            return "The last check failed"
-        case _:
-            return "Check in progress"
-
-
-def tier_letter(check) -> str:
-    return str(check.tier) if check.status == check.Status.COMPLETE else "\u2013"
-
-
 @dataclasses.dataclass(kw_only=True)
 class DomainCheckImage(OpenGraphImage):
     """Share card for one domain check: the domain, its issues, and its tier."""
@@ -148,7 +126,7 @@ class DomainCheckImage(OpenGraphImage):
     def draw_status(self, draw) -> None:
         draw.text(
             (self.PADDING, self.STATUS_BASELINE),
-            status_line(self.check),
+            self.check.status_line,
             font=self.font("fira-sans-500.ttf", 36),
             fill=(*self.INK, 225),
             anchor="ls",
@@ -195,7 +173,7 @@ class DomainCheckImage(OpenGraphImage):
         )
         draw.ellipse(bounds, fill=(*self.tier_bed(color), 240))
         image.alpha_composite(self.tier_ring(color), bounds[:2])
-        letter = tier_letter(self.check)
+        letter = self.check.tier_letter
         font = self.font("fira-sans-700.ttf", 300 if len(letter) == 1 else 220)
         mask, (offset_x, offset_y) = font.getmask2(letter, mode="L")
         if (ink := mask.getbbox()) is not None:

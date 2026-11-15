@@ -601,6 +601,31 @@ class DomainCheck(TimeStamped):
         return sum(row["issue_count"] for row in self.check_rows)
 
     @property
+    def issue_phrase(self) -> str:
+        """Return how many checks need attention, in words."""
+        if self.issue_count == 0:
+            return "All checks pass"
+        suffix = "s" if self.issue_count != 1 else ""
+        verb = "needs" if self.issue_count == 1 else "need"
+        return f"{self.issue_count} issue{suffix} {verb} attention"
+
+    @property
+    def status_line(self) -> str:
+        """Return the one line status a card prints under the domain."""
+        match self.status:
+            case self.Status.COMPLETE:
+                return self.issue_phrase
+            case self.Status.FAILED:
+                return "The last check failed"
+            case _:
+                return "Check in progress"
+
+    @property
+    def tier_letter(self) -> str:
+        """Return the tier, or a dash while the check has not finished."""
+        return str(self.tier) if self.status == self.Status.COMPLETE else "\u2013"
+
+    @property
     def tier(self) -> Tier:
         return list(Tier)[min(self.penalty, MAX_PENALTY)]
 
