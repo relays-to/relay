@@ -5,6 +5,7 @@ import typing
 from PIL import Image, ImageDraw
 
 from abstract.open_graph import RGB, OpenGraphImage
+from domains.check.tiers import Tier
 from domains.models import DomainCheck
 
 
@@ -57,15 +58,22 @@ class DomainCheckImage(OpenGraphImage):
     BRONZE: typing.ClassVar[RGB] = (198, 122, 64)
     WHITE: typing.ClassVar[RGB] = (255, 255, 255)
     RED: typing.ClassVar[RGB] = (255, 88, 92)
-    # One colour per tier family, so a plus and its minus share the medal.
-    TIER_COLORS: typing.ClassVar[dict[str, RGB]] = {
-        "S": PLATINUM,
-        "A": GOLD,
-        "B": SILVER,
-        "C": BRONZE,
-        "D": WHITE,
-        "E": RED,
-        "F": RED,
+    # Every tier appears once here, keyed by the enum. The rim reads the
+    # colour to decide whether it strikes a medal, so no second list exists.
+    TIER_COLORS: typing.ClassVar[dict[Tier, RGB]] = {
+        Tier.S: PLATINUM,
+        Tier.A_PLUS: GOLD,
+        Tier.A: GOLD,
+        Tier.A_MINUS: GOLD,
+        Tier.B: SILVER,
+        Tier.B_MINUS: SILVER,
+        Tier.C: BRONZE,
+        Tier.C_MINUS: BRONZE,
+        Tier.D: WHITE,
+        Tier.D_MINUS: WHITE,
+        Tier.E: RED,
+        Tier.E_MINUS: RED,
+        Tier.F: RED,
     }
     METALS: typing.ClassVar[frozenset[RGB]] = frozenset(
         {PLATINUM, GOLD, SILVER, BRONZE}
@@ -76,10 +84,10 @@ class DomainCheckImage(OpenGraphImage):
         return tuple(round(channel * 0.2 + 8) for channel in color)
 
     def tier_color(self) -> RGB:
-        """Return the colour of the tier's family, or the ink while it runs."""
+        """Return the tier's colour, or the ink while the check runs."""
         if self.check.status != self.check.Status.COMPLETE:
             return self.INK
-        return self.TIER_COLORS[str(self.check.tier)[0]]
+        return self.TIER_COLORS[self.check.tier]
 
     def draw(self, image: Image.Image) -> None:
         draw = ImageDraw.Draw(image)
