@@ -2,8 +2,8 @@
 {% load abstract i18n %}
 {% block topbar %}{% include "partials/topbar_static.html" %}{% endblock %}
 {% block title %}{% translate "domain check"|capfirst %}{% endblock %}
-{% block og_title %}{% translate "Domain check: every domain's email authentication grade" %}{% endblock %}
-{% block og_description %}{% translate "MX, SPF, DMARC, MTA-STS, TLS-RPT, and blocklists, graded A to F. Check any domain, free and without a signup." %}{% endblock %}
+{% block og_title %}{% translate "Domain check: every domain's email authentication tier" %}{% endblock %}
+{% block og_description %}{% translate "MX, SPF, DMARC, MTA-STS, TLS-RPT, and blocklists, tiered A to F. Check any domain, free and without a signup." %}{% endblock %}
 
 {% block content %}
   <div class="py-8 max-w-3xl mx-auto">
@@ -11,8 +11,8 @@
     <p class="text-muted-foreground m-0 mb-8">
       {% blocktranslate trimmed %}
         This page checks a domain's email authentication records and publishes every result. All checks passing is S. A
-        failure that stops mail is F. Any other broken configuration costs a full grade, and a weak one costs half a
-        grade.
+        failure that stops mail is F. Any other broken configuration costs a full tier, and a weak one costs half a
+        tier.
       {% endblocktranslate %}
     </p>
 

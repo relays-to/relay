@@ -63,7 +63,7 @@ class Migration(migrations.Migration):
                     models.PositiveSmallIntegerField(
                         db_index=True,
                         default=0,
-                        help_text="Half grades lost. A blocking failure pins the grade to F.",
+                        help_text="Half tiers lost. A blocking failure pins the tier to F.",
                         verbose_name="penalty",
                     ),
                 ),

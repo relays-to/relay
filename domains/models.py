@@ -24,7 +24,7 @@ from .checking.evaluation import (
     evaluate_domain,
     subcheck_hint,
 )
-from .checking.tiers import Tier, grade_for, penalty_for
+from .checking.tiers import Tier, penalty_for, tier_for
 
 
 def canonicalize_domain_name(value):
@@ -547,7 +547,7 @@ class DomainCheck(TimeStamped):
         _("penalty"),
         default=0,
         db_index=True,
-        help_text=_("Half grades lost. A blocking failure pins the grade to F."),
+        help_text=_("Half tiers lost. A blocking failure pins the tier to F."),
     )
     checks = models.JSONField(
         _("checks"),
@@ -618,7 +618,7 @@ class DomainCheck(TimeStamped):
 
     @property
     def tier(self) -> Tier:
-        return grade_for(self.penalty)
+        return tier_for(self.penalty)
 
     @property
     def tier_variant(self) -> str:

@@ -24,7 +24,7 @@ class Tier(models.TextChoices):
     F = "F", _("F tier")
 
 
-GRADES = (
+TIERS = (
     Tier.S,
     Tier.A_PLUS,
     Tier.A,
@@ -41,8 +41,8 @@ GRADES = (
 )
 
 
-def grade_for(penalty: int) -> Tier:
-    return GRADES[min(penalty, MAX_PENALTY)]
+def tier_for(penalty: int) -> Tier:
+    return TIERS[min(penalty, MAX_PENALTY)]
 
 
 def penalty_for(subchecks: Iterable[Mapping[str, str]]) -> int:

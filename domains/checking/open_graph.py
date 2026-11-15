@@ -41,7 +41,7 @@ TIER_COLORS = {
 
 @dataclasses.dataclass(kw_only=True)
 class DomainCheckImage(OpenGraphImage):
-    """Share card for one domain check: the domain, its issues, and its grade."""
+    """Share card for one domain check: the domain, its issues, and its tier."""
 
     check: DomainCheck
     host: str = "relay.to"
@@ -155,7 +155,7 @@ class DomainCheckImage(OpenGraphImage):
         )
         draw.text(
             (center_x, center_y + self.tier_radius + 44),
-            "GRADE",
+            "TIER",
             font=self.font("fira-sans-500.ttf", 24),
             fill=(*self.ink, 170),
             anchor="mm",
