@@ -2,6 +2,7 @@ import dataclasses
 import typing
 
 from abstract.open_graph import RGB, OpenGraphImage
+from domains.checking.tiers import Tier
 from domains.models import DomainCheck
 
 PADDING = 96
@@ -35,12 +36,28 @@ def tier_letter(check) -> str:
     return str(check.tier) if check.status == check.Status.COMPLETE else "\u2013"
 
 
+# Olympic medals: gold, silver, bronze, then a grey field and red for the
+# tiers that mean mail is broken.
+GOLD = (255, 205, 60)
+SILVER = (201, 207, 218)
+BRONZE = (214, 138, 74)
+GREY = (154, 160, 173)
+RED = (255, 100, 103)
+
 TIER_COLORS = {
-    "default": (255, 255, 255),
-    "success": (71, 209, 122),
-    "outline": (196, 192, 214),
-    "warning": (250, 175, 46),
-    "destructive": (255, 100, 103),
+    Tier.S: GOLD,
+    Tier.A_PLUS: SILVER,
+    Tier.A: SILVER,
+    Tier.A_MINUS: SILVER,
+    Tier.B: BRONZE,
+    Tier.B_MINUS: BRONZE,
+    Tier.C: GREY,
+    Tier.C_MINUS: GREY,
+    Tier.D: GREY,
+    Tier.D_MINUS: GREY,
+    Tier.E: RED,
+    Tier.E_MINUS: RED,
+    Tier.F: RED,
 }
 
 
@@ -61,7 +78,7 @@ class DomainCheckImage(OpenGraphImage):
     def tier_color(self) -> RGB:
         if self.check.status != self.check.Status.COMPLETE:
             return self.ink
-        return TIER_COLORS[self.check.tier_variant]
+        return TIER_COLORS[self.check.tier]
 
     def draw(self, draw) -> None:
         self.draw_header(draw)
