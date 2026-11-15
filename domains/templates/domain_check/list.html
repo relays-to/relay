@@ -32,24 +32,31 @@
 
     <div class="item-group">
       {% for domain_check in page_obj %}
-        <a class="item" data-variant="outline" href="{{ domain_check.get_absolute_url }}">
+        <a
+          class="item gap-3"
+          data-variant="outline"
+          data-tier="{% if domain_check.status == 'complete' %}{{ domain_check.tier_variant }}{% elif domain_check.status == 'failed' %}destructive{% else %}outline{% endif %}"
+          href="{{ domain_check.get_absolute_url }}"
+        >
           <div class="flex flex-1 flex-col gap-1">
-            <span class="font-medium break-all">{{ domain_check.name }}</span>
+            <span class="text-lg font-semibold break-all">{{ domain_check.name }}</span>
             {% if domain_check.checked_at %}
               <span class="text-sm text-muted-foreground">{{ domain_check.checked_at|naturaltime }}</span>
             {% endif %}
           </div>
           <div class="flex items-center gap-3">
             {% if domain_check.status == "complete" %}
-              <span class="badge" data-variant="{{ domain_check.tier_variant }}">{{ domain_check.tier }}<span
-                  class="sr-only"
-                >
+              <span
+                class="badge size-10 p-0 text-base"
+                data-variant="{{ domain_check.tier_variant }}"
+              >{{ domain_check.tier }}<span class="sr-only">
                   {% translate "tier" %}</span></span>
             {% elif domain_check.status == "failed" %}
               <span class="badge" data-variant="destructive">{% translate "failed" %}</span>
             {% else %}
               <span class="badge" data-variant="outline">{% translate "checking" %}</span>
             {% endif %}
+            {% tabler name="chevron-right" class="text-muted-foreground shrink-0" %}
           </div>
         </a>
       {% empty %}

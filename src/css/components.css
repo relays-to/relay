@@ -49,6 +49,32 @@
   --status-color: var(--color-info);
 }
 
+/* Every published check carries the tier it earned down the left edge of its
+   row, so the list reads as a ranking before you parse a single number. */
+.item[data-tier="default"] {
+  --status-color: var(--color-primary);
+}
+
+.item[data-tier="success"] {
+  --status-color: var(--color-success);
+}
+
+.item[data-tier="outline"] {
+  --status-color: var(--color-muted-foreground);
+}
+
+.item[data-tier="warning"] {
+  --status-color: var(--color-warning);
+}
+
+.item[data-tier="destructive"] {
+  --status-color: var(--color-destructive);
+}
+
+.item[data-tier] {
+  box-shadow: inset 4px 0 0 var(--status-color, transparent);
+}
+
 /* Basecoat's toast category only picks the icon. Tint the toast and its
    icon here so the four categories read as success, info, warning, and
    error, matching the badge and card status tints. */
@@ -69,15 +95,19 @@
 }
 
 .toast[data-category] .toast-content {
-   border-color: color-mix(in srgb, var(--status-color) 30%, var(--color-border));
-   background-color: color-mix(in srgb, var(--status-color) 10%, var(--color-popover));
-   & > svg {
-      color: var(--status-color);
-   }
+  border-color: color-mix(in srgb, var(--status-color) 30%, var(--color-border));
+  background-color: color-mix(in srgb, var(--status-color) 10%, var(--color-popover));
+  & > svg {
+    color: var(--status-color);
+  }
 }
 
 .card[data-variant] {
-  background-color: color-mix(in srgb, var(--status-color, transparent) 10%, transparent);
+  background-color: color-mix(
+    in srgb,
+    var(--status-color, transparent) 10%,
+    transparent
+  );
 }
 
 /* Status icon on item figures. */
@@ -109,13 +139,13 @@
    below it. The tablist stays a direct child of `.tabs` so basecoat keeps
    styling it. */
 .snippet-tabs {
-   display: grid;
-   grid-template-columns: 1fr auto;
-   align-items: center;
-   gap: calc(var(--spacing) * 4) calc(var(--spacing) * 2);
-   & > [role='tabpanel'] {
-      grid-column: 1 / -1;
-   }
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: calc(var(--spacing) * 4) calc(var(--spacing) * 2);
+  & > [role="tabpanel"] {
+    grid-column: 1 / -1;
+  }
 }
 
 .pug {
@@ -160,19 +190,19 @@
    strip keeps its own column, the controls take the right end, and every
    panel spans both so the body keeps the full width. */
 .tabs:has(> .preview-controls) {
-   display: grid;
-   grid-template-columns: auto minmax(0, 1fr);
-   align-items: center;
-   & > [role="tablist"] {
-      grid-area: 1 / 1;
-   }
-   & > .preview-controls {
-      grid-area: 1 / 2;
-      justify-self: end;
-   }
-   & > [role="tabpanel"] {
-      grid-column: 1 / -1;
-   }
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  & > [role="tablist"] {
+    grid-area: 1 / 1;
+  }
+  & > .preview-controls {
+    grid-area: 1 / 2;
+    justify-self: end;
+  }
+  & > [role="tabpanel"] {
+    grid-column: 1 / -1;
+  }
 }
 
 /* Native date and time controls do not vertically center their value like
@@ -205,7 +235,13 @@
 }
 
 /* Restore the admin shell and native controls after basecoat's resets. */
-:where(html:has(body.admin), body.admin, body.admin *, body.admin *::before, body.admin *::after) {
+:where(
+  html:has(body.admin),
+  body.admin,
+  body.admin *,
+  body.admin *::before,
+  body.admin *::after
+) {
   box-sizing: content-box;
 }
 
@@ -223,7 +259,17 @@ body.admin {
     }
   }
 
-  & :is(select, button, input[type="checkbox"], input[type="radio"], input[type="file"], input[type="submit"], input[type="button"], input[type="reset"]) {
+  &
+    :is(
+      select,
+      button,
+      input[type="checkbox"],
+      input[type="radio"],
+      input[type="file"],
+      input[type="submit"],
+      input[type="button"],
+      input[type="reset"]
+    ) {
     box-sizing: border-box;
   }
 
