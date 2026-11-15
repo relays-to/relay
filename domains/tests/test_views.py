@@ -492,10 +492,11 @@ class TestDomainZoneFileView:
         )
         content = response.content.decode()
         assert "$ORIGIN example.com." in content
-        assert f'@ IN TXT "{domain.root_spf_record}"' in content
+        assert f'@ 3600 IN TXT "{domain.root_spf_record}"' in content
         for name, target in domain.dkim_cnames.values():
             assert (
-                f"{name.removesuffix(f'.{domain.name}')} IN CNAME {target}." in content
+                f"{name.removesuffix(f'.{domain.name}')} 3600 IN CNAME {target}."
+                in content
             )
 
     def test_get__delegation_zone_file_lists_the_nameservers(self, admin_client, org):
@@ -504,8 +505,8 @@ class TestDomainZoneFileView:
         response = admin_client.get(self.zone_url(org, domain, "delegation"))
 
         content = response.content.decode()
-        assert "mail.relay IN NS " in content
-        assert content.count("mail.relay IN NS ") == 2
+        assert "mail.relay 3600 IN NS " in content
+        assert content.count("mail.relay 3600 IN NS ") == 2
 
     def test_get__receiving_zone_file_lists_the_mx_hosts(self, admin_client, org):
         domain = Domain.objects.create(name="example.com", org=org)
@@ -514,7 +515,7 @@ class TestDomainZoneFileView:
 
         content = response.content.decode()
         for hostname in settings.DNS_MX_HOSTNAMES:
-            assert f"@ IN MX 10 {hostname.split(':')[0]}." in content
+            assert f"@ 3600 IN MX 10 {hostname.split(':')[0]}." in content
 
     def test_get__reporting_zone_file_lists_the_records(self, admin_client, org):
         domain = Domain.objects.create(name="example.com", org=org)
@@ -522,10 +523,31 @@ class TestDomainZoneFileView:
         response = admin_client.get(self.zone_url(org, domain, "reporting"))
 
         content = response.content.decode()
-        assert f'_dmarc IN TXT "{domain.dmarc_record}"' in content
-        assert f"_mta-sts IN CNAME {domain.mta_sts_record_cname_target}." in content
-        assert f"mta-sts IN CNAME {domain.mta_sts_cname_target}." in content
-        assert f"_smtp._tls IN CNAME {domain.tls_rpt_record_cname_target}." in content
+        assert f'_dmarc 3600 IN TXT "{domain.dmarc_record}"' in content
+        assert (
+            f"_mta-sts 3600 IN CNAME {domain.mta_sts_record_cname_target}." in content
+        )
+        assert f"mta-sts 3600 IN CNAME {domain.mta_sts_cname_target}." in content
+        assert (
+            f"_smtp._tls 3600 IN CNAME {domain.tls_rpt_record_cname_target}." in content
+        )
+
+    def test_get__zone_file_sets_every_ttl_to_3600(self, admin_client, org):
+        domain = Domain.objects.create(name="example.com", org=org)
+
+        for group in ("delegation", "sending", "receiving", "reporting"):
+            content = admin_client.get(
+                self.zone_url(org, domain, group)
+            ).content.decode()
+
+            assert "$TTL 3600" in content
+            record_lines = [
+                line
+                for line in content.splitlines()
+                if line and not line.startswith("$")
+            ]
+            assert record_lines
+            assert all(" 3600 IN " in line for line in record_lines)
 
     def test_get__not_found_for_unknown_group(self, admin_client, org):
         domain = Domain.objects.create(name="example.com", org=org)
