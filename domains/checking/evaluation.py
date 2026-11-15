@@ -17,7 +17,7 @@ from abstract.blocklists import (
     reverse_pointer,
 )
 from abstract.mailauth import DmarcPolicy
-from domains.services import matches_mta_sts_mx_pattern, parse_mta_sts_txt_record
+from domains.mta_sts import matches_mta_sts_mx_pattern, parse_mta_sts_txt_record
 
 from .lookup import (
     DNS_CACHE_SECS,

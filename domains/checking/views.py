@@ -9,10 +9,9 @@ from django.utils.translation import gettext_lazy as _
 from django.views import generic
 
 from abstract.views import BreadcrumbViewMixin, CacheControlMixin, NoStoreCacheMixin
-from domains.models import canonicalize_domain_name
+from domains.models import DomainCheck, canonicalize_domain_name
 
 from .forms import DomainCheckForm
-from .models import DomainCheck
 from .open_graph import DomainCheckImage
 from .tasks import check_domain
 

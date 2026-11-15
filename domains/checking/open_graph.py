@@ -2,7 +2,7 @@ import dataclasses
 from typing import ClassVar
 
 from abstract.open_graph import OpenGraphImage
-from domain_check.models import DomainCheck
+from domains.models import DomainCheck
 
 PADDING = 72
 TEXT_WIDTH = 660

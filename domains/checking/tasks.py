@@ -6,6 +6,8 @@ from django.tasks import DEFAULT_TASK_QUEUE_NAME, TaskContext, task
 from django.utils import timezone
 from threadmill.retry import ExponentialBackoff
 
+from domains.models import DomainCheck
+
 from .evaluation import (
     CHECK_ORDER,
     CheckResult,
@@ -14,7 +16,6 @@ from .evaluation import (
     evaluate_reputation,
 )
 from .lookup import Lookup
-from .models import DomainCheck
 from .tiers import penalty_for
 
 CHECK_RETRY = ExponentialBackoff(

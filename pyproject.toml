@@ -162,7 +162,6 @@ root_packages = [
   "kms",
   "legal",
   "root",
-  "domain_check",
   "services",
   "well_known",
 ]
@@ -180,7 +179,6 @@ forbidden_modules = [
   "kms",
   "legal",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.message",
@@ -207,7 +205,6 @@ forbidden_modules = [
   "know_how",
   "legal",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.message",
@@ -241,7 +238,6 @@ forbidden_modules = [
   "kms",
   "legal",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.message",
@@ -263,7 +259,6 @@ forbidden_modules = [
   "know_how",
   "legal",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.message",
@@ -284,7 +279,6 @@ forbidden_modules = [
   "know_how",
   "legal",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.message",
@@ -305,7 +299,6 @@ forbidden_modules = [
   "know_how",
   "legal",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.msa",
@@ -325,7 +318,6 @@ forbidden_modules = [
   "domains",
   "legal",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.msa",
@@ -348,7 +340,6 @@ forbidden_modules = [
   "know_how",
   "legal",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.reputation",
@@ -366,7 +357,6 @@ forbidden_modules = [
   "know_how",
   "legal",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.reputation",
@@ -384,7 +374,6 @@ forbidden_modules = [
   "know_how",
   "legal",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.reputation",
   "well_known",
@@ -401,7 +390,6 @@ forbidden_modules = [
   "know_how",
   "legal",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "well_known",
@@ -418,7 +406,6 @@ forbidden_modules = [
   "know_how",
   "legal",
   "root",
-  "domain_check",
   "well_known",
 ]
 
@@ -433,7 +420,6 @@ forbidden_modules = [
   "domains",
   "kms",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.message",
@@ -452,7 +438,6 @@ forbidden_modules = [
   "domains",
   "kms",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.message",
@@ -471,7 +456,6 @@ forbidden_modules = [
   "domains",
   "kms",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.message",
@@ -504,22 +488,6 @@ forbidden_modules = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "Domain check depends only on domains, kms and abstract"
-type = "forbidden"
-source_modules = [ "domain_check" ]
-forbidden_modules = [
-  "accounts",
-  "alternative_to",
-  "captains_log",
-  "docs",
-  "know_how",
-  "legal",
-  "root",
-  "services",
-  "well_known",
-]
-
-[[tool.importlinter.contracts]]
 name = "Captains log depends only on accounts and abstract"
 type = "forbidden"
 source_modules = [ "captains_log" ]
@@ -531,7 +499,6 @@ forbidden_modules = [
   "kms",
   "legal",
   "root",
-  "domain_check",
   "services.email.dashboard",
   "services.email.dmarc",
   "services.email.message",
