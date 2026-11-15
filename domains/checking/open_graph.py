@@ -1,5 +1,8 @@
 import dataclasses
+import math
 import typing
+
+from PIL import Image, ImageDraw
 
 from abstract.open_graph import RGB, OpenGraphImage
 from domains.checking.tiers import Tier
@@ -36,29 +39,44 @@ def tier_letter(check) -> str:
     return str(check.tier) if check.status == check.Status.COMPLETE else "\u2013"
 
 
-# Olympic medals: gold, silver, bronze, then a grey field and red for the
-# tiers that mean mail is broken.
-GOLD = (255, 205, 60)
-SILVER = (201, 207, 218)
-BRONZE = (214, 138, 74)
-GREY = (154, 160, 173)
-RED = (255, 100, 103)
+# Platinum, gold, silver, bronze, then plain white and red.
+PLATINUM = (240, 243, 248)
+GOLD = (255, 200, 45)
+SILVER = (170, 178, 192)
+BRONZE = (198, 122, 64)
+RED = (255, 88, 92)
 
 TIER_COLORS = {
-    Tier.S: GOLD,
-    Tier.A_PLUS: SILVER,
-    Tier.A: SILVER,
-    Tier.A_MINUS: SILVER,
-    Tier.B: BRONZE,
-    Tier.B_MINUS: BRONZE,
-    Tier.C: GREY,
-    Tier.C_MINUS: GREY,
-    Tier.D: GREY,
-    Tier.D_MINUS: GREY,
+    Tier.S: PLATINUM,
+    Tier.A_PLUS: GOLD,
+    Tier.A: GOLD,
+    Tier.A_MINUS: GOLD,
+    Tier.B: SILVER,
+    Tier.B_MINUS: SILVER,
+    Tier.C: BRONZE,
+    Tier.C_MINUS: BRONZE,
+    Tier.D: (255, 255, 255),
+    Tier.D_MINUS: (255, 255, 255),
     Tier.E: RED,
     Tier.E_MINUS: RED,
     Tier.F: RED,
 }
+
+MEDAL_TIERS = frozenset(
+    {
+        Tier.S,
+        Tier.A_PLUS,
+        Tier.A,
+        Tier.A_MINUS,
+        Tier.B,
+        Tier.B_MINUS,
+        Tier.C,
+        Tier.C_MINUS,
+    }
+)
+RING_SEGMENTS = 96
+RING_WIDTH = 10
+RING_SCALE = 4
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -80,11 +98,12 @@ class DomainCheckImage(OpenGraphImage):
             return self.ink
         return TIER_COLORS[self.check.tier]
 
-    def draw(self, draw) -> None:
+    def draw(self, image: Image.Image) -> None:
+        draw = ImageDraw.Draw(image)
         self.draw_header(draw)
         self.draw_domain(draw)
         self.draw_status(draw)
-        self.draw_tier(draw)
+        self.draw_tier(image, draw)
 
     def draw_header(self, draw) -> None:
         left = self.padding - 4
@@ -169,7 +188,37 @@ class DomainCheckImage(OpenGraphImage):
             anchor="ls",
         )
 
-    def draw_tier(self, draw) -> None:
+    def tier_ring(self, color: RGB) -> Image.Image:
+        """Render the rim of the medal, lit from the top left."""
+        diameter = 2 * self.tier_radius
+        scale = RING_SCALE
+        layer = Image.new("RGBA", (diameter * scale, diameter * scale), (0, 0, 0, 0))
+        pen = ImageDraw.Draw(layer)
+        bounds = (0, 0, diameter * scale - 1, diameter * scale - 1)
+        medal = self.check.tier in MEDAL_TIERS
+        light = tuple(round(c + (255 - c) * 0.62) for c in color)
+        dark = tuple(round(c * 0.34) for c in color)
+        span = 360 / RING_SEGMENTS
+        for step in range(RING_SEGMENTS):
+            start = step * span
+            if medal:
+                shine = (math.cos(math.radians(start + span / 2 - 225)) + 1) / 2
+                fill = tuple(
+                    round(shadow + (bright - shadow) * shine)
+                    for shadow, bright in zip(dark, light)
+                )
+            else:
+                fill = color
+            pen.arc(
+                bounds,
+                start,
+                start + span + 0.5,
+                fill=(*fill, 255),
+                width=RING_WIDTH * scale,
+            )
+        return layer.resize((diameter, diameter), Image.Resampling.LANCZOS)
+
+    def draw_tier(self, image: Image.Image, draw) -> None:
         center_x, center_y = self.tier_center
         color = self.tier_color()
         bounds = (
@@ -179,7 +228,7 @@ class DomainCheckImage(OpenGraphImage):
             center_y + self.tier_radius,
         )
         draw.ellipse(bounds, fill=(*self.tier_disc, 235))
-        draw.ellipse(bounds, outline=color, width=4)
+        image.alpha_composite(self.tier_ring(color), bounds[:2])
         letter = tier_letter(self.check)
         font = self.font("fira-sans-700.ttf", 300 if len(letter) == 1 else 220)
         mask, (offset_x, offset_y) = font.getmask2(letter, mode="L")

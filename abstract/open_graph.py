@@ -5,7 +5,7 @@ import pathlib
 import typing
 
 from django.core.cache import cache
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageFont
 
 type RGB = tuple[int, int, int]
 
@@ -52,14 +52,14 @@ class OpenGraphImage:
                 )
         return small.resize((self.width, self.height)).convert("RGBA")
 
-    def draw(self, draw: ImageDraw.ImageDraw) -> None:
+    def draw(self, image: Image.Image) -> None:
         raise NotImplementedError
 
     def render(self) -> bytes:
         if not (payload := cache.get(self.cache_key)):
             image = self.background()
             overlay = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
-            self.draw(ImageDraw.Draw(overlay))
+            self.draw(overlay)
             image = Image.alpha_composite(image, overlay)
             buffer = io.BytesIO()
             image.convert("RGB").save(buffer, format="PNG", optimize=True)
