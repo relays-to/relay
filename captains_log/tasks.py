@@ -1,5 +1,5 @@
+import datetime
 import logging
-from datetime import timedelta
 
 from crontask import cron
 from django.conf import settings
@@ -53,7 +53,7 @@ def send_station_log(slug):
 @task(queue_name=DEFAULT_TASK_QUEUE_NAME)
 def send_station_log_announcements():
     """Queue the announcement for each log published yesterday."""
-    yesterday = timezone.localdate() - timedelta(days=1)
+    yesterday = timezone.localdate() - datetime.timedelta(days=1)
     for slug, metadata in CaptainsLogContent.get_articles():
         if metadata["date"] == yesterday:
             send_station_log.enqueue(slug=slug)

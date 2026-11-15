@@ -1,4 +1,4 @@
-from datetime import timedelta
+import datetime
 from unittest.mock import patch
 
 import pytest
@@ -65,7 +65,7 @@ class TestSendStationLog:
 
 class TestSendStationLogAnnouncements:
     def test_announcements__queues_yesterday_log(self, monkeypatch):
-        yesterday = timezone.localdate() - timedelta(days=1)
+        yesterday = timezone.localdate() - datetime.timedelta(days=1)
         monkeypatch.setattr(
             CaptainsLogContent,
             "get_articles",
@@ -78,7 +78,7 @@ class TestSendStationLogAnnouncements:
         task.enqueue.assert_called_once_with(slug=SLUG)
 
     def test_announcements__skips_older_logs(self, monkeypatch):
-        older = timezone.localdate() - timedelta(days=2)
+        older = timezone.localdate() - datetime.timedelta(days=2)
         monkeypatch.setattr(
             CaptainsLogContent,
             "get_articles",

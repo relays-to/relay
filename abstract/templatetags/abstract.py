@@ -1,6 +1,5 @@
 import datetime
 import decimal
-from datetime import timedelta
 
 from django.contrib.admin.templatetags.admin_urls import admin_urlname
 from django.contrib.humanize.templatetags import humanize
@@ -183,7 +182,7 @@ def percent(text, arg=-1):
 
 
 @register.filter
-def human_duration(value: timedelta) -> str:
+def human_duration(value: datetime.timedelta) -> str:
     """Render a duration in words, so a card reads at a glance."""
     return naturaldelta(value, minimum_unit="milliseconds")
 

@@ -1,8 +1,8 @@
 """Asymmetric key generation, encryption, and signing helpers."""
 
 import base64
+import dataclasses
 import hashlib
-from dataclasses import dataclass
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -18,7 +18,7 @@ class UnsupportedAlgorithmError(ValueError):
         super().__init__(f"Unsupported algorithm: {algorithm}")
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class KeyPair:
     ciphertext: str  # Fernet-encrypted PEM
     public_key_pem: str  # plaintext PEM
