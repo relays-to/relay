@@ -1,7 +1,5 @@
 import datetime
 import decimal
-import ipaddress
-import uuid
 
 from django.contrib.admin.templatetags.admin_urls import admin_urlname
 from django.contrib.humanize.templatetags import humanize
@@ -102,16 +100,6 @@ def timestamp(value):
         "iso": value.isoformat(),
         "natural": naturaltime(value),
     }
-
-
-@register.inclusion_tag("abstract/ip_address.html")
-def ip_address(value):
-    """Render an address as a link that opens a drawer with its location."""
-    try:
-        address = str(ipaddress.ip_address(value))
-    except ValueError:
-        return {"address": value, "known": False}
-    return {"address": address, "known": True, "token": uuid.uuid4().hex[:8]}
 
 
 @register.inclusion_tag("abstract/pagination.html", takes_context=True)

@@ -126,7 +126,12 @@
                       {% if subcheck.addresses %}
                         <div class="flex flex-wrap items-center gap-1">
                           {% for address in subcheck.addresses %}
-                            {% ip_address address %}
+                            <ip-address
+                              address="{{ address }}"
+                              data-map='{% translate "map"|capfirst %}'
+                              data-unavailable='{% translate "location unavailable" %}'
+                              data-retry='{% translate "retry"|capfirst %}'
+                            ></ip-address>
                           {% endfor %}
                         </div>
                       {% endif %}
@@ -188,6 +193,6 @@
         {% translate "Browse every domain checked so far" %}
       </a>
     </p>
-    {% esm '#js/network-location.js' %}
+    {% esm '#js/ip-address.js' %}
   </div>
 {% endblock %}
