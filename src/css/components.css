@@ -30,6 +30,7 @@
 /* Status text, card tint, and item figure colors. */
 .status {
   --status-color: var(--color-muted-foreground);
+
   color: var(--status-color);
 }
 
@@ -95,11 +96,12 @@
 }
 
 .toast[data-category] .toast-content {
-  border-color: color-mix(in srgb, var(--status-color) 30%, var(--color-border));
-  background-color: color-mix(in srgb, var(--status-color) 10%, var(--color-popover));
-  & > svg {
-    color: var(--status-color);
-  }
+   border-color: color-mix(in srgb, var(--status-color) 30%, var(--color-border));
+   background-color: color-mix(in srgb, var(--status-color) 10%, var(--color-popover));
+
+   & > svg {
+      color: var(--status-color);
+   }
 }
 
 .card[data-variant] {
@@ -118,15 +120,15 @@
 /* Extra-small button sizes for controls that sit inline with badges
    (data-size="sm" is 32px and dwarfs a 20px status badge). */
 .btn[data-size="xs"] {
-  height: calc(var(--spacing) * 7);
+  block-size: calc(var(--spacing) * 7);
   gap: calc(var(--spacing) * 1.5);
   padding-inline: calc(var(--spacing) * 2.5);
   font-size: 0.75rem;
 }
 
 .btn[data-size="icon-xs"] {
-  width: calc(var(--spacing) * 7);
-  height: calc(var(--spacing) * 7);
+  inline-size: calc(var(--spacing) * 7);
+  block-size: calc(var(--spacing) * 7);
 }
 
 /* Basecoat pads a card's header, section, and footer inline, so a card that
@@ -139,13 +141,14 @@
    below it. The tablist stays a direct child of `.tabs` so basecoat keeps
    styling it. */
 .snippet-tabs {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: calc(var(--spacing) * 4) calc(var(--spacing) * 2);
-  & > [role="tabpanel"] {
-    grid-column: 1 / -1;
-  }
+   display: grid;
+   grid-template-columns: 1fr auto;
+   align-items: center;
+   gap: calc(var(--spacing) * 4) calc(var(--spacing) * 2);
+
+   & > [role='tabpanel'] {
+      grid-column: 1 / -1;
+   }
 }
 
 .pug {
@@ -186,23 +189,34 @@
   }
 }
 
+/* The domain record tabs wrap on narrow screens instead of widening the page. */
+.domain-record-tabs > [role="tablist"] {
+  block-size: auto;
+  max-inline-size: 100%;
+  flex-wrap: wrap;
+  row-gap: calc(var(--spacing) * 0.5);
+}
+
 /* The message detail tab strip shares its row with the preview controls. The
    strip keeps its own column, the controls take the right end, and every
    panel spans both so the body keeps the full width. */
 .tabs:has(> .preview-controls) {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  & > [role="tablist"] {
-    grid-area: 1 / 1;
-  }
-  & > .preview-controls {
-    grid-area: 1 / 2;
-    justify-self: end;
-  }
-  & > [role="tabpanel"] {
-    grid-column: 1 / -1;
-  }
+   display: grid;
+   grid-template-columns: auto minmax(0, 1fr);
+   align-items: center;
+
+   & > [role="tablist"] {
+      grid-area: 1 / 1;
+   }
+
+   & > .preview-controls {
+      grid-area: 1 / 2;
+      justify-self: end;
+   }
+
+   & > [role="tabpanel"] {
+      grid-column: 1 / -1;
+   }
 }
 
 /* Native date and time controls do not vertically center their value like
@@ -218,20 +232,12 @@
   }
 }
 
-/* The domain record tabs wrap on narrow screens instead of widening the page. */
-.domain-record-tabs > [role="tablist"] {
-  height: auto;
-  max-width: 100%;
-  flex-wrap: wrap;
-  row-gap: calc(var(--spacing) * 0.5);
-}
-
 /* A record input hugs its own text, so the copy button sits next to the
    value it copies instead of at the far end of a stretched row. */
 .field .input-group > .record-input {
   field-sizing: content;
   flex: 0 1 auto;
-  max-width: 100%;
+  max-inline-size: 100%;
 }
 
 /* Restore the admin shell and native controls after basecoat's resets. */
