@@ -62,7 +62,7 @@ def build_zone_file(domain, group, nameservers, mx_hostnames, mx_priority):
                 f"$TTL {ZONE_FILE_TTL}",
                 "",
                 *(
-                    f"{name} IN {record_type} {value}"
+                    f"{name} {ZONE_FILE_TTL} IN {record_type} {value}"
                     for name, record_type, value in records
                 ),
             ]

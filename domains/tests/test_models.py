@@ -443,11 +443,11 @@ class TestMtaStsPolicyId:
 
 
 class TestDmarcRecord:
-    def test_dmarc_record__uses_quarantine_policy(self):
-        assert "p=quarantine" in Domain(name="example.com").dmarc_record
+    def test_dmarc_record__uses_reject_policy(self):
+        assert "p=reject" in Domain(name="example.com").dmarc_record
 
-    def test_dmarc_record__uses_quarantine_subdomain_policy(self):
-        assert "sp=quarantine" in Domain(name="example.com").dmarc_record
+    def test_dmarc_record__uses_reject_subdomain_policy(self):
+        assert "sp=reject" in Domain(name="example.com").dmarc_record
 
     def test_dmarc_record__does_not_use_none_policy(self):
         assert "p=none" not in Domain(name="example.com").dmarc_record

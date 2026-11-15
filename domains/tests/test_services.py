@@ -121,7 +121,7 @@ class TestCheckDmarc:
             domain.dmarc_record_name,
             "TXT",
             f'"{domain.dmarc_record}"',
-            f'"{domain.dmarc_record.replace("p=quarantine", "p=none")}"',
+            f'"{domain.dmarc_record.replace("p=reject", "p=none")}"',
         )
         assert check_dmarc(domain) is False
 
