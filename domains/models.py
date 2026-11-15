@@ -1,5 +1,8 @@
 import base64
+import dataclasses
+import datetime
 import hashlib
+from collections.abc import Iterable, Mapping
 from functools import reduce
 from operator import or_
 
@@ -7,13 +10,17 @@ import idna
 import validators
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models.functions import Length, Lower
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from abstract.models import TimeStamped
 from kms.models import SigningKey
+
+from .check.evaluation import Check, CheckResult
+from .check.tiers import Tier
 
 
 def canonicalize_domain_name(value):
@@ -493,3 +500,169 @@ class Domain(TimeStamped):
     def mta_sts_cname_target(self):
         """Return the policy host inside the sender subdomain."""
         return f"mta-sts.{self.sender_domain}"
+
+
+class DomainCheck(TimeStamped):
+    CHECK_INTERVAL = datetime.timedelta(days=1)
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("pending")
+        RUNNING = "running", _("running")
+        COMPLETE = "complete", _("complete")
+        FAILED = "failed", _("failed")
+
+    name = models.CharField(
+        _("domain"),
+        max_length=255,
+        unique=True,
+        validators=[validate_domain_name],
+        help_text=_("Domain name without a scheme."),
+    )
+    status = models.TextField(
+        _("status"),
+        choices=Status,
+        default=Status.PENDING,
+    )
+    penalty = models.PositiveSmallIntegerField(
+        _("penalty"),
+        default=0,
+        db_index=True,
+        help_text=_("Half tiers lost. A blocking failure pins the tier to F."),
+    )
+    checks = models.JSONField(
+        _("checks"),
+        default=list,
+        help_text=_("One result per authentication check."),
+    )
+    checked_at = models.DateTimeField(
+        _("checked at"),
+        null=True,
+        blank=True,
+        help_text=_("When the last check ran."),
+    )
+
+    class Meta(TimeStamped.Meta):
+        ordering = ["penalty", "name"]
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f"<DomainCheck {self.pk}>"
+
+    def get_absolute_url(self):
+        return reverse("domain_check:detail", kwargs={"name": self.name})
+
+    @property
+    def is_stale(self) -> bool:
+        if self.status == self.Status.FAILED:
+            return True
+        if self.checked_at is None:
+            return True
+        reference = (
+            self.modified_at
+            if self.status in {self.Status.PENDING, self.Status.RUNNING}
+            else self.checked_at
+        )
+        return timezone.now() - reference > self.CHECK_INTERVAL
+
+    @staticmethod
+    def build_check_row(check: dict) -> dict:
+        subchecks = [
+            {
+                "severity": "broken",
+                "hint": Check.hint_for(check["key"], subcheck["label"]),
+            }
+            | subcheck
+            for subcheck in check.get("subchecks", [])
+        ]
+        return check | {
+            "slug": Check.slugs().get(check["key"]),
+            "subchecks": subchecks,
+            "issue_count": sum(
+                subcheck["status"] not in {"pass", "skip"} for subcheck in subchecks
+            ),
+        }
+
+    @property
+    def check_rows(self) -> list[dict]:
+        return [
+            self.build_check_row(check)
+            for check in self.checks
+            if check["key"] in Check.order()
+        ]
+
+    @property
+    def issue_count(self) -> int:
+        return sum(row["issue_count"] for row in self.check_rows)
+
+    @classmethod
+    def store(cls, name: str, results: Iterable[CheckResult]) -> None:
+        with transaction.atomic():
+            domain_check = cls.objects.select_for_update().get(name=name)
+            if domain_check.status == cls.Status.RUNNING:
+                merged = {check["key"]: check for check in domain_check.checks}
+                merged.update(
+                    {
+                        result.key: dataclasses.asdict(result)
+                        | {"status": result.status}
+                        for result in results
+                    }
+                )
+                checks = [merged[key] for key in Check.order() if key in merged]
+                update_fields = ["checks"]
+                if len(checks) == len(Check.order()):
+                    domain_check.penalty = cls.penalty_for(checks)
+                    domain_check.status = cls.Status.COMPLETE
+                    domain_check.checked_at = timezone.now()
+                    update_fields += ["penalty", "status", "checked_at"]
+                domain_check.checks = checks
+                domain_check.save(update_fields=update_fields)
+
+    @classmethod
+    def penalty_for(cls, checks: Iterable[Mapping]) -> int:
+        failed = [
+            subcheck
+            for check in checks
+            for subcheck in check.get("subchecks", [])
+            if subcheck["status"] == "fail"
+        ]
+        if any(subcheck.get("severity", "broken") == "blocking" for subcheck in failed):
+            return len(Tier) - 1
+        return sum(
+            2 if subcheck.get("severity", "broken") == "broken" else 1
+            for subcheck in failed
+        )
+
+    @property
+    def issue_phrase(self) -> str:
+        """Return how many checks need attention, in words."""
+        if self.issue_count == 0:
+            return "All checks pass"
+        suffix = "s" if self.issue_count != 1 else ""
+        verb = "needs" if self.issue_count == 1 else "need"
+        return f"{self.issue_count} issue{suffix} {verb} attention"
+
+    @property
+    def status_line(self) -> str:
+        """Return the one line status a card prints under the domain."""
+        match self.status:
+            case self.Status.COMPLETE:
+                return self.issue_phrase
+            case self.Status.FAILED:
+                return "The last check failed"
+            case _:
+                return "Check in progress"
+
+    @property
+    def tier_letter(self) -> str:
+        """Return the tier, or a dash while the check has not finished."""
+        return str(self.tier) if self.status == self.Status.COMPLETE else "\u2013"
+
+    @property
+    def tier(self) -> Tier:
+        return list(Tier)[min(self.penalty, len(Tier) - 1)]
+
+    @property
+    def tier_variant(self) -> str:
+        return self.tier.variant

@@ -13,14 +13,12 @@ from health_check.exceptions import ServiceUnavailable, ServiceWarning
 from health_check.views import HealthCheckView
 from redis.asyncio import Redis
 
-
-@dataclasses.dataclass(frozen=True)
-class BlocklistProvider:
-    name: str
-    zone: str
-    reasons: frozendict[str, str] = dataclasses.field(default_factory=frozendict)
-    # Queried when a Spamhaus key is set. The key never reaches the output.
-    keyed_zone: str = ""
+from abstract.blocklists import (
+    DEFAULT_ADDRESS_PROVIDERS,
+    REFUSAL_NETWORK,
+    BlocklistProvider,
+    reverse_pointer,
+)
 
 
 class BlocklistListing(ServiceUnavailable):
@@ -98,56 +96,12 @@ class DnsBlocklist(HealthCheck):
 
     address: str
     providers: tuple[BlocklistProvider, ...] = dataclasses.field(
-        default=(
-            BlocklistProvider(
-                "Spamhaus ZEN",
-                "zen.dq.spamhaus.net" if settings.SPAMHAUS_KEY else "zen.spamhaus.org",
-                frozendict(
-                    {
-                        "127.0.0.2": "SBL, spam source",
-                        "127.0.0.3": "CSS, spam source",
-                        "127.0.0.4": "XBL, exploited machine",
-                        "127.0.0.5": "XBL, exploited machine",
-                        "127.0.0.6": "XBL, exploited machine",
-                        "127.0.0.7": "XBL, exploited machine",
-                        "127.0.0.9": "DROP, malicious network",
-                        "127.0.0.10": "PBL, policy blocklist",
-                        "127.0.0.11": "PBL, policy blocklist",
-                    }
-                ),
-                keyed_zone="{key}.zen.dq.spamhaus.net",
-            ),
-            BlocklistProvider("SpamCop", "bl.spamcop.net"),
-            BlocklistProvider("Barracuda", "b.barracudacentral.org"),
-            BlocklistProvider("Mailspike", "z.mailspike.net"),
-            BlocklistProvider("Hostkarma", "black.junkemailfilter.com"),
-            BlocklistProvider("PSBL", "psbl.surriel.com"),
-            BlocklistProvider("UCEPROTECT Level 1", "dnsbl-1.uceprotect.net"),
-            BlocklistProvider("SpamRATS", "all.spamrats.com"),
-            BlocklistProvider("Spam Eating Monkey", "bl.spameatingmonkey.net"),
-            BlocklistProvider("JustSpam", "dnsbl.justspam.org"),
-            BlocklistProvider("GBUdb Truncate", "truncate.gbudb.net"),
-            BlocklistProvider("0spam", "bl.0spam.org"),
-            BlocklistProvider("Backscatterer", "ips.backscatterer.org"),
-            BlocklistProvider("Blocklist.de", "bl.blocklist.de"),
-            BlocklistProvider("SpamSources", "spamsources.fabel.dk"),
-            BlocklistProvider("RV-Soft", "dnsbl.rv-soft.info"),
-            BlocklistProvider("InterServer", "rbl.interserver.net"),
-            BlocklistProvider("DroneBL", "dnsbl.dronebl.org"),
-        ),
-        repr=False,
+        default=DEFAULT_ADDRESS_PROVIDERS, repr=False
     )
-
-    # Blocklists answer a refused query from this range instead of a listing.
-    query_error_network = ipaddress.ip_network("127.255.255.0/24")
 
     async def run(self):
         try:
-            reversed_address = (
-                ipaddress.ip_address(self.address)
-                .reverse_pointer.removesuffix(".in-addr.arpa")
-                .removesuffix(".ip6.arpa")
-            )
+            reversed_address = reverse_pointer(self.address)
         except ValueError as error:
             raise BlocklistAddressError(self.address) from error
         resolver = dns.asyncresolver.Resolver()
@@ -184,9 +138,7 @@ class DnsBlocklist(HealthCheck):
         )
         if issue is None:
             errors = [
-                code
-                for code in codes
-                if ipaddress.ip_address(code) in self.query_error_network
+                code for code in codes if ipaddress.ip_address(code) in REFUSAL_NETWORK
             ]
             if errors:
                 issue = BlocklistRefusal(self.address, provider, errors)

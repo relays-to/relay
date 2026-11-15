@@ -1,0 +1,16 @@
+{% load i18n %}
+<input
+  type="text"
+  name="name"
+  {% if id %}id="{{ id }}"{% endif %}
+  placeholder="example.com"
+  class="{% if not classless %}input{% if extra_class %} {{ extra_class }}{% endif %}{% endif %}"
+  autocomplete="off"
+  autocorrect="off"
+  autocapitalize="none"
+  spellcheck="false"
+  inputmode="url"
+  pattern="^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z][a-zA-Z0-9-]{1,}$"
+  title="{% translate 'Enter a valid domain name, for example acme.com' %}"
+  required
+>

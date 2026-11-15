@@ -5,6 +5,8 @@ from . import views
 from .sitemaps import (
     AlternativeToSitemap,
     DocsSitemap,
+    DomainCheckListSitemap,
+    DomainCheckSitemap,
     HomeSitemap,
     KnowHowSitemap,
     LegalSitemap,
@@ -18,6 +20,8 @@ sitemaps = {
     "docs": DocsSitemap,
     "know-how": KnowHowSitemap,
     "alternative-to": AlternativeToSitemap,
+    "domain-check": DomainCheckListSitemap,
+    "domain-check-results": DomainCheckSitemap,
 }
 
 urlpatterns = [

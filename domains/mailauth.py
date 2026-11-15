@@ -38,7 +38,7 @@ class Disposition(StrEnum):
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class DmarcPolicy:
-    p: str = "none"
+    p: str = ""
     sp: str = "none"
     adkim: str = "r"
     aspf: str = "r"
@@ -47,6 +47,7 @@ class DmarcPolicy:
     pct: int = 100
     is_published: bool = False
     temperror: bool = False
+    record_count: int = 0
 
     @classmethod
     def lookup(cls, domain):
@@ -66,23 +67,36 @@ class DmarcPolicy:
                 exc_info=True,
             )
             return cls()
-        for record in records:
-            text = "".join(
-                s.decode() if isinstance(s, bytes) else s for s in record.strings
-            )
-            if text.startswith("v=DMARC1"):
-                fields = {}
-                for part in text.split(";"):
-                    part = part.strip()
-                    if "=" in part:
-                        key, value = (s.strip() for s in part.split("=", 1))
-                        if key in {"p", "sp", "adkim", "aspf", "rua", "ruf"}:
-                            fields[key] = value
-                        elif key == "pct":
-                            with suppress(ValueError):
-                                fields[key] = int(value)
-                return cls(**fields, is_published=True)
-        return cls()
+        return cls.from_records(records)
+
+    @staticmethod
+    def text(record) -> str:
+        """Return a TXT record as plain text."""
+        if isinstance(record, str):
+            return record
+        return "".join(
+            chunk.decode() if isinstance(chunk, bytes) else chunk
+            for chunk in record.strings
+        )
+
+    @classmethod
+    def from_records(cls, records):
+        found = [
+            text
+            for record in records
+            if (text := cls.text(record)).lower().startswith("v=dmarc1")
+        ]
+        fields = {}
+        for part in found[0].split(";") if found else ():
+            part = part.strip()
+            if "=" in part:
+                key, value = (s.strip() for s in part.split("=", 1))
+                if key in {"p", "sp", "adkim", "aspf", "rua", "ruf"}:
+                    fields[key] = value
+                elif key == "pct":
+                    with suppress(ValueError):
+                        fields[key] = int(value)
+        return cls(**fields, is_published=bool(found), record_count=len(found))
 
     @property
     def rua_address(self):

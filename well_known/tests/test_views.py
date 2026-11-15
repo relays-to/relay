@@ -1,3 +1,4 @@
+import pytest
 from django.urls import reverse
 
 
@@ -87,6 +88,7 @@ class TestLlmsFullTxt:
         assert "/alternative-to/ses/" in body
 
 
+@pytest.mark.django_db
 class TestSitemap:
     def test_get__returns_sitemap_xml(self, client):
         response = client.get(reverse("well_known:sitemap"))

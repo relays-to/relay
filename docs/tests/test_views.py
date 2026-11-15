@@ -51,7 +51,8 @@ class TestDocsListView:
         response = client.get(reverse("docs:list"))
         assert response.status_code == 200
         assert "articles" in response.context
-        assert len(response.context["articles"]) == 11
+        slugs = [article["slug"] for article in response.context["articles"]]
+        assert slugs == sorted(SLUGS)
 
 
 class TestDocsDetailView:

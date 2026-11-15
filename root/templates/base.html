@@ -23,6 +23,14 @@
       <meta property="og:site_name" content="relay">
       <meta property="og:type" content="{% block og_type %}website{% endblock %}">
       <meta property="og:url" content="{{ request.build_absolute_uri }}">
+      <meta
+        property="og:title"
+        content="{% block og_title %}relay: communication as a service{% endblock %}"
+      >
+      <meta
+        property="og:description"
+        content="{% block og_description %}Email sending, receiving, monitoring, and sandboxes for developers. relay handles the DNS and email plumbing.{% endblock %}"
+      >
       {% block social_image %}
         <meta
           property="og:image"

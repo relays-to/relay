@@ -1,5 +1,6 @@
 """Sitemap configuration for all public pages."""
 
+from django.apps import apps
 from django.contrib.sitemaps import Sitemap
 from django.urls import reverse
 
@@ -71,3 +72,31 @@ class AlternativeToSitemap(Sitemap):
 
     def location(self, slug):
         return reverse("alternative_to:detail", args=[slug])
+
+
+class DomainCheckListSitemap(Sitemap):
+    """The public domain check index."""
+
+    changefreq = "daily"
+    priority = 0.7
+
+    def items(self):
+        return ["domain_check:list"]
+
+    def location(self, item):
+        return reverse(item)
+
+
+class DomainCheckSitemap(Sitemap):
+    """One entry per published domain check."""
+
+    changefreq = "daily"
+    priority = 0.4
+
+    def items(self):
+        # The import graph keeps well_known out of domains, so go through the
+        # app registry instead of importing the model.
+        return apps.get_model("domains", "DomainCheck").objects.order_by("name")
+
+    def location(self, check):
+        return check.get_absolute_url()

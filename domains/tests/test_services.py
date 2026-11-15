@@ -6,14 +6,13 @@ from django.utils import timezone
 from accounts.models import Organization
 from domains import services
 from domains.models import Domain
+from domains.mta_sts import MtaStsRecord
 from domains.services import (
     check_dkim_cname,
     check_dmarc,
     check_mta_sts,
     check_spf,
     check_tls_rpt,
-    matches_mta_sts_mx_pattern,
-    parse_mta_sts_txt_record,
     verify_domain_dns,
     verify_nameserver_delegation,
 )
@@ -210,8 +209,8 @@ class TestCheckDkimCname:
         assert check_dkim_cname(domain, "dkim_rsa2048") is False
 
 
-def test_parse_mta_sts_txt_record__rejects_control_whitespace():
-    assert parse_mta_sts_txt_record("v=STSv1;\rid=test") is None
+def test_parse__rejects_control_whitespace():
+    assert MtaStsRecord.parse("v=STSv1;\rid=test") is None
 
 
 class TestMatchesMtaStsMxPattern:
@@ -223,8 +222,8 @@ class TestMatchesMtaStsMxPattern:
             ("mail.example.com", "*.example.com"),
         ],
     )
-    def test_matches_mta_sts_mx_pattern__ok(self, hostname, pattern):
-        assert matches_mta_sts_mx_pattern(hostname, pattern) is True
+    def test_matches__ok(self, hostname, pattern):
+        assert MtaStsRecord.matches(hostname, pattern) is True
 
     @pytest.mark.parametrize(
         ("hostname", "pattern"),
@@ -235,8 +234,8 @@ class TestMatchesMtaStsMxPattern:
             ("mail.example.com", "*.other.com"),
         ],
     )
-    def test_matches_mta_sts_mx_pattern__mismatch(self, hostname, pattern):
-        assert matches_mta_sts_mx_pattern(hostname, pattern) is False
+    def test_matches__mismatch(self, hostname, pattern):
+        assert MtaStsRecord.matches(hostname, pattern) is False
 
 
 @pytest.mark.django_db

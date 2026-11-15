@@ -86,6 +86,13 @@ serve: create-venv
         --reload-ignore-dirs storage --reload-ignore-dirs staticfiles \
         root.dev:application
 
+# Run the local task worker for every queue.
+[group('local')]
+worker:
+    uv run --env-file .env python manage.py threadmill worker \
+        --queues ingress egress delivery default \
+        --workers 2 --threads 4
+
 # Create a relocatable venv, because the app reuses and moves worktrees.
 [group('quality')]
 create-venv:

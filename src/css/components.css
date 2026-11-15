@@ -50,6 +50,32 @@
   --status-color: var(--color-info);
 }
 
+.item {
+  &[data-tier] {
+    box-shadow: inset 4px 0 0 var(--status-color, transparent);
+  }
+
+  &[data-tier="default"] {
+    --status-color: var(--color-primary);
+  }
+
+  &[data-tier="success"] {
+    --status-color: var(--color-success);
+  }
+
+  &[data-tier="outline"] {
+    --status-color: var(--color-muted-foreground);
+  }
+
+  &[data-tier="warning"] {
+    --status-color: var(--color-warning);
+  }
+
+  &[data-tier="destructive"] {
+    --status-color: var(--color-destructive);
+  }
+}
+
 /* Basecoat's toast category only picks the icon. Tint the toast and its
    icon here so the four categories read as success, info, warning, and
    error, matching the badge and card status tints. */
@@ -81,7 +107,11 @@
 }
 
 .card[data-variant] {
-  background-color: color-mix(in srgb, var(--status-color, transparent) 10%, transparent);
+  background-color: color-mix(
+    in srgb,
+    var(--status-color, transparent) 10%,
+    transparent
+  );
 }
 
 /* Status icon on item figures. */
@@ -215,7 +245,13 @@
 }
 
 /* Restore the admin shell and native controls after basecoat's resets. */
-:where(html:has(body.admin), body.admin, body.admin *, body.admin *::before, body.admin *::after) {
+:where(
+  html:has(body.admin),
+  body.admin,
+  body.admin *,
+  body.admin *::before,
+  body.admin *::after
+) {
   box-sizing: content-box;
 }
 
@@ -233,7 +269,17 @@ body.admin {
     }
   }
 
-  & :is(select, button, input[type="checkbox"], input[type="radio"], input[type="file"], input[type="submit"], input[type="button"], input[type="reset"]) {
+  &
+    :is(
+      select,
+      button,
+      input[type="checkbox"],
+      input[type="radio"],
+      input[type="file"],
+      input[type="submit"],
+      input[type="button"],
+      input[type="reset"]
+    ) {
     box-sizing: border-box;
   }
 

@@ -19,7 +19,7 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
-from abstract.mailauth import Disposition
+from domains.mailauth import Disposition
 from domains.models import Domain
 from services.email.message.models import Transmission
 from services.email.msa.models import (
@@ -1621,7 +1621,7 @@ class TestBounceReportChain:
         session = SimpleNamespace(peer=("127.0.0.1", 1234), ssl=False)
 
         with patch(
-            "abstract.mailauth.DmarcEvaluation.from_bytes",
+            "domains.mailauth.DmarcEvaluation.from_bytes",
             return_value=make_dmarc_evaluation(Disposition.NONE),
         ):
             result = await MXHandler().handle_DATA(None, session, envelope)
