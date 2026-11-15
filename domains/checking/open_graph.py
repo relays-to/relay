@@ -58,7 +58,7 @@ class DomainCheckImage(OpenGraphImage):
 
     def draw(self, draw) -> None:
         self.draw_wordmark(draw)
-        self.draw_pill(draw, "DOMAIN CHECK")
+        self.draw_kicker(draw, "EMAIL AUTHENTICATION")
         self.draw_domain(draw)
         self.draw_status(draw)
         self.draw_tier(draw)
@@ -72,19 +72,14 @@ class DomainCheckImage(OpenGraphImage):
             fill=self.ink,
         )
 
-    def draw_pill(self, draw, label: str) -> None:
-        label_font = self.font("fira-sans-500.ttf", 24)
-        width = draw.textlength(label, font=label_font)
-        left = self.width - self.padding - width - 52
-        draw.rounded_rectangle(
-            (left, self.padding - 6, self.width - self.padding, self.padding + 46),
-            radius=26,
-            outline=(*self.ink, 90),
-            width=2,
-            fill=(*self.ink, 18),
-        )
+    def draw_kicker(self, draw, label: str) -> None:
+        font = self.font("fira-sans-500.ttf", 24)
+        width = draw.textlength(label, font=font)
         draw.text(
-            (left + 26, self.padding + 6), label, font=label_font, fill=(*self.ink, 230)
+            (self.width - self.padding - width, self.padding + 6),
+            label,
+            font=font,
+            fill=(*self.ink, 190),
         )
 
     def draw_domain(self, draw) -> None:
@@ -146,13 +141,19 @@ class DomainCheckImage(OpenGraphImage):
             width=4,
         )
         letter = tier_letter(self.check)
-        draw.text(
-            (center_x, center_y - 6),
-            letter,
-            font=self.font("fira-sans-700.ttf", 168 if len(letter) == 1 else 120),
-            fill=color,
-            anchor="mm",
-        )
+        font = self.font("fira-sans-700.ttf", 168 if len(letter) == 1 else 120)
+        mask, (offset_x, offset_y) = font.getmask2(letter, mode="L")
+        if (ink := mask.getbbox()) is not None:
+            # Center the painted pixels, not the em box, which carries the side
+            # bearings and descender space the letter never fills.
+            left, top = offset_x + ink[0], offset_y + ink[1]
+            right, bottom = offset_x + ink[2], offset_y + ink[3]
+            draw.text(
+                (center_x - (left + right) / 2, center_y - (top + bottom) / 2),
+                letter,
+                font=font,
+                fill=color,
+            )
         draw.text(
             (center_x, center_y + self.tier_radius + 44),
             "TIER",
@@ -172,11 +173,4 @@ class DomainCheckImage(OpenGraphImage):
             f"{self.host}/domain-check",
             font=self.font("fira-sans-500.ttf", 26),
             fill=(*self.ink, 185),
-        )
-        draw.text(
-            (self.width - self.padding, 566),
-            "no signup required",
-            font=self.font("fira-sans-500.ttf", 26),
-            fill=(*self.ink, 185),
-            anchor="ra",
         )
