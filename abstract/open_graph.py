@@ -40,13 +40,17 @@ class OpenGraphImage:
 
     def background(self) -> Image.Image:
         start, end = self.background_start, self.background_end
-        ramp = Image.new("RGB", (self.width, 1))
-        for x in range(self.width):
-            step = x / (self.width - 1)
-            ramp.putpixel(
-                (x, 0), tuple(round(a + (b - a) * step) for a, b in zip(start, end))
-            )
-        return ramp.resize((self.width, self.height)).convert("RGBA")
+        # The favicon angle, corner to corner. A tenth of the canvas holds the
+        # same ramp, and bilinear upscaling keeps it smooth.
+        small = Image.new("RGB", (self.width // 10, self.height // 10))
+        for y in range(small.height):
+            for x in range(small.width):
+                step = (x / (small.width - 1) + y / (small.height - 1)) / 2
+                small.putpixel(
+                    (x, y),
+                    tuple(round(a + (b - a) * step) for a, b in zip(start, end)),
+                )
+        return small.resize((self.width, self.height)).convert("RGBA")
 
     def draw(self, draw: ImageDraw.ImageDraw) -> None:
         raise NotImplementedError
