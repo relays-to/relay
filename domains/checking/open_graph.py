@@ -48,7 +48,7 @@ class DomainCheckImage(OpenGraphImage):
 
     padding: typing.ClassVar[int] = PADDING
     text_width: typing.ClassVar[int] = TEXT_WIDTH
-    tier_center: typing.ClassVar[tuple[int, int]] = (968, 300)
+    tier_center: typing.ClassVar[tuple[int, int]] = (1000, 300)
     tier_radius: typing.ClassVar[int] = 128
 
     def tier_color(self) -> RGB:
@@ -58,9 +58,9 @@ class DomainCheckImage(OpenGraphImage):
 
     def draw(self, draw) -> None:
         self.draw_wordmark(draw)
-        self.draw_kicker(draw, "EMAIL AUTHENTICATION")
+        self.draw_rule(draw)
         self.draw_domain(draw)
-        self.draw_status(draw)
+        self.draw_kicker(draw, "email domain check")
         self.draw_tier(draw)
         self.draw_footer(draw)
 
@@ -72,14 +72,25 @@ class DomainCheckImage(OpenGraphImage):
             fill=self.ink,
         )
 
+    def draw_rule(self, draw) -> None:
+        draw.line(
+            (
+                self.tier_center[0] - self.tier_radius,
+                self.padding + 32,
+                self.width - self.padding,
+                self.padding + 32,
+            ),
+            fill=(*self.ink, 70),
+            width=2,
+        )
+
     def draw_kicker(self, draw, label: str) -> None:
-        font = self.font("fira-sans-500.ttf", 24)
-        width = draw.textlength(label, font=font)
         draw.text(
-            (self.width - self.padding - width, self.padding + 6),
+            (self.padding, 488),
             label,
-            font=font,
-            fill=(*self.ink, 190),
+            font=self.font("fira-sans-500.ttf", 30),
+            fill=(*self.ink, 200),
+            anchor="ls",
         )
 
     def draw_domain(self, draw) -> None:
@@ -87,7 +98,7 @@ class DomainCheckImage(OpenGraphImage):
         for size in range(108, 42, -2):
             candidate = self.font("fira-sans-700.ttf", size)
             if draw.textlength(name, font=candidate) <= self.text_width:
-                draw.text((self.padding - 4, 268), name, font=candidate, fill=self.ink)
+                draw.text((self.padding - 4, 242), name, font=candidate, fill=self.ink)
                 return
         head, _, tail = name.rpartition(".")
         if head:
@@ -98,13 +109,13 @@ class DomainCheckImage(OpenGraphImage):
                     and draw.textlength(tail, font=candidate) <= self.text_width
                 ):
                     draw.text(
-                        (self.padding - 4, 248),
+                        (self.padding - 4, 222),
                         f"{head}.",
                         font=candidate,
                         fill=self.ink,
                     )
                     draw.text(
-                        (self.padding - 4, 248 + size + 12),
+                        (self.padding - 4, 222 + size + 12),
                         tail,
                         font=candidate,
                         fill=self.ink,
@@ -116,15 +127,7 @@ class DomainCheckImage(OpenGraphImage):
             trimmed and draw.textlength(f"{trimmed}…", font=candidate) > self.text_width
         ):
             trimmed = trimmed[:-1]
-        draw.text((self.padding - 4, 268), f"{trimmed}…", font=candidate, fill=self.ink)
-
-    def draw_status(self, draw) -> None:
-        draw.text(
-            (self.padding, 440),
-            status_line(self.check),
-            font=self.font("fira-sans-500.ttf", 38),
-            fill=(*self.ink, 225),
-        )
+        draw.text((self.padding - 4, 242), f"{trimmed}…", font=candidate, fill=self.ink)
 
     def draw_tier(self, draw) -> None:
         center_x, center_y = self.tier_center
@@ -155,11 +158,11 @@ class DomainCheckImage(OpenGraphImage):
                 fill=color,
             )
         draw.text(
-            (center_x, center_y + self.tier_radius + 44),
-            "TIER",
+            (center_x, 488),
+            "Tier",
             font=self.font("fira-sans-500.ttf", 24),
             fill=(*self.ink, 170),
-            anchor="mm",
+            anchor="ms",
         )
 
     def draw_footer(self, draw) -> None:
@@ -173,4 +176,11 @@ class DomainCheckImage(OpenGraphImage):
             f"{self.host}/domain-check",
             font=self.font("fira-sans-500.ttf", 26),
             fill=(*self.ink, 185),
+        )
+        draw.text(
+            (self.width - self.padding, 566),
+            status_line(self.check),
+            font=self.font("fira-sans-500.ttf", 26),
+            fill=(*self.ink, 225),
+            anchor="ra",
         )
