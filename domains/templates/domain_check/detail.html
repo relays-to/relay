@@ -118,21 +118,23 @@
                       {% tabler name="circle-dashed" class="text-muted-foreground shrink-0" %}
                       <span class="sr-only">{% translate "not checked" %}</span>
                     {% endif %}
-                    <span>
-                      <span class="font-medium">{{ subcheck.label }}:</span>
-                      <span class="text-muted-foreground">{{ subcheck.detail }}</span>
+                    <span class="flex flex-col gap-1">
+                      <span>
+                        <span class="font-medium">{{ subcheck.label }}:</span>
+                        <span class="text-muted-foreground">{{ subcheck.detail }}</span>
+                      </span>
+                      {% if subcheck.status == "fail" and subcheck.hint %}
+                        <span class="text-sm">
+                          <span class="font-medium">{% translate "Fix:" %}</span>
+                          {{ subcheck.hint }}
+                        </span>
+                      {% endif %}
                     </span>
                   </li>
                 {% empty %}
                   <li class="m-0 text-muted-foreground">{{ check.detail }}</li>
                 {% endfor %}
               </ul>
-              {% if check.status != "pass" %}
-                <p class="m-0">
-                  <span class="font-medium">{% translate "How to fix:" %}</span>
-                  {{ check.hint }}
-                </p>
-              {% endif %}
               {% if check.slug %}
                 <a
                   class="link"

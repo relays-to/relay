@@ -9,7 +9,6 @@ from urllib.parse import urlsplit, urlunsplit
 import httpx
 from django.conf import settings
 from django.core.cache import cache
-from django.utils.translation import gettext_lazy as _
 
 from abstract.blocklists import (
     PUBLIC_ADDRESS_PROVIDERS,
@@ -49,32 +48,72 @@ CHECK_ORDER = (
     "blocklists",
 )
 
-CHECK_HINTS = {
-    "mx": _(
-        "Publish an MX record that points to the server that receives mail for this domain."
-    ),
-    "spf": _(
-        "Publish one TXT record at the domain root that starts with v=spf1 and stays "
-        "within 10 DNS lookups. For stricter enforcement, end it with -all."
-    ),
-    "dmarc": _(
-        "Publish a TXT record at _dmarc that starts with v=DMARC1 and sets a valid p tag. "
-        "For the strongest policy and reporting, set p=reject and add rua=."
-    ),
-    "mta_sts": _(
-        "Publish a TXT record at _mta-sts and serve a policy at "
-        "https://mta-sts.<domain>/.well-known/mta-sts.txt. Set mode: enforce "
-        "for the strongest policy."
-    ),
-    "tls_rpt": _(
-        "Publish a TXT record at _smtp._tls that starts with v=TLSRPTv1 "
-        "and sets rua=mailto:<address>."
-    ),
-    "blocklists": _(
-        "Ask the operator to delist the domain or the SPF-authorized address, "
-        "then fix the sending behavior that caused the listing."
-    ),
+SUBCHECK_HINTS = {
+    (
+        "mx",
+        "MX record",
+    ): "Publish an MX record that points at the server that receives mail for this domain.",
+    (
+        "spf",
+        "SPF record",
+    ): "Publish exactly one TXT record at the domain root that starts with v=spf1.",
+    (
+        "spf",
+        "Lookup limit",
+    ): "Cut include:, a:, and mx: terms until the record needs at most 10 DNS lookups.",
+    ("spf", "Strict all"): "End the SPF record with -all instead of ~all.",
+    (
+        "spf",
+        "Reverse DNS",
+    ): "Point each sender address's PTR record at a hostname that resolves back to the same address.",
+    (
+        "dmarc",
+        "DMARC record",
+    ): "Publish a TXT record at _dmarc.<domain> that starts with v=DMARC1.",
+    (
+        "dmarc",
+        "Policy",
+    ): "Set p=reject in the _dmarc record so receivers reject unauthenticated mail.",
+    (
+        "dmarc",
+        "Aggregate reports",
+    ): "Add rua=mailto:<address> so receivers send aggregate reports.",
+    (
+        "dmarc",
+        "Full coverage",
+    ): "Drop pct= or set pct=100 so the policy applies to every message.",
+    (
+        "mta_sts",
+        "MTA-STS record",
+    ): "Publish a TXT record at _mta-sts.<domain> that starts with v=STSv1.",
+    (
+        "mta_sts",
+        "Policy",
+    ): "Serve the policy at https://mta-sts.<domain>/.well-known/mta-sts.txt.",
+    ("mta_sts", "Enforced mode"): "Set mode: enforce in the MTA-STS policy.",
+    ("mta_sts", "MX match"): "List every MX host in the policy's mx: lines.",
+    (
+        "tls_rpt",
+        "TLS-RPT record",
+    ): "Publish a TXT record at _smtp._tls.<domain> that starts with v=TLSRPTv1.",
+    ("tls_rpt", "Reporting address"): "Add rua=mailto:<address> to the TLS-RPT record.",
+    (
+        "blocklists",
+        "Domain blocklists",
+    ): "Ask the operator to delist the domain, then fix the sending behavior that caused it.",
+    (
+        "blocklists",
+        "SPF address blocklists",
+    ): "Ask the operator to delist the address, then fix the sending behavior that caused it.",
 }
+TTL_HINT = "Raise the record's TTL to at least 3600 seconds."
+
+
+def subcheck_hint(key: str, label: str) -> str:
+    if label.endswith("TTL"):
+        return TTL_HINT
+    return SUBCHECK_HINTS.get((key, label), "")
+
 
 CHECK_SLUGS = {
     "mx": "mx",
@@ -193,12 +232,7 @@ def check_ttl(label: str, name: str, record_type: str, lookup: Lookup) -> SubChe
         return SubCheck(label, "skip", "No TTL reported")
     if ttl + TTL_TOLERANCE_SECS >= TTL_MIN_SECS:
         return SubCheck(label, "pass", f"{ttl}s TTL")
-    return SubCheck(
-        label,
-        "fail",
-        f"{ttl}s TTL, raise to at least {TTL_MIN_SECS}s",
-        severity="weak",
-    )
+    return SubCheck(label, "fail", f"{ttl}s TTL", severity="weak")
 
 
 def check_mx(name: str, lookup: Lookup) -> CheckResult:

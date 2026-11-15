@@ -18,7 +18,12 @@ from django.utils.translation import gettext_lazy as _
 from abstract.models import TimeStamped
 from kms.models import SigningKey
 
-from .checking.evaluation import CHECK_HINTS, CHECK_ORDER, CHECK_SLUGS, evaluate_domain
+from .checking.evaluation import (
+    CHECK_ORDER,
+    CHECK_SLUGS,
+    evaluate_domain,
+    subcheck_hint,
+)
 from .checking.tiers import Tier, grade_for, penalty_for
 
 
@@ -584,10 +589,14 @@ class DomainCheck(TimeStamped):
     @staticmethod
     def build_check_row(check: dict) -> dict:
         subchecks = [
-            {"severity": "broken"} | subcheck for subcheck in check.get("subchecks", [])
+            {
+                "severity": "broken",
+                "hint": subcheck_hint(check["key"], subcheck["label"]),
+            }
+            | subcheck
+            for subcheck in check.get("subchecks", [])
         ]
         return check | {
-            "hint": CHECK_HINTS.get(check["key"], ""),
             "slug": CHECK_SLUGS.get(check["key"]),
             "subchecks": subchecks,
             "issue_count": sum(
@@ -623,9 +632,7 @@ class DomainCheck(TimeStamped):
         self.checks = [
             dataclasses.asdict(result) | {"status": result.status} for result in results
         ]
-        self.penalty = penalty_for(
-            subcheck for check in self.checks for subcheck in check.get("subchecks", [])
-        )
+        self.penalty = penalty_for(*check.get("subchecks", []) for check in self.checks)
         self.status = self.Status.COMPLETE
         self.checked_at = timezone.now()
         update_fields = (
