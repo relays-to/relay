@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load abstract i18n %}
+{% block topbar %}{% include "partials/topbar_static.html" %}{% endblock %}
+{% block title %}{% translate "domain check"|capfirst %}{% endblock %}
+{% block og_title %}{% translate "Domain check: every domain's email authentication grade" %}{% endblock %}
+{% block og_description %}{% translate "MX, SPF, DMARC, MTA-STS, TLS-RPT, and blocklists, graded A to F. Check any domain, free and without a signup." %}{% endblock %}
+
+{% block content %}
+  <div class="py-8 max-w-3xl mx-auto">
+    <h1 class="m-0 mb-2">{% translate "domain check"|capfirst %}</h1>
+    <p class="text-muted-foreground m-0 mb-8">
+      {% blocktranslate trimmed %}
+        This page checks a domain's email authentication records and publishes every result. All checks passing is S. A
+        failure that stops mail is F. Any other broken configuration costs a full grade, and a weak one costs half a
+        grade.
+      {% endblocktranslate %}
+    </p>
+
+    <form method="post" class="mb-8">
+      {% csrf_token %}
+      <fieldset class="fieldset">
+        <div role="group" class="field">
+          {{ form.name.label_tag }}
+          {{ form.name }}
+          {% if form.name.errors %}
+            <p class="text-sm text-destructive">{{ form.name.errors|join:" " }}</p>
+          {% endif %}
+        </div>
+      </fieldset>
+      <button type="submit" class="btn mt-6">{% translate "check domain"|capfirst %}</button>
+    </form>
+
+    <div class="item-group">
+      {% for domain_check in page_obj %}
+        <a class="item" data-variant="outline" href="{{ domain_check.get_absolute_url }}">
+          <div class="flex flex-1 flex-col gap-1">
+            <span class="font-medium break-all">{{ domain_check.name }}</span>
+            {% if domain_check.checked_at %}
+              <span class="text-sm text-muted-foreground">{{ domain_check.checked_at|naturaltime }}</span>
+            {% endif %}
+          </div>
+          <div class="flex items-center gap-3">
+            {% if domain_check.status == "complete" %}
+              <span class="badge" data-variant="{{ domain_check.tier_variant }}">{{ domain_check.tier }}<span
+                  class="sr-only"
+                >
+                  {% translate "tier" %}</span></span>
+            {% elif domain_check.status == "failed" %}
+              <span class="badge" data-variant="destructive">{% translate "failed" %}</span>
+            {% else %}
+              <span class="badge" data-variant="outline">{% translate "checking" %}</span>
+            {% endif %}
+          </div>
+        </a>
+      {% empty %}
+        <section class="empty">
+          <header>
+            <figure class="max-w-48 mx-auto">
+              {% include "partials/illustration.html" with name="protection-enabled" %}
+            </figure>
+            <h3>{% translate "No domains checked yet." %}</h3>
+            <p>{% translate "Check a domain to publish the first result." %}</p>
+          </header>
+        </section>
+      {% endfor %}
+    </div>
+
+    <div class="mt-8">
+      {% pagination %}
+    </div>
+  </div>
+{% endblock %}

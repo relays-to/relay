@@ -38,7 +38,7 @@ class DNSResolver(BaseResolver):
 
     MX_PRIORITY: int = 10
     NS_TTL: int = 3600
-    RECORD_TTL: int = 1800
+    RECORD_TTL: int = 3600
 
     def resolve(self, request: DNSRecord, handler) -> DNSRecord:
         """Return an authoritative DNS reply."""

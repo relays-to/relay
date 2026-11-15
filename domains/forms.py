@@ -2,6 +2,8 @@ from django import forms
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
+from abstract.forms import DomainInput
+
 from .models import Domain, canonicalize_domain_name
 
 
@@ -62,6 +64,7 @@ class DomainCreateForm(forms.ModelForm):
     class Meta:
         model = Domain
         fields = ["name"]
+        widgets = {"name": DomainInput()}
 
     def clean_name(self):
         name = canonicalize_domain_name(self.cleaned_data["name"])

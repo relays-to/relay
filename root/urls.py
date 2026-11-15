@@ -18,6 +18,7 @@ urlpatterns = [
     path("know-how/", include("know_how.urls")),
     path("station-log/", include("captains_log.urls")),
     path("alternative-to/", include("alternative_to.urls")),
+    path("domain-check/", include("domain_check.urls")),
     # Site-root crawler files and the discovery documents under /.well-known/
     path("", include("well_known.urls")),
     # Org-scoped email

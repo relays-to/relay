@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% load abstract i18n %}
+{% block topbar %}{% include "partials/topbar_static.html" %}{% endblock %}
+{% block title %}{{ domain_check.name }} | {% translate "domain check"|capfirst %}{% endblock %}
+{% block og_title %}{% if domain_check.status == "complete" %}{{ domain_check.name }} scores {{ domain_check.tier }} on
+    the relay domain check{% else %}{{ domain_check.name }}: relay domain check{% endif %}{% endblock %}
+{% block og_description %}{% if domain_check.status == "complete" %}{{ domain_check.name }} scores
+    {{ domain_check.tier }} on relay's free email authentication check, with every record and fix listed. Check your own
+    domain, no signup.{% else %}The check for {{ domain_check.name }} did not finish. Try
+    again.{% endif %}{% endblock %}
+{% block social_image %}
+  {% url 'domain_check:og-image' domain_check.name as og_path %}
+  <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ og_path }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta
+    property="og:image:alt"
+    content="relay domain check card for {{ domain_check.name }}{% if domain_check.status == 'complete' %}, grade {{ domain_check.tier }}{% endif %}"
+  >
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ og_path }}">
+{% endblock %}
+
+{% block content %}
+  <div class="py-8 max-w-3xl mx-auto">
+    <header class="flex flex-wrap items-start justify-between gap-4 mb-6">
+      <div class="min-w-0 flex flex-col gap-1">
+        <h1 class="m-0 break-all">{{ domain_check.name }}</h1>
+        <p class="text-muted-foreground m-0">
+          {% if domain_check.checked_at %}
+            {% translate "checked" %} {{ domain_check.checked_at|naturaltime }}
+          {% endif %}
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        {% if domain_check.status == "complete" %}
+          <span class="badge h-auto px-3 py-1 text-2xl" data-variant="{{ domain_check.tier_variant }}">
+            {{ domain_check.tier }}<span class="sr-only"> {% translate "tier" %}</span>
+          </span>
+        {% else %}
+          <span class="badge h-auto px-3 py-1 text-2xl" data-variant="destructive">
+            {% translate "failed" %}
+          </span>
+        {% endif %}
+        <button
+          type="button"
+          class="btn"
+          data-variant="outline"
+          data-size="icon"
+          data-share
+          data-tooltip="{% translate 'share this result'|capfirst %}"
+        >
+          {% tabler name="share" %}
+          <span class="sr-only">{% translate "share this result"|capfirst %}</span>
+        </button>
+      </div>
+    </header>
+
+    {% if domain_check.status == "failed" %}
+      <p class="mb-6">
+        {% translate "The last check failed." %}
+        <a class="link" href="{% url 'domain_check:list' %}">{% translate "Check this domain again." %}</a>
+      </p>
+    {% elif domain_check.status == "complete" %}
+      <p class="flex items-center gap-2 mb-4">
+        {% if domain_check.issue_count %}
+          {% tabler name="alert-triangle" class="text-warning" %}
+          <span>
+            {% blocktranslate trimmed count counter=domain_check.issue_count %}
+              {{ counter }} issue needs attention. Open the check for the fix.
+            {% plural %}
+              {{ counter }} issues need attention. Open a check for the fix.
+            {% endblocktranslate %}
+          </span>
+        {% else %}
+          {% tabler name="circle-check" class="text-success" %}
+          <span>{% translate "All checks pass." %}</span>
+        {% endif %}
+      </p>
+      <section class="accordion" data-multiple>
+        {% for check in domain_check.check_rows %}
+          <details>
+            <summary>
+              <span class="flex flex-1 flex-wrap items-center justify-between gap-4">
+                <span>{{ check.label }}</span>
+                <span class="flex items-center gap-3">
+                  {% if check.issue_count %}
+                    <span class="text-muted-foreground font-normal">
+                      {% blocktranslate trimmed count counter=check.issue_count %}
+                        {{ counter }} issue.
+                      {% plural %}
+                        {{ counter }} issues.
+                      {% endblocktranslate %}
+                    </span>
+                  {% endif %}
+                  <span
+                    class="badge"
+                    data-variant="{% if check.status == 'pass' %}success{% elif check.status == 'partial' %}warning{% else %}destructive{% endif %}"
+                  >{% translate check.status %}</span>
+                </span>
+              </span>
+              {% tabler name="chevron-down" %}
+            </summary>
+            <section class="flex flex-col gap-2">
+              <ul class="m-0 flex list-none flex-col gap-2 p-0">
+                {% for subcheck in check.subchecks %}
+                  <li class="flex items-start gap-2">
+                    {% if subcheck.status == "pass" %}
+                      {% tabler name="circle-check" class="text-success shrink-0" %}
+                      <span class="sr-only">{% translate "pass" %}</span>
+                    {% elif subcheck.status == "fail" and subcheck.severity == "weak" %}
+                      {% tabler name="alert-triangle" class="text-warning shrink-0" %}
+                      <span class="sr-only">{% translate "weak" %}</span>
+                    {% elif subcheck.status == "fail" %}
+                      {% tabler name="circle-x" class="text-destructive shrink-0" %}
+                      <span class="sr-only">{% translate "error" %}</span>
+                    {% else %}
+                      {% tabler name="circle-dashed" class="text-muted-foreground shrink-0" %}
+                      <span class="sr-only">{% translate "not checked" %}</span>
+                    {% endif %}
+                    <span>
+                      <span class="font-medium">{{ subcheck.label }}:</span>
+                      <span class="text-muted-foreground">{{ subcheck.detail }}</span>
+                    </span>
+                  </li>
+                {% empty %}
+                  <li class="m-0 text-muted-foreground">{{ check.detail }}</li>
+                {% endfor %}
+              </ul>
+              {% if check.status != "pass" %}
+                <p class="m-0">
+                  <span class="font-medium">{% translate "How to fix:" %}</span>
+                  {{ check.hint }}
+                </p>
+              {% endif %}
+              {% if check.slug %}
+                <a
+                  class="link"
+                  href="{% url 'know_how:detail' slug=check.slug %}"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >{% translate "Learn more" %}</a>
+              {% endif %}
+            </section>
+          </details>
+        {% endfor %}
+      </section>
+      <p class="text-muted-foreground mt-4">
+        {% translate "This domain is checked at most once per day." %}
+      </p>
+    {% endif %}
+
+    <section class="card mt-10">
+      <header>
+        <h2>{% translate "How does your domain score?" %}</h2>
+        <p class="text-muted-foreground">
+          {% translate "The same checks and the same grades, for any domain. Free, and no signup." %}
+        </p>
+      </header>
+      <section>
+        <form
+          method="post"
+          action="{% url 'domain_check:list' %}"
+          class="flex flex-col sm:flex-row gap-3"
+        >
+          {% csrf_token %}
+          <label class="sr-only" for="cta-domain">{% translate "domain"|capfirst context "noun" %}</label>
+          {% include "abstract/domain_input.html" with id="cta-domain" extra_class="flex-1" %}
+          <button type="submit" class="btn">
+            {% translate "check domain"|capfirst %}
+            {% tabler name="arrow-right" size=None class="icon-sm" data_rtl_flip=True %}
+          </button>
+        </form>
+      </section>
+    </section>
+
+    <p class="mt-6 text-center">
+      <a class="link" href="{% url 'domain_check:list' %}">
+        {% translate "Browse every domain checked so far" %}
+      </a>
+    </p>
+  </div>
+{% endblock %}

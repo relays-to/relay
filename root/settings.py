@@ -180,6 +180,7 @@ INSTALLED_APPS = [
     "accounts",
     "kms",
     "domains",
+    "domain_check",
     "legal",
     "know_how",
     "alternative_to",

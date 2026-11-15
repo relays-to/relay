@@ -37,6 +37,12 @@
             class="text-muted-foreground hover:text-foreground transition-colors"
           >{% translate "station log"|capfirst %}</a>
         </li>
+        <li>
+          <a
+            href="{% url 'domain_check:list' %}"
+            class="text-muted-foreground hover:text-foreground transition-colors"
+          >{% translate "domain check"|capfirst %}</a>
+        </li>
       </ul>
     </nav>
     <nav class="hidden sm:flex flex-col gap-3" aria-labelledby="footer-community">

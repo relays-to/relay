@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load abstract i18n %}
+{% block topbar %}{% include "partials/topbar_static.html" %}{% endblock %}
+{% block title %}{{ domain_check.name }} | {% translate "domain check"|capfirst %}{% endblock %}
+{% block meta_tags %}
+  {{ block.super }}
+  <meta http-equiv="refresh" content="2">
+{% endblock meta_tags %}
+
+{% block content %}
+  <div class="py-8 max-w-3xl mx-auto">
+    <h1 class="m-0 mb-2 break-all">{{ domain_check.name }}</h1>
+    <p class="text-muted-foreground m-0">
+      {% translate "The check runs in the background. This page refreshes when the result is ready." %}
+    </p>
+    <p class="mt-2">
+      <span class="badge" data-variant="outline">
+        {% tabler name="loader-2" class="animate-spin" %}
+        {% translate "checking" %}
+      </span>
+    </p>
+  </div>
+{% endblock %}

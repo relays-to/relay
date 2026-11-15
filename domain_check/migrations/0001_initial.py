@@ -1,0 +1,92 @@
+from django.db import migrations, models
+
+import domains.models
+
+
+class Migration(migrations.Migration):
+    initial = True
+
+    dependencies = []
+
+    operations = [
+        migrations.CreateModel(
+            name="DomainCheck",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "modified_at",
+                    models.DateTimeField(
+                        auto_now=True, db_index=True, verbose_name="modified"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, db_index=True, verbose_name="created"
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        help_text="Domain name without a scheme.",
+                        max_length=255,
+                        unique=True,
+                        validators=[domains.models.validate_domain_name],
+                        verbose_name="domain",
+                    ),
+                ),
+                (
+                    "status",
+                    models.TextField(
+                        choices=[
+                            ("pending", "pending"),
+                            ("running", "running"),
+                            ("complete", "complete"),
+                            ("failed", "failed"),
+                        ],
+                        default="pending",
+                        verbose_name="status",
+                    ),
+                ),
+                (
+                    "penalty",
+                    models.PositiveSmallIntegerField(
+                        db_index=True,
+                        default=0,
+                        help_text="Half grades lost. A blocking failure pins the grade to F.",
+                        verbose_name="penalty",
+                    ),
+                ),
+                (
+                    "checks",
+                    models.JSONField(
+                        default=list,
+                        help_text="One result per authentication check.",
+                        verbose_name="checks",
+                    ),
+                ),
+                (
+                    "checked_at",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="When the last check ran.",
+                        null=True,
+                        verbose_name="checked at",
+                    ),
+                ),
+            ],
+            options={
+                "ordering": ["penalty", "name"],
+                "get_latest_by": "created_at",
+                "abstract": False,
+            },
+        ),
+    ]
