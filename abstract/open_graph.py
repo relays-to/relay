@@ -5,7 +5,7 @@ import pathlib
 import typing
 
 from django.core.cache import cache
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 type RGB = tuple[int, int, int]
 
@@ -19,9 +19,10 @@ class OpenGraphImage:
 
     width: typing.ClassVar[int] = 1200
     height: typing.ClassVar[int] = 630
-    background_start: typing.ClassVar[RGB] = (105, 0, 209)
-    background_end: typing.ClassVar[RGB] = (26, 0, 64)
-    glow_color: typing.ClassVar[RGB] = (194, 37, 245)
+    # The favicon's gradient, #6200d1 to #14b8a6, with the teal pulled down to
+    # a value the white type and the tier ring stay legible on.
+    background_start: typing.ClassVar[RGB] = (98, 0, 209)
+    background_end: typing.ClassVar[RGB] = (10, 68, 62)
     ink: typing.ClassVar[RGB] = (255, 255, 255)
     fonts_dir: typing.ClassVar[pathlib.Path] = pathlib.Path(__file__).with_name("fonts")
 
@@ -39,26 +40,14 @@ class OpenGraphImage:
         return self.font(name, size)
 
     def background(self) -> Image.Image:
-        gradient = Image.new("RGB", (2, 2))
-        gradient.putpixel((0, 0), self.background_start)
-        gradient.putpixel((1, 0), self.background_end)
-        gradient.putpixel((0, 1), self.background_start)
-        gradient.putpixel((1, 1), self.background_end)
-        image = gradient.resize(
-            (self.width, self.height), Image.Resampling.BILINEAR
-        ).convert("RGBA")
-
-        mask = Image.new("L", (self.width, self.height), 0)
-        ImageDraw.Draw(mask).ellipse(
-            (self.width - 620, -300, self.width + 280, 480), fill=150
-        )
-        mask = mask.filter(ImageFilter.GaussianBlur(150))
-        image.paste(
-            Image.new("RGBA", (self.width, self.height), (*self.glow_color, 255)),
-            (0, 0),
-            mask,
-        )
-        return image
+        start, end = self.background_start, self.background_end
+        ramp = Image.new("RGB", (self.width, 1))
+        for x in range(self.width):
+            step = x / (self.width - 1)
+            ramp.putpixel(
+                (x, 0), tuple(round(a + (b - a) * step) for a, b in zip(start, end))
+            )
+        return ramp.resize((self.width, self.height)).convert("RGBA")
 
     def draw(self, draw: ImageDraw.ImageDraw) -> None:
         raise NotImplementedError
