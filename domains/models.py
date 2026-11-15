@@ -515,22 +515,6 @@ class DomainCheck(TimeStamped):
         COMPLETE = "complete", _("complete")
         FAILED = "failed", _("failed")
 
-    TIER_VARIANTS = {
-        Tier.S: "default",
-        Tier.A_PLUS: "success",
-        Tier.A: "success",
-        Tier.A_MINUS: "success",
-        Tier.B: "outline",
-        Tier.B_MINUS: "outline",
-        Tier.C: "warning",
-        Tier.C_MINUS: "warning",
-        Tier.D: "warning",
-        Tier.D_MINUS: "warning",
-        Tier.E: "destructive",
-        Tier.E_MINUS: "destructive",
-        Tier.F: "destructive",
-    }
-
     name = models.CharField(
         _("domain"),
         max_length=255,
@@ -618,11 +602,11 @@ class DomainCheck(TimeStamped):
 
     @property
     def tier(self) -> Tier:
-        return Tier(Tier.values[min(self.penalty, MAX_PENALTY)])
+        return list(Tier)[min(self.penalty, MAX_PENALTY)]
 
     @property
     def tier_variant(self) -> str:
-        return self.TIER_VARIANTS[self.tier]
+        return self.tier.variant
 
     def evaluate(self):
         results = sorted(

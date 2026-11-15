@@ -5,7 +5,6 @@ import typing
 from PIL import Image, ImageDraw
 
 from abstract.open_graph import RGB, OpenGraphImage
-from domains.check.tiers import Tier
 from domains.models import DomainCheck
 
 
@@ -51,34 +50,6 @@ class DomainCheckImage(OpenGraphImage):
     RING_WIDTH: typing.ClassVar[int] = 10
     RING_SCALE: typing.ClassVar[int] = 4
 
-    # Platinum, gold, silver, bronze, then plain white and red.
-    PLATINUM: typing.ClassVar[RGB] = (240, 243, 248)
-    GOLD: typing.ClassVar[RGB] = (255, 200, 45)
-    SILVER: typing.ClassVar[RGB] = (170, 178, 192)
-    BRONZE: typing.ClassVar[RGB] = (198, 122, 64)
-    WHITE: typing.ClassVar[RGB] = (255, 255, 255)
-    RED: typing.ClassVar[RGB] = (255, 88, 92)
-    # Every tier appears once here, keyed by the enum. The rim reads the
-    # colour to decide whether it strikes a medal, so no second list exists.
-    TIER_COLORS: typing.ClassVar[dict[Tier, RGB]] = {
-        Tier.S: PLATINUM,
-        Tier.A_PLUS: GOLD,
-        Tier.A: GOLD,
-        Tier.A_MINUS: GOLD,
-        Tier.B: SILVER,
-        Tier.B_MINUS: SILVER,
-        Tier.C: BRONZE,
-        Tier.C_MINUS: BRONZE,
-        Tier.D: WHITE,
-        Tier.D_MINUS: WHITE,
-        Tier.E: RED,
-        Tier.E_MINUS: RED,
-        Tier.F: RED,
-    }
-    METALS: typing.ClassVar[frozenset[RGB]] = frozenset(
-        {PLATINUM, GOLD, SILVER, BRONZE}
-    )
-
     def tier_bed(self, color: RGB) -> RGB:
         """Return a near-black cast of the metal for the face of the medal."""
         return tuple(round(channel * 0.2 + 8) for channel in color)
@@ -87,7 +58,7 @@ class DomainCheckImage(OpenGraphImage):
         """Return the tier's colour, or the ink while the check runs."""
         if self.check.status != self.check.Status.COMPLETE:
             return self.INK
-        return self.TIER_COLORS[self.check.tier]
+        return self.check.tier.color
 
     def draw(self, image: Image.Image) -> None:
         draw = ImageDraw.Draw(image)
@@ -190,7 +161,7 @@ class DomainCheckImage(OpenGraphImage):
         layer = Image.new("RGBA", (diameter * scale, diameter * scale), (0, 0, 0, 0))
         pen = ImageDraw.Draw(layer)
         bounds = (0, 0, diameter * scale - 1, diameter * scale - 1)
-        medal = color in self.METALS
+        medal = self.check.tier.medal
         light = tuple(round(c + (255 - c) * 0.62) for c in color)
         dark = tuple(round(c * 0.34) for c in color)
         span = 360 / self.RING_SEGMENTS
