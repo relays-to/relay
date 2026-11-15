@@ -44,6 +44,14 @@ class TestTierColor:
 
         assert image.tier_color() == OpenGraphImage.INK
 
+    @pytest.mark.parametrize(
+        "status", [DomainCheck.Status.PENDING, DomainCheck.Status.FAILED]
+    )
+    def test_tier_accent__is_empty_while_incomplete(self, status):
+        image = make_image(status=status)
+
+        assert image.tier_accent() is None
+
 
 class TestRender:
     def test_render__returns_a_share_card(self):
@@ -83,6 +91,18 @@ class TestRender:
     )
     def test_render__draws_every_tier(self, status, penalty):
         assert make_image(status=status, penalty=penalty).render()
+
+    def test_render__draws_s_in_gold_and_platinum(self):
+        image = make_image(penalty=0)
+        card = Image.open(io.BytesIO(image.render())).convert("RGB")
+        center_x, center_y = DomainCheckImage.TIER_CENTER_PX
+        inset = DomainCheckImage.TIER_RADIUS_PX - image.check.tier.ring_width // 2
+
+        lit = card.getpixel((center_x, center_y - inset))
+        shaded = card.getpixel((center_x, center_y + inset))
+
+        assert lit[2] < 120
+        assert shaded[2] > 180
 
 
 class TestDrawDomain:

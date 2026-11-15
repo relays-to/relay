@@ -26,17 +26,24 @@ class TestOpenGraphImage:
 
         assert image.font("fira-sans-500.ttf", 32).size == 32
 
-    def test_background__runs_the_brand_gradient_corner_to_corner(self):
+    def test_background__blends_the_four_brand_points(self):
         image = Card(cache_key="bg", cache_ttl=datetime.timedelta(minutes=1))
 
         background = image.background()
 
         assert background.size == (Card.WIDTH_PX, Card.HEIGHT_PX)
         assert background.mode == "RGBA"
-        assert background.getpixel((0, 0)) == (*Card.BACKGROUND_START, 255)
-        assert background.getpixel((Card.WIDTH_PX - 1, Card.HEIGHT_PX - 1)) == (
-            *Card.BACKGROUND_END,
-            255,
+        top_left, top_right, bottom_right, bottom_left = Card.BACKGROUND_POINTS
+        # The upscale can shift a channel a single step at the corners.
+        assert background.getpixel((0, 0)) == pytest.approx((*top_left, 255), abs=1)
+        assert background.getpixel((Card.WIDTH_PX - 1, 0)) == pytest.approx(
+            (*top_right, 255), abs=1
+        )
+        assert background.getpixel(
+            (Card.WIDTH_PX - 1, Card.HEIGHT_PX - 1)
+        ) == pytest.approx((*bottom_right, 255), abs=1)
+        assert background.getpixel((0, Card.HEIGHT_PX - 1)) == pytest.approx(
+            (*bottom_left, 255), abs=1
         )
 
     def test_draw__is_abstract(self):
