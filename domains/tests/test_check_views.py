@@ -257,22 +257,47 @@ class TestDomainCheckDetailView:
     def test_get__rejects_an_unknown_domain(self, client):
         assert client.get("/domain-check/example.com").status_code == 404
 
+    def test_get__labels_the_recheck_for_anonymous_users(self, client):
+        make_check()
+
+        response = client.get("/domain-check/example.com")
+
+        assert "Check again (login required)" in response.content.decode()
+
+    def test_get__labels_the_recheck_for_logged_in_users(self, admin_client):
+        make_check()
+
+        response = admin_client.get("/domain-check/example.com")
+
+        assert "Check again (login required)" in response.content.decode()
+
+    def test_post__requires_login(self, client, queue):
+        make_check()
+
+        response = client.post("/domain-check/example.com")
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == (
+            "/account/login?next=/domain-check/example.com"
+        )
+        assert queue.calls == []
+
     @pytest.mark.parametrize(
         "status", [DomainCheck.Status.PENDING, DomainCheck.Status.RUNNING]
     )
-    def test_post__leaves_a_running_check_alone(self, client, queue, status):
+    def test_post__leaves_a_running_check_alone(self, admin_client, queue, status):
         make_check(status=status, checked_at=None)
 
-        response = client.post("/domain-check/example.com")
+        response = admin_client.post("/domain-check/example.com")
 
         assert response.status_code == 302
         assert queue.calls == []
         assert DomainCheck.objects.get().status == status
 
-    def test_post__restarts_a_complete_check(self, client, queue):
+    def test_post__restarts_a_complete_check(self, admin_client, queue):
         check = make_full_check()
 
-        response = client.post("/domain-check/example.com")
+        response = admin_client.post("/domain-check/example.com")
 
         check.refresh_from_db()
         assert check.status == DomainCheck.Status.RUNNING
@@ -280,10 +305,10 @@ class TestDomainCheckDetailView:
         assert queue.calls == [{"name": "example.com"}]
         assert response.headers["Location"] == "/domain-check/example.com"
 
-    def test_post__restarts_a_failed_check(self, client, queue):
+    def test_post__restarts_a_failed_check(self, admin_client, queue):
         check = make_check(status=DomainCheck.Status.FAILED)
 
-        client.post("/domain-check/example.com")
+        admin_client.post("/domain-check/example.com")
 
         check.refresh_from_db()
         assert check.status == DomainCheck.Status.RUNNING
