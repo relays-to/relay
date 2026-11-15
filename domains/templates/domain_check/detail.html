@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load abstract i18n %}
+{% load abstract esm i18n %}
 {% block topbar %}{% include "partials/topbar_static.html" %}{% endblock %}
 {% block title %}{{ domain_check.name }} | {% translate "domain check"|capfirst %}{% endblock %}
 {% block og_title %}{% if domain_check.status == "complete" %}{{ domain_check.name }} scores {{ domain_check.tier }} on
@@ -188,5 +188,6 @@
         {% translate "Browse every domain checked so far" %}
       </a>
     </p>
+    {% esm '#js/network-location.js' %}
   </div>
 {% endblock %}

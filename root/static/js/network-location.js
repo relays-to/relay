@@ -70,7 +70,7 @@ export class NetworkLocation extends LitElement {
     return {
       unavailable: this.dataset.unavailable || labels.unavailable,
       retry: this.dataset.retry || labels.retry,
-      map: labels.map,
+      map: this.dataset.map || labels.map,
     };
   }
 
@@ -219,7 +219,7 @@ export class NetworkLocation extends LitElement {
             : ""
         }
         <header class="${hasMap ? "p-4" : ""}">
-          <h3><code>${this.address}</code></h3>
+          ${this.hideAddress ? "" : html`<h3><code>${this.address}</code></h3>`}
           ${this.location ? html`<p>${this.location}</p>` : ""}
           ${
             this.network
