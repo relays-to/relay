@@ -1,4 +1,4 @@
-{% load abstract i18n %}
+{% load i18n %}
 {% if not known %}
   {{ address }}
 {% else %}
@@ -15,37 +15,16 @@
     class="drawer"
     data-side="right"
     data-backdrop-close
-    aria-labelledby="ip-title-{{ token }}"
+    aria-label="{{ address }}"
   >
-    <article class="w-full max-w-md sm:w-2/3">
-      <header class="flex-row items-start justify-between gap-4">
-        <h2
-          id="ip-title-{{ token }}"
-          class="text-lg font-semibold leading-none tracking-tight break-all font-mono"
-        >
-          {{ address }}
-        </h2>
-        <button
-          type="button"
-          class="btn shrink-0"
-          data-variant="ghost"
-          data-size="icon-sm"
-          data-dialog-close
-          aria-label='{% translate "close"|capfirst %}'
-        >
-          {% tabler name="x" size="4" %}
-        </button>
-      </header>
-      <section class="px-4 pb-4">
-        <network-location
-          address="{{ address }}"
-          map
-          hide-address
-          data-map='{% translate "map"|capfirst %}'
-          data-unavailable='{% translate "location unavailable" %}'
-          data-retry='{% translate "retry"|capfirst %}'
-        ></network-location>
-      </section>
+    <article class="w-full max-w-md p-0 sm:w-2/3">
+      <network-location
+        address="{{ address }}"
+        map
+        data-map='{% translate "map"|capfirst %}'
+        data-unavailable='{% translate "location unavailable" %}'
+        data-retry='{% translate "retry"|capfirst %}'
+      ></network-location>
     </article>
   </dialog>
 {% endif %}
