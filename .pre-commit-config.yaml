@@ -29,11 +29,11 @@ repos:
     hooks:
       - id: esupgrade
   - repo: https://github.com/codingjoe/cssupgrade
-    rev: "2026.1.0"
+    rev: "2026.2.0"
     hooks:
       - id: cssupgrade
   - repo: https://github.com/thibaudcolas/pre-commit-stylelint
-    rev: v16.26.1
+    rev: v18.0.0
     hooks:
       - id: stylelint
         additional_dependencies:
@@ -95,7 +95,7 @@ repos:
       - id: djangofmt
         exclude: ^(?:abstract/templates/django/forms/widgets/.*|abstract/templates/abstract/tabler\.html)$
   - repo: https://github.com/reteps/dockerfmt
-    rev: v0.6.0
+    rev: v1.0.0
     hooks:
       - id: dockerfmt
         files: ^.*(Container|Docker)file.*$
