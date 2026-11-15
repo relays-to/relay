@@ -4,6 +4,7 @@ import ipaddress
 import time
 
 import dns.exception
+import dns.name
 import dns.rdatatype
 import dns.resolver
 
@@ -13,6 +14,7 @@ class Answer:
     records: tuple[str, ...] = ()
     failed: bool = False
     ttl: datetime.timedelta | None = None
+    canonical_name: str | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -79,6 +81,7 @@ class Lookup:
                         self.render_record(record, record_type) for record in answers
                     ),
                     ttl=datetime.timedelta(seconds=answers.rrset.ttl),
+                    canonical_name=str(answers.canonical_name).rstrip("."),
                 )
                 break
         self._memo[key] = answer
@@ -100,7 +103,7 @@ class Lookup:
         answer = self.query(name, record_type)
         if answer.failed or not answer.records:
             return None
-        published = self.authoritative_ttl(name, record_type)
+        published = self.authoritative_ttl(answer.canonical_name or name, record_type)
         if published is None or published == answer.ttl:
             return answer.ttl
         self._memo[record_type, name.lower().rstrip(".")] = dataclasses.replace(
@@ -108,28 +111,42 @@ class Lookup:
         )
         return published
 
+    def authoritative_nameservers(self, name: str):
+        candidate = dns.name.from_text(name)
+        while len(candidate) > 1:
+            try:
+                answer = self._resolver.resolve(
+                    candidate, dns.rdatatype.NS, raise_on_no_answer=False
+                )
+            except dns.resolver.NXDOMAIN, dns.resolver.NoAnswer:
+                answer = None
+            except dns.exception.DNSException:
+                return None
+            if answer is not None and len(answer):
+                return answer
+            candidate = candidate.parent()
+        return None
+
     def authoritative_ttl(
         self, name: str, record_type: dns.rdatatype.RdataType
     ) -> datetime.timedelta | None:
         """Read the TTL the zone publishes, not the decayed one from a cache."""
-        try:
-            zone = dns.resolver.zone_for_name(name, resolver=self._resolver)
-            nameservers = self._resolver.resolve(zone, dns.rdatatype.NS)
-        except dns.exception.DNSException:
-            return None
-        for nameserver in list(nameservers)[: self.AUTHORITATIVE_TRIES]:
-            try:
-                addresses = self._resolver.resolve(nameserver.target, dns.rdatatype.A)
-                authority = dns.resolver.Resolver(configure=False)
-                authority.lifetime = self.AUTHORITATIVE_TIMEOUT.total_seconds()
-                authority.nameservers = [addresses[0].address]
-                answer = authority.resolve(name, record_type)
-            except dns.exception.DNSException:
-                ttl = None
-            else:
-                ttl = datetime.timedelta(seconds=answer.rrset.ttl)
-            if ttl is not None:
-                return ttl
+        if nameservers := self.authoritative_nameservers(name):
+            for nameserver in list(nameservers)[: self.AUTHORITATIVE_TRIES]:
+                try:
+                    addresses = self._resolver.resolve(
+                        nameserver.target, dns.rdatatype.A
+                    )
+                    authority = dns.resolver.Resolver(configure=False)
+                    authority.lifetime = self.AUTHORITATIVE_TIMEOUT.total_seconds()
+                    authority.nameservers = [addresses[0].address]
+                    answer = authority.resolve(name, record_type)
+                except dns.exception.DNSException:
+                    ttl = None
+                else:
+                    ttl = datetime.timedelta(seconds=answer.rrset.ttl)
+                if ttl is not None:
+                    return ttl
         return None
 
     def ptr(self, address: str) -> tuple[str, ...] | None:
