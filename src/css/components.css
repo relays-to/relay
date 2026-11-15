@@ -53,20 +53,22 @@
 /* Basecoat's toast category only picks the icon. Tint the toast and its
    icon here so the four categories read as success, info, warning, and
    error, matching the badge and card status tints. */
-.toast[data-category="success"] {
-  --status-color: var(--color-success);
-}
+.toast {
+   &[data-category="success"] {
+      --status-color: var(--color-success);
+   }
 
-.toast[data-category="info"] {
-  --status-color: var(--color-link);
-}
+   &[data-category="info"] {
+      --status-color: var(--color-link);
+   }
 
-.toast[data-category="warning"] {
-  --status-color: var(--color-warning);
-}
+   &[data-category="warning"] {
+      --status-color: var(--color-warning);
+   }
 
-.toast[data-category="error"] {
-  --status-color: var(--color-destructive);
+   &[data-category="error"] {
+      --status-color: var(--color-destructive);
+   }
 }
 
 .toast[data-category] .toast-content {
@@ -89,16 +91,18 @@
 
 /* Extra-small button sizes for controls that sit inline with badges
    (data-size="sm" is 32px and dwarfs a 20px status badge). */
-.btn[data-size="xs"] {
-  block-size: calc(var(--spacing) * 7);
-  gap: calc(var(--spacing) * 1.5);
-  padding-inline: calc(var(--spacing) * 2.5);
-  font-size: 0.75rem;
-}
+.btn {
+   &[data-size="xs"] {
+      block-size: calc(var(--spacing) * 7);
+      gap: calc(var(--spacing) * 1.5);
+      padding-inline: calc(var(--spacing) * 2.5);
+      font-size: 0.75rem;
+   }
 
-.btn[data-size="icon-xs"] {
-  inline-size: calc(var(--spacing) * 7);
-  block-size: calc(var(--spacing) * 7);
+   &[data-size="icon-xs"] {
+      inline-size: calc(var(--spacing) * 7);
+      block-size: calc(var(--spacing) * 7);
+   }
 }
 
 /* Basecoat pads a card's header, section, and footer inline, so a card that
