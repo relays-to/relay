@@ -55,6 +55,8 @@ class DomainCheckImage(OpenGraphImage):
     text_width: typing.ClassVar[int] = TEXT_WIDTH
     tier_center: typing.ClassVar[tuple[int, int]] = (919, 300)
     tier_radius: typing.ClassVar[int] = 185
+    # A dark bed so the tier colour survives the bright end of the gradient.
+    tier_disc: typing.ClassVar[RGB] = (26, 6, 60)
 
     def tier_color(self) -> RGB:
         if self.check.status != self.check.Status.COMPLETE:
@@ -153,17 +155,14 @@ class DomainCheckImage(OpenGraphImage):
     def draw_tier(self, draw) -> None:
         center_x, center_y = self.tier_center
         color = self.tier_color()
-        draw.ellipse(
-            (
-                center_x - self.tier_radius,
-                center_y - self.tier_radius,
-                center_x + self.tier_radius,
-                center_y + self.tier_radius,
-            ),
-            fill=(*color, 30),
-            outline=(*color, 200),
-            width=4,
+        bounds = (
+            center_x - self.tier_radius,
+            center_y - self.tier_radius,
+            center_x + self.tier_radius,
+            center_y + self.tier_radius,
         )
+        draw.ellipse(bounds, fill=(*self.tier_disc, 235))
+        draw.ellipse(bounds, outline=color, width=4)
         letter = tier_letter(self.check)
         font = self.font("fira-sans-700.ttf", 300 if len(letter) == 1 else 220)
         mask, (offset_x, offset_y) = font.getmask2(letter, mode="L")
