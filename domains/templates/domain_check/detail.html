@@ -34,7 +34,7 @@
       </div>
       <div class="flex items-center gap-2">
         {% if domain_check.status == "complete" %}
-          <span class="badge h-auto px-3 py-1 text-2xl" data-variant="{{ domain_check.tier_variant }}">
+          <span class="badge size-11 p-0 text-2xl" data-variant="{{ domain_check.tier_variant }}">
             {{ domain_check.tier }}<span class="sr-only"> {% translate "tier" %}</span>
           </span>
         {% else %}
