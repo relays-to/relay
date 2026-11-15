@@ -1,15 +1,15 @@
 :root {
   color-scheme: light dark;
 
-  --color-primary: hsl(268, 100%, 41%);
-  --color-primary-foreground: hsl(0, 0%, 100%);
-  --color-primary-text: light-dark(hsl(268, 100%, 41%), hsl(268, 100%, 75%));
+  --color-primary: hsl(268deg 100% 41%);
+  --color-primary-foreground: hsl(0deg 0% 100%);
+  --color-primary-text: light-dark(hsl(268deg 100% 41%), hsl(268deg 100% 75%));
   --color-link: var(--color-primary-text);
 
   /* Darkened from the basecoat default so soft-tinted badge text holds
      the 4.5:1 WCAG AA floor on its own 10% background tint, and solid
      destructive buttons keep 4.5:1 with white text. */
-  --destructive: light-dark(oklch(0.54 0.21 27.325), oklch(0.704 0.191 22.216));
+  --destructive: light-dark(oklch(54% 0.21 27.325deg), oklch(70.4% 0.191 22.216deg));
 
   /* Chart series colors. Vivid, ECharts-style hues kept separate from
      interactive colors (--color-primary) and the UI status tokens so
@@ -17,17 +17,17 @@
      outcomes, red bad ones, and blue informational ones. Every shade
      holds the 3:1 WCAG non-text contrast floor against the card
      background. */
-  --color-chart-green: light-dark(hsl(105, 42%, 45%), hsl(105, 55%, 64%));
-  --color-chart-yellow: light-dark(hsl(43, 89%, 39%), hsl(43, 90%, 62%));
-  --color-chart-orange: light-dark(hsl(20, 97%, 52%), hsl(20, 95%, 66%));
-  --color-chart-red: light-dark(hsl(0, 80%, 67%), hsl(0, 75%, 68%));
-  --color-chart-blue: light-dark(hsl(225, 50%, 55%), hsl(225, 55%, 65%));
-  --color-chart-gray: light-dark(hsl(224, 4%, 45%), hsl(224, 10%, 65%));
+  --color-chart-green: light-dark(hsl(105deg 42% 45%), hsl(105deg 55% 64%));
+  --color-chart-yellow: light-dark(hsl(43deg 89% 39%), hsl(43deg 90% 62%));
+  --color-chart-orange: light-dark(hsl(20deg 97% 52%), hsl(20deg 95% 66%));
+  --color-chart-red: light-dark(hsl(0deg 80% 67%), hsl(0deg 75% 68%));
+  --color-chart-blue: light-dark(hsl(225deg 50% 55%), hsl(225deg 55% 65%));
+  --color-chart-gray: light-dark(hsl(224deg 4% 45%), hsl(224deg 10% 65%));
 
   /* Muted text on the page background must stay above the 4.5:1 WCAG AA
      floor: the basecoat light default reaches only 4.3:1, and its dark
      default is the one to keep. */
-  --muted-foreground: light-dark(oklch(0.48 0 0), oklch(0.708 0 0));
+  --muted-foreground: light-dark(oklch(48% 0 0deg), oklch(70.8% 0 0deg));
 
   /* Basecoat draws the select chevron and the checkbox check as Lucide
      data URIs. Redraw them with Tabler paths so the interface speaks one
@@ -37,6 +37,29 @@
   --chevron-down-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="oklch(0.556 0 0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-down"><path d="M6 9l6 6l6 -6"/></svg>');
   --chevron-down-icon-50: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="oklch(0.556 0 0 / 0.5)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-chevron-down"><path d="M6 9l6 6l6 -6"/></svg>');
   --check-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="oklch(0.556 0 0)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-check"><path d="M5 12l5 5l10 -10"/></svg>');
+  --background: light-dark(oklch(100% 0 0deg), oklch(14.5% 0 0deg));
+  --foreground: light-dark(oklch(14.5% 0 0deg), oklch(98.5% 0 0deg));
+  --card: light-dark(oklch(100% 0 0deg), oklch(20.5% 0 0deg));
+  --card-foreground: light-dark(oklch(14.5% 0 0deg), oklch(98.5% 0 0deg));
+  --popover: light-dark(oklch(100% 0 0deg), oklch(20.5% 0 0deg));
+  --popover-foreground: light-dark(oklch(14.5% 0 0deg), oklch(98.5% 0 0deg));
+  --primary: light-dark(oklch(20.5% 0 0deg), oklch(92.2% 0 0deg));
+  --primary-foreground: light-dark(oklch(98.5% 0 0deg), oklch(20.5% 0 0deg));
+  --secondary: light-dark(oklch(97% 0 0deg), oklch(26.9% 0 0deg));
+  --secondary-foreground: light-dark(oklch(20.5% 0 0deg), oklch(98.5% 0 0deg));
+  --muted: light-dark(oklch(97% 0 0deg), oklch(26.9% 0 0deg));
+  --accent: light-dark(oklch(97% 0 0deg), oklch(37.1% 0 0deg));
+  --accent-foreground: light-dark(oklch(20.5% 0 0deg), oklch(98.5% 0 0deg));
+  --border: light-dark(oklch(92.2% 0 0deg), oklch(100% 0 0deg / 10%));
+  --input: light-dark(oklch(92.2% 0 0deg), oklch(100% 0 0deg / 15%));
+  --ring: light-dark(oklch(70.8% 0 0deg), oklch(55.6% 0 0deg));
+  --sidebar: light-dark(oklch(98.5% 0 0deg), oklch(20.5% 0 0deg));
+  --sidebar-foreground: light-dark(oklch(14.5% 0 0deg), oklch(98.5% 0 0deg));
+  --sidebar-primary: light-dark(oklch(20.5% 0 0deg), oklch(48.8% 0.243 264.376deg));
+  --sidebar-accent: light-dark(oklch(97% 0 0deg), oklch(26.9% 0 0deg));
+  --sidebar-accent-foreground: light-dark(oklch(20.5% 0 0deg), oklch(98.5% 0 0deg));
+  --sidebar-border: light-dark(oklch(92.2% 0 0deg), oklch(100% 0 0deg / 10%));
+  --sidebar-ring: light-dark(oklch(70.8% 0 0deg), oklch(43.9% 0 0deg));
 }
 
 /* Fira Sans (sans) and Fira Code (mono) for UI text, code, and numbers.
@@ -52,41 +75,14 @@
      shades on the 20% tint; both hold it against the plain background
      too. Registered in @theme so Tailwind generates the bg-, text-,
      and ring-success/warning/info utilities the status badges use. */
-  --color-success: light-dark(hsl(142, 71%, 28%), hsl(142, 60%, 55%));
-  --color-warning: light-dark(hsl(33, 95%, 32%), hsl(38, 95%, 58%));
-  --color-info: light-dark(hsl(225, 65%, 36%), hsl(225, 75%, 72%));
-
+  --color-success: light-dark(hsl(142deg 71% 28%), hsl(142deg 60% 55%));
+  --color-warning: light-dark(hsl(33deg 95% 32%), hsl(38deg 95% 58%));
+  --color-info: light-dark(hsl(225deg 65% 36%), hsl(225deg 75% 72%));
   --font-sans: "Fira Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-mono: "Fira Code", ui-monospace, sfmono-regular, menlo, monaco, consolas, monospace;
 }
 
 @custom-variant dark (@media (prefers-color-scheme: dark));
-
-:root {
-  --background: light-dark(oklch(1 0 0), oklch(0.145 0 0));
-  --foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
-  --card: light-dark(oklch(1 0 0), oklch(0.205 0 0));
-  --card-foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
-  --popover: light-dark(oklch(1 0 0), oklch(0.205 0 0));
-  --popover-foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
-  --primary: light-dark(oklch(0.205 0 0), oklch(0.922 0 0));
-  --primary-foreground: light-dark(oklch(0.985 0 0), oklch(0.205 0 0));
-  --secondary: light-dark(oklch(0.97 0 0), oklch(0.269 0 0));
-  --secondary-foreground: light-dark(oklch(0.205 0 0), oklch(0.985 0 0));
-  --muted: light-dark(oklch(0.97 0 0), oklch(0.269 0 0));
-  --accent: light-dark(oklch(0.97 0 0), oklch(0.371 0 0));
-  --accent-foreground: light-dark(oklch(0.205 0 0), oklch(0.985 0 0));
-  --border: light-dark(oklch(0.922 0 0), oklch(1 0 0 / 10%));
-  --input: light-dark(oklch(0.922 0 0), oklch(1 0 0 / 15%));
-  --ring: light-dark(oklch(0.708 0 0), oklch(0.556 0 0));
-  --sidebar: light-dark(oklch(0.985 0 0), oklch(0.205 0 0));
-  --sidebar-foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
-  --sidebar-primary: light-dark(oklch(0.205 0 0), oklch(0.488 0.243 264.376));
-  --sidebar-accent: light-dark(oklch(0.97 0 0), oklch(0.269 0 0));
-  --sidebar-accent-foreground: light-dark(oklch(0.205 0 0), oklch(0.985 0 0));
-  --sidebar-border: light-dark(oklch(0.922 0 0), oklch(1 0 0 / 10%));
-  --sidebar-ring: light-dark(oklch(0.708 0 0), oklch(0.439 0 0));
-}
 
 @media (prefers-color-scheme: dark) {
   :root {

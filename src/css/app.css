@@ -1,5 +1,7 @@
 @import "tailwindcss";
+
 @plugin "@tailwindcss/typography";
+
 @import "basecoat-css/maia";
 @import "maplibre-gl/dist/maplibre-gl.css";
 
