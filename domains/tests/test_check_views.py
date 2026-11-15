@@ -1,4 +1,5 @@
 import datetime
+import re
 from urllib.parse import quote
 
 import pytest
@@ -109,10 +110,18 @@ class TestDomainCheckListView:
 
         response = client.get("/domain-check/")
 
-        content = response.content.decode()
-        assert "example.com" in content
-        assert "failed.example" in content
-        assert "running.example" in content
+        assert [row.name for row in response.context["page_obj"]] == [
+            "example.com",
+            "failed.example",
+            "running.example",
+        ]
+        assert set(
+            re.findall(r'href="/domain-check/([\w.-]+)"', response.content.decode())
+        ) == {
+            "example.com",
+            "failed.example",
+            "running.example",
+        }
 
     def test_get__paginates(self, client):
         for index in range(51):
