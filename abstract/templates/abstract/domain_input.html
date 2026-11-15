@@ -4,7 +4,7 @@
   name="name"
   {% if id %}id="{{ id }}"{% endif %}
   placeholder="example.com"
-  class="input{% if extra_class %} {{ extra_class }}{% endif %}"
+  class="{% if classless %}{{ extra_class }}{% else %}input{% if extra_class %} {{ extra_class }}{% endif %}{% endif %}"
   autocomplete="off"
   autocorrect="off"
   autocapitalize="none"

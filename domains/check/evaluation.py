@@ -1,5 +1,6 @@
 import concurrent.futures
 import dataclasses
+import datetime
 import functools
 import hashlib
 import ipaddress
@@ -18,6 +19,7 @@ from abstract.blocklists import (
     BlocklistProvider,
     reverse_pointer,
 )
+from abstract.templatetags.abstract import human_duration
 from domains.mailauth import DmarcPolicy
 from domains.mta_sts import MtaStsRecord
 
@@ -70,7 +72,10 @@ class Check:
     # Resolvers return the remaining TTL, so an hour-long record can answer with
     # minutes left. Absorb that countdown before calling a record too short-lived.
     TTL_TOLERANCE_SECS = 300
-    TTL_HINT = "Raise the record's TTL to at least 3600 seconds."
+    TTL_HINT = (
+        "Raise the record's TTL to at least "
+        f"{human_duration(datetime.timedelta(seconds=TTL_MIN_SECS))}."
+    )
     MAX_LISTED_ADDRESSES = 5
     TRANSITION_NETWORKS = (
         ipaddress.ip_network("64:ff9b::/96"),
@@ -118,9 +123,13 @@ class Check:
         ttl = lookup.ttl(name, record_type)
         if ttl is None:
             return SubCheck(label, "skip", "No TTL reported")
+        if ttl % 60 == 59:
+            # Some providers answer one second short of the published value.
+            ttl += 1
+        detail = human_duration(datetime.timedelta(seconds=ttl))
         if ttl + cls.TTL_TOLERANCE_SECS >= cls.TTL_MIN_SECS:
-            return SubCheck(label, "pass", f"{ttl}s TTL")
-        return SubCheck(label, "fail", f"{ttl}s TTL", severity="weak")
+            return SubCheck(label, "pass", detail)
+        return SubCheck(label, "fail", detail, severity="weak")
 
     @classmethod
     def is_global_address(cls, address: str) -> bool:
@@ -334,12 +343,6 @@ class SpfCheck(Check):
         )
 
     @classmethod
-    def skipped(cls, detail: str) -> Iterator[SubCheck]:
-        """Yield the subchecks that cannot run without a usable SPF record."""
-        yield SubCheck("Lookup limit", "skip", detail)
-        yield SubCheck("Strict all", "skip", detail, severity="weak")
-
-    @classmethod
     def qualifier(cls, record: str) -> str:
         """Return the qualifier of the all mechanism."""
         token = next(
@@ -414,28 +417,19 @@ class SpfCheck(Check):
         spf = cls.resolve(name, lookup)
         if spf.error:
             return cls.result(
-                [
-                    SubCheck("SPF record", "skip", "Lookup failed"),
-                    *cls.skipped("Lookup failed"),
-                ],
+                [SubCheck("SPF record", "skip", "Lookup failed")],
                 detail="Lookup failed.",
             )
         if not spf.records:
             detail = "No SPF record"
             return cls.result(
-                [
-                    SubCheck("SPF record", "fail", detail, severity="blocking"),
-                    *cls.skipped(detail),
-                ],
+                [SubCheck("SPF record", "fail", detail, severity="blocking")],
                 detail=f"{detail}.",
             )
         if len(spf.records) > 1:
             detail = f"{len(spf.records)} SPF records (permerror)."
             return cls.result(
-                [
-                    SubCheck("SPF record", "fail", detail, severity="blocking"),
-                    *cls.skipped("Multiple SPF records"),
-                ],
+                [SubCheck("SPF record", "fail", detail, severity="blocking")],
                 detail=detail,
             )
         record = spf.records[0]
@@ -474,13 +468,6 @@ class DmarcCheck(Check):
     }
 
     @classmethod
-    def skipped(cls, detail: str) -> Iterator[SubCheck]:
-        """Yield the subchecks that cannot run without a usable DMARC record."""
-        yield SubCheck("Policy", "skip", detail)
-        yield SubCheck("Aggregate reports", "skip", detail, severity="weak")
-        yield SubCheck("Full coverage", "skip", detail, severity="weak")
-
-    @classmethod
     def run(cls, name: str, lookup: Lookup) -> CheckResult:
         records = lookup.text(f"_dmarc.{name}")
         policy = (
@@ -490,10 +477,7 @@ class DmarcCheck(Check):
         )
         if policy.temperror:
             return cls.result(
-                [
-                    SubCheck("DMARC record", "skip", "Lookup failed"),
-                    *cls.skipped("No usable DMARC record"),
-                ],
+                [SubCheck("DMARC record", "skip", "Lookup failed")],
                 detail="DMARC lookup failed.",
             )
         if not policy.is_published:
@@ -504,18 +488,14 @@ class DmarcCheck(Check):
                         "fail",
                         "No DMARC record",
                         severity="blocking",
-                    ),
-                    *cls.skipped("No usable DMARC record"),
+                    )
                 ],
                 detail="No DMARC record.",
             )
         if policy.record_count > 1:
             detail = f"{policy.record_count} DMARC records (permerror)."
             return cls.result(
-                [
-                    SubCheck("DMARC record", "fail", detail, severity="blocking"),
-                    *cls.skipped("No usable DMARC record"),
-                ],
+                [SubCheck("DMARC record", "fail", detail, severity="blocking")],
                 detail=detail,
             )
         p = policy.p.lower()
@@ -523,10 +503,6 @@ class DmarcCheck(Check):
             subchecks = (
                 SubCheck("DMARC record", "pass", "1 record"),
                 SubCheck("Policy", "fail", "No valid p tag", severity="blocking"),
-                *(
-                    SubCheck(label, "skip", "No valid DMARC policy", severity="weak")
-                    for label in ("Aggregate reports", "Full coverage")
-                ),
                 cls.ttl_subcheck(
                     "DMARC TTL", f"_dmarc.{name}", dns.rdatatype.TXT, lookup
                 ),
@@ -572,15 +548,6 @@ class MtaStsCheck(Check):
     FETCH_TIMEOUT_SECS = 5
     FETCH_CACHE_SECS = 300
     POLICY_LIMIT_BYTES = 64 * 1024
-
-    @classmethod
-    def skipped(cls) -> Iterator[SubCheck]:
-        """Yield the subchecks that cannot run without a usable MTA-STS record."""
-        yield SubCheck("Policy", "skip", "No usable MTA-STS record")
-        yield SubCheck(
-            "Enforced mode", "skip", "No usable MTA-STS record", severity="weak"
-        )
-        yield SubCheck("MX match", "skip", "No usable MTA-STS record")
 
     @classmethod
     def fetch_policy(cls, name: str, lookup: Lookup) -> dict | None:
@@ -714,10 +681,7 @@ class MtaStsCheck(Check):
         records = lookup.text(f"_mta-sts.{name}")
         if records is None:
             return cls.result(
-                [
-                    SubCheck("MTA-STS record", "skip", "Lookup failed"),
-                    *cls.skipped(),
-                ],
+                [SubCheck("MTA-STS record", "skip", "Lookup failed")],
                 detail="MTA-STS lookup failed.",
             )
         tags = next(
@@ -731,27 +695,13 @@ class MtaStsCheck(Check):
         )
         if tags is None:
             return cls.result(
-                [
-                    SubCheck("MTA-STS record", "fail", "No valid MTA-STS record"),
-                    *cls.skipped(),
-                ],
+                [SubCheck("MTA-STS record", "fail", "No valid MTA-STS record")],
                 detail="No valid MTA-STS record.",
             )
         subchecks = [SubCheck("MTA-STS record", "pass", f"id={tags['id']}")]
         policy = cls.fetch_policy(name, lookup)
         if policy is None:
-            subchecks.extend(
-                (
-                    SubCheck("Policy", "fail", "No fetchable policy"),
-                    SubCheck(
-                        "Enforced mode",
-                        "skip",
-                        "No fetchable policy",
-                        severity="weak",
-                    ),
-                    SubCheck("MX match", "skip", "No fetchable policy"),
-                )
-            )
+            subchecks.append(SubCheck("Policy", "fail", "No fetchable policy"))
         else:
             subchecks.append(SubCheck("Policy", "pass", "Fetched"))
             enforced = policy["mode"] == "enforce"
@@ -814,14 +764,7 @@ class TlsRptCheck(Check):
         records = lookup.text(f"_smtp._tls.{name}")
         if records is None:
             return cls.result(
-                [
-                    SubCheck("TLS-RPT record", "skip", "Lookup failed"),
-                    SubCheck(
-                        "Reporting address",
-                        "skip",
-                        "No usable TLS-RPT record",
-                    ),
-                ],
+                [SubCheck("TLS-RPT record", "skip", "Lookup failed")],
                 detail="TLS-RPT lookup failed.",
             )
         record = next(
@@ -830,14 +773,7 @@ class TlsRptCheck(Check):
         )
         if record is None:
             return cls.result(
-                [
-                    SubCheck("TLS-RPT record", "fail", "No TLS-RPT record"),
-                    SubCheck(
-                        "Reporting address",
-                        "skip",
-                        "No TLS-RPT record",
-                    ),
-                ],
+                [SubCheck("TLS-RPT record", "fail", "No TLS-RPT record")],
                 detail="No TLS-RPT record.",
             )
         rua = cls.reporting_address(record)

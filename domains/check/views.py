@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views import generic
 
@@ -65,6 +66,21 @@ class DomainCheckDetailView(NoStoreCacheMixin, BreadcrumbViewMixin, generic.Deta
 
     def get_object(self, queryset=None):
         return get_object_or_404(DomainCheck, name=self.kwargs["name"])
+
+    def post(self, request, *args, **kwargs):
+        """Queue a fresh check and drop the visitor on the polling page."""
+        domain_check = self.get_object()
+        if domain_check.status not in {
+            DomainCheck.Status.PENDING,
+            DomainCheck.Status.RUNNING,
+        }:
+            DomainCheck.objects.filter(pk=domain_check.pk).update(
+                status=DomainCheck.Status.RUNNING,
+                checks=[],
+                modified_at=timezone.now(),
+            )
+            check_domain.enqueue(name=domain_check.name)
+        return redirect("domain_check:detail", name=domain_check.name)
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(**kwargs) | {

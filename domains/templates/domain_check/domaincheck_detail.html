@@ -53,6 +53,19 @@
           {% tabler name="share" %}
           <span class="sr-only">{% translate "share this result"|capfirst %}</span>
         </button>
+        <form method="post">
+          {% csrf_token %}
+          <button
+            type="submit"
+            class="btn"
+            data-variant="outline"
+            data-size="icon"
+            data-tooltip="{% translate 'check this domain again'|capfirst %}"
+          >
+            {% tabler name="refresh" %}
+            <span class="sr-only">{% translate "check this domain again"|capfirst %}</span>
+          </button>
+        </form>
       </div>
     </header>
 
@@ -159,9 +172,6 @@
           </details>
         {% endfor %}
       </section>
-      <p class="text-muted-foreground mt-4">
-        {% translate "This domain is checked at most once per day." %}
-      </p>
     {% endif %}
 
     <section class="card mt-10">
@@ -172,18 +182,15 @@
         </p>
       </header>
       <section>
-        <form
-          method="post"
-          action="{% url 'domain_check:list' %}"
-          class="flex flex-col sm:flex-row gap-3"
-        >
+        <form method="post" action="{% url 'domain_check:list' %}">
           {% csrf_token %}
           <label class="sr-only" for="cta-domain">{% translate "domain"|capfirst context "noun" %}</label>
-          {% include "abstract/domain_input.html" with id="cta-domain" extra_class="flex-1" %}
-          <button type="submit" class="btn">
-            {% translate "check domain"|capfirst %}
-            {% tabler name="arrow-right" size=None class="icon-sm" data_rtl_flip=True %}
-          </button>
+          <div class="input-group">
+            {% include "abstract/domain_input.html" with id="cta-domain" classless=True %}
+            <button type="submit" class="btn" data-size="xs" data-align="end">
+              {% translate "check domain"|capfirst %}
+            </button>
+          </div>
         </form>
       </section>
     </section>

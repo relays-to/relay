@@ -19,7 +19,7 @@ class DomainCheckForm(forms.Form):
         label=_("domain"),
         max_length=255,
         validators=[validate_domain_name],
-        widget=DomainInput(),
+        widget=DomainInput({"input_group": "child"}),
     )
 
     def clean_name(self):
