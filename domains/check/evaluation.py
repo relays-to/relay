@@ -117,14 +117,14 @@ class Check:
         lookup: Lookup,
     ) -> SubCheck:
         """Grade a record's TTL against the shared minimum."""
-        ttl_secs = lookup.ttl_secs(name, record_type)
-        if ttl_secs is None:
+        ttl = lookup.ttl(name, record_type)
+        if ttl is None:
             return SubCheck(label, "skip", "No TTL reported")
-        if ttl_secs % 60 == 59:
+        if ttl % datetime.timedelta(minutes=1) == datetime.timedelta(seconds=59):
             # Some providers answer one second short of the published value.
-            ttl_secs += 1
-        detail = human_duration(datetime.timedelta(seconds=ttl_secs))
-        if datetime.timedelta(seconds=ttl_secs) + cls.TTL_TOLERANCE >= cls.TTL_MIN:
+            ttl += datetime.timedelta(seconds=1)
+        detail = human_duration(ttl)
+        if ttl + cls.TTL_TOLERANCE >= cls.TTL_MIN:
             return SubCheck(label, "pass", detail)
         return SubCheck(label, "fail", detail, severity="weak")
 
