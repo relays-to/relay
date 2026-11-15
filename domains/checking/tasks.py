@@ -52,9 +52,7 @@ def store_results(name: str, results: list[CheckResult]) -> None:
             update_fields = ["checks"]
             if all(key in merged for key in CHECK_ORDER):
                 domain_check.penalty = penalty_for(
-                    subcheck
-                    for check in checks
-                    for subcheck in check.get("subchecks", [])
+                    *check.get("subchecks", []) for check in checks
                 )
                 domain_check.status = DomainCheck.Status.COMPLETE
                 domain_check.checked_at = timezone.now()
