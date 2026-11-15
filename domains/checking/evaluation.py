@@ -30,7 +30,6 @@ from .lookup import (
 FETCH_TIMEOUT_SECS = 5
 POLICY_LIMIT_BYTES = 64 * 1024
 MAX_MX_EXCHANGES = 5
-SMALL_NETWORK_ADDRESSES = 256
 REVERSE_DNS_WORKERS = 16
 MAX_LISTED_ADDRESSES = 5
 BLOCKLIST_WORKERS = 16
@@ -321,13 +320,14 @@ def parse_network(address: str, prefix: str):
 
 def add_network(walker: SpfWalker, address: str, prefix: str) -> None:
     network = parse_network(address, prefix)
-    if network is not None and network.num_addresses <= SMALL_NETWORK_ADDRESSES:
-        walker.addresses.extend(map(str, network))
-    elif network is not None:
-        walker.sampled += 1
-        start = network.network_address
-        span = int(network.broadcast_address) - int(start)
-        walker.addresses.extend(str(start + offset) for offset in (0, span // 2, span))
+    if network is not None:
+        host = network.network_address
+        if network.num_addresses > 1:
+            # Never probe the network address or the broadcast that closes the
+            # range. The first host is the one right after the network address.
+            host += 1
+            walker.sampled += 1
+        walker.addresses.append(str(host))
 
 
 def add_mechanism_addresses(
