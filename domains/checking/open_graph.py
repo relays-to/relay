@@ -90,8 +90,10 @@ class DomainCheckImage(OpenGraphImage):
     text_width: typing.ClassVar[int] = TEXT_WIDTH
     tier_center: typing.ClassVar[tuple[int, int]] = (919, 300)
     tier_radius: typing.ClassVar[int] = 185
-    # A dark bed so the tier colour survives the bright end of the gradient.
-    tier_disc: typing.ClassVar[RGB] = (26, 6, 60)
+
+    def tier_bed(self, color: RGB) -> RGB:
+        """Return a near-black cast of the metal for the face of the medal."""
+        return tuple(round(channel * 0.2 + 8) for channel in color)
 
     def tier_color(self) -> RGB:
         if self.check.status != self.check.Status.COMPLETE:
@@ -227,7 +229,7 @@ class DomainCheckImage(OpenGraphImage):
             center_x + self.tier_radius,
             center_y + self.tier_radius,
         )
-        draw.ellipse(bounds, fill=(*self.tier_disc, 235))
+        draw.ellipse(bounds, fill=(*self.tier_bed(color), 240))
         image.alpha_composite(self.tier_ring(color), bounds[:2])
         letter = tier_letter(self.check)
         font = self.font("fira-sans-700.ttf", 300 if len(letter) == 1 else 220)
