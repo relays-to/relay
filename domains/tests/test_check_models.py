@@ -38,27 +38,26 @@ class TestDomainCheckBasics:
     def test_get_absolute_url__points_at_the_detail_page(self):
         assert (
             DomainCheck(name="example.com").get_absolute_url()
-            == "/domain-check/example.com"
+            == "/domain-check/example.com/"
         )
 
 
 class TestIsStale:
     def test_is_stale__failed_check(self):
-        check = DomainCheck(status=DomainCheck.Status.FAILED, checked_at=timezone.now())
+        check = DomainCheck(
+            status=DomainCheck.Status.FAILED, modified_at=timezone.now()
+        )
 
         assert check.is_stale is True
 
-    def test_is_stale__never_checked(self):
-        assert DomainCheck(status=DomainCheck.Status.COMPLETE).is_stale is True
+    def test_is_stale__pending_check(self):
+        check = DomainCheck(status=DomainCheck.Status.PENDING)
 
-    @pytest.mark.parametrize(
-        "status", [DomainCheck.Status.PENDING, DomainCheck.Status.RUNNING]
-    )
-    def test_is_stale__running_check_counts_from_modified_at(self, status):
+        assert check.is_stale is True
+
+    def test_is_stale__running_check_counts_from_modified_at(self):
         check = DomainCheck(
-            status=status,
-            modified_at=timezone.now(),
-            checked_at=timezone.now() - datetime.timedelta(days=2),
+            status=DomainCheck.Status.RUNNING, modified_at=timezone.now()
         )
 
         assert check.is_stale is False
@@ -73,7 +72,7 @@ class TestIsStale:
 
     def test_is_stale__fresh_complete_check(self):
         check = DomainCheck(
-            status=DomainCheck.Status.COMPLETE, checked_at=timezone.now()
+            status=DomainCheck.Status.COMPLETE, modified_at=timezone.now()
         )
 
         assert check.is_stale is False
@@ -81,7 +80,7 @@ class TestIsStale:
     def test_is_stale__old_complete_check(self):
         check = DomainCheck(
             status=DomainCheck.Status.COMPLETE,
-            checked_at=timezone.now() - datetime.timedelta(days=2),
+            modified_at=timezone.now() - datetime.timedelta(days=2),
         )
 
         assert check.is_stale is True
@@ -283,7 +282,6 @@ class TestStore:
 
         check.refresh_from_db()
         assert check.status == DomainCheck.Status.RUNNING
-        assert check.checked_at is None
         assert check.checks == [
             {
                 "key": "mx",
@@ -302,7 +300,6 @@ class TestStore:
 
         check.refresh_from_db()
         assert check.status == DomainCheck.Status.COMPLETE
-        assert check.checked_at is not None
         assert check.penalty == 0
         assert [row["key"] for row in check.checks] == list(Check.order())
 

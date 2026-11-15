@@ -46,10 +46,17 @@ def make_check(**kwargs):
         "status": DomainCheck.Status.COMPLETE,
         "penalty": 0,
         "checks": [],
-        "checked_at": timezone.now(),
     }
     fields.update(kwargs)
     return DomainCheck.objects.create(**fields)
+
+
+def backdate(check, **delta):
+    DomainCheck.objects.filter(pk=check.pk).update(
+        modified_at=timezone.now() - datetime.timedelta(**delta)
+    )
+    check.refresh_from_db()
+    return check
 
 
 def make_full_check(**kwargs):
@@ -101,7 +108,27 @@ class TestDomainCheckListView:
 
         assert response.status_code == 200
         assert "No domains checked yet." in response.content.decode()
-        assert response.headers["Cache-Control"] == "no-store"
+        assert response.headers["Cache-Control"] == (
+            "private, max-age=5, must-revalidate"
+        )
+        assert "ETag" in response.headers
+
+    def test_get__revalidates_with_an_etag(self, client):
+        make_check()
+        etag = client.get("/domain-check/").headers["ETag"]
+
+        response = client.get("/domain-check/", headers={"If-None-Match": etag})
+
+        assert response.status_code == 304
+
+    def test_get__changes_the_etag_when_a_row_is_added(self, client):
+        etag = client.get("/domain-check/").headers["ETag"]
+        make_check()
+
+        response = client.get("/domain-check/", headers={"If-None-Match": etag})
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] != etag
 
     def test_get__lists_every_status(self, client):
         make_check()
@@ -110,18 +137,31 @@ class TestDomainCheckListView:
 
         response = client.get("/domain-check/")
 
-        assert [row.name for row in response.context["page_obj"]] == [
+        assert {row.name for row in response.context["page_obj"]} == {
             "example.com",
             "failed.example",
             "running.example",
-        ]
+        }
         assert set(
-            re.findall(r'href="/domain-check/([\w.-]+)"', response.content.decode())
+            re.findall(r'href="/domain-check/([\w.-]+)/"', response.content.decode())
         ) == {
             "example.com",
             "failed.example",
             "running.example",
         }
+
+    def test_get__orders_by_tier_then_most_recent(self, client):
+        make_check(name="broken.example", penalty=4)
+        backdate(make_check(name="older.example", penalty=0), hours=1)
+        make_check(name="recent.example", penalty=0)
+
+        response = client.get("/domain-check/")
+
+        assert [row.name for row in response.context["page_obj"]] == [
+            "recent.example",
+            "older.example",
+            "broken.example",
+        ]
 
     def test_get__paginates(self, client):
         for index in range(51):
@@ -131,45 +171,63 @@ class TestDomainCheckListView:
 
         assert len(response.context["page_obj"]) == 1
 
+
+class TestDomainCheckSubmitView:
+    def test_get__redirects_to_the_list(self, client):
+        response = client.get("/domain-check/submit")
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/domain-check/"
+
+    @pytest.mark.django_db
     def test_post__creates_and_queues_a_new_domain(self, client, queue):
-        response = client.post("/domain-check/", {"name": "Example.COM"})
+        response = client.post("/domain-check/submit", {"name": "Example.COM"})
 
         domain_check = DomainCheck.objects.get()
         assert domain_check.name == "example.com"
         assert queue.calls == [{"name": "example.com"}]
         assert response.status_code == 302
-        assert response.headers["Location"] == "/domain-check/example.com"
+        assert response.headers["Location"] == "/domain-check/example.com/"
 
+    @pytest.mark.django_db
     def test_post__keeps_a_fresh_result(self, client, queue):
-        make_check(checked_at=timezone.now())
+        make_check()
 
-        response = client.post("/domain-check/", {"name": "example.com"})
+        response = client.post("/domain-check/submit", {"name": "example.com"})
 
         assert queue.calls == []
         assert [str(message) for message in get_messages(response.wsgi_request)] == [
             "This domain was checked less than a day ago."
         ]
 
+    @pytest.mark.django_db
     def test_post__queues_a_stale_result(self, client, queue):
-        make_check(checked_at=timezone.now() - datetime.timedelta(days=2))
+        backdate(make_check(), days=2)
 
-        client.post("/domain-check/", {"name": "example.com"})
+        client.post("/domain-check/submit", {"name": "example.com"})
 
         assert queue.calls == [{"name": "example.com"}]
 
+    @pytest.mark.django_db
     def test_post__rejects_an_internal_suffix(self, client, queue):
-        response = client.post("/domain-check/", {"name": "printer.local"})
+        response = client.post("/domain-check/submit", {"name": "printer.local"})
 
-        assert response.status_code == 200
-        assert "Enter a public domain name" in response.content.decode()
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/domain-check/"
+        assert [str(message) for message in get_messages(response.wsgi_request)] == [
+            "Enter a public domain name, for example acme.com"
+        ]
         assert not DomainCheck.objects.exists()
         assert queue.calls == []
 
     def test_post__rejects_an_invalid_domain(self, client):
-        response = client.post("/domain-check/", {"name": "not a domain"})
+        response = client.post("/domain-check/submit", {"name": "not a domain"})
 
-        assert response.status_code == 200
-        assert "Enter a valid domain name" in response.content.decode()
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/domain-check/"
+        assert [str(message) for message in get_messages(response.wsgi_request)] == [
+            "Enter a valid domain name, for example acme.com"
+        ]
 
 
 @pytest.mark.django_db
@@ -177,13 +235,16 @@ class TestDomainCheckDetailView:
     def test_get__renders_a_complete_check(self, client):
         make_full_check()
 
-        response = client.get("/domain-check/example.com")
+        response = client.get("/domain-check/example.com/")
 
         assert response.status_code == 200
         assert "domain_check/domaincheck_detail.html" in [
             t.name for t in response.templates
         ]
-        assert response.headers["Cache-Control"] == "no-store"
+        assert response.headers["Cache-Control"] == (
+            "private, max-age=5, must-revalidate"
+        )
+        assert "ETag" in response.headers
         content = response.content.decode()
         assert "3 issues need attention" in content
         assert "MX record" in content
@@ -193,10 +254,35 @@ class TestDomainCheckDetailView:
         assert "8.8.8.8" in content
         assert "Fix:" in content
 
+    def test_get__revalidates_with_an_etag(self, client):
+        make_check()
+        etag = client.get("/domain-check/example.com/").headers["ETag"]
+
+        response = client.get(
+            "/domain-check/example.com/", headers={"If-None-Match": etag}
+        )
+
+        assert response.status_code == 304
+
+    def test_get__changes_the_etag_when_the_check_changes(self, client):
+        check = make_check()
+        etag = client.get("/domain-check/example.com/").headers["ETag"]
+        DomainCheck.objects.filter(pk=check.pk).update(
+            status=DomainCheck.Status.RUNNING,
+            modified_at=timezone.now(),
+        )
+
+        response = client.get(
+            "/domain-check/example.com/", headers={"If-None-Match": etag}
+        )
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] != etag
+
     def test_get__renders_a_clean_check(self, client):
         make_check()
 
-        response = client.get("/domain-check/example.com")
+        response = client.get("/domain-check/example.com/")
 
         assert "All checks pass." in response.content.decode()
 
@@ -212,7 +298,7 @@ class TestDomainCheckDetailView:
             ]
         )
 
-        response = client.get("/domain-check/example.com")
+        response = client.get("/domain-check/example.com/")
 
         assert "1 issue needs attention" in response.content.decode()
 
@@ -220,9 +306,9 @@ class TestDomainCheckDetailView:
         "status", [DomainCheck.Status.PENDING, DomainCheck.Status.RUNNING]
     )
     def test_get__polls_a_running_check(self, client, status):
-        make_check(status=status, checked_at=None)
+        make_check(status=status)
 
-        response = client.get("/domain-check/example.com")
+        response = client.get("/domain-check/example.com/")
 
         assert "domain_check/domaincheck_checking.html" in [
             t.name for t in response.templates
@@ -230,9 +316,9 @@ class TestDomainCheckDetailView:
         assert 2 <= response.context["refresh_secs"] <= 4
 
     def test_get__renders_a_failed_check(self, client):
-        make_check(status=DomainCheck.Status.FAILED, checked_at=None)
+        make_check(status=DomainCheck.Status.FAILED)
 
-        response = client.get("/domain-check/example.com")
+        response = client.get("/domain-check/example.com/")
 
         assert "domain_check/domaincheck_detail.html" in [
             t.name for t in response.templates
@@ -242,43 +328,43 @@ class TestDomainCheckDetailView:
     def test_get__redirects_to_the_canonical_name(self, client):
         make_check()
 
-        response = client.get("/domain-check/EXAMPLE.com")
+        response = client.get("/domain-check/EXAMPLE.com/")
 
         assert response.status_code == 302
-        assert response.headers["Location"] == "/domain-check/example.com"
+        assert response.headers["Location"] == "/domain-check/example.com/"
 
     def test_get__redirects_an_idn_name(self, client):
         make_check(name="xn--mnich-kva.com")
 
-        response = client.get(f"/domain-check/{quote('münich.com')}")
+        response = client.get(f"/domain-check/{quote('münich.com')}/")
 
-        assert response.headers["Location"] == "/domain-check/xn--mnich-kva.com"
+        assert response.headers["Location"] == "/domain-check/xn--mnich-kva.com/"
 
     def test_get__rejects_an_unknown_domain(self, client):
-        assert client.get("/domain-check/example.com").status_code == 404
+        assert client.get("/domain-check/example.com/").status_code == 404
 
     def test_get__labels_the_recheck_for_anonymous_users(self, client):
         make_check()
 
-        response = client.get("/domain-check/example.com")
+        response = client.get("/domain-check/example.com/")
 
         assert "Check again (login required)" in response.content.decode()
 
     def test_get__labels_the_recheck_for_logged_in_users(self, admin_client):
         make_check()
 
-        response = admin_client.get("/domain-check/example.com")
+        response = admin_client.get("/domain-check/example.com/")
 
         assert "Check again (login required)" in response.content.decode()
 
     def test_post__requires_login(self, client, queue):
         make_check()
 
-        response = client.post("/domain-check/example.com")
+        response = client.post("/domain-check/example.com/")
 
         assert response.status_code == 302
         assert response.headers["Location"] == (
-            "/account/login?next=/domain-check/example.com"
+            "/account/login?next=/domain-check/example.com/"
         )
         assert queue.calls == []
 
@@ -286,9 +372,9 @@ class TestDomainCheckDetailView:
         "status", [DomainCheck.Status.PENDING, DomainCheck.Status.RUNNING]
     )
     def test_post__leaves_a_running_check_alone(self, admin_client, queue, status):
-        make_check(status=status, checked_at=None)
+        make_check(status=status)
 
-        response = admin_client.post("/domain-check/example.com")
+        response = admin_client.post("/domain-check/example.com/")
 
         assert response.status_code == 302
         assert queue.calls == []
@@ -297,18 +383,18 @@ class TestDomainCheckDetailView:
     def test_post__restarts_a_complete_check(self, admin_client, queue):
         check = make_full_check()
 
-        response = admin_client.post("/domain-check/example.com")
+        response = admin_client.post("/domain-check/example.com/")
 
         check.refresh_from_db()
         assert check.status == DomainCheck.Status.RUNNING
         assert check.checks == []
         assert queue.calls == [{"name": "example.com"}]
-        assert response.headers["Location"] == "/domain-check/example.com"
+        assert response.headers["Location"] == "/domain-check/example.com/"
 
     def test_post__restarts_a_failed_check(self, admin_client, queue):
         check = make_check(status=DomainCheck.Status.FAILED)
 
-        admin_client.post("/domain-check/example.com")
+        admin_client.post("/domain-check/example.com/")
 
         check.refresh_from_db()
         assert check.status == DomainCheck.Status.RUNNING
@@ -371,7 +457,7 @@ class TestDomainCheckOgImageView:
 
 class TestInvalidNames:
     def test_detail__rejects_an_invalid_name(self, client):
-        response = client.get(f"/domain-check/{quote('❤')}")
+        response = client.get(f"/domain-check/{quote('❤')}/")
 
         assert response.status_code == 404
 

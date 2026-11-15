@@ -4,7 +4,6 @@ import secrets
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
@@ -12,7 +11,13 @@ from django.utils.decorators import method_decorator
 from django.utils.translation import gettext_lazy as _
 from django.views import generic
 
-from abstract.views import BreadcrumbViewMixin, CacheControlMixin, NoStoreCacheMixin
+from abstract.views import (
+    BreadcrumbViewMixin,
+    CacheControlMixin,
+    ConditionalGetListMixin,
+    ConditionalGetMixin,
+    NoStoreCacheMixin,
+)
 from domains.models import DomainCheck, canonicalize_domain_name
 
 from .forms import DomainCheckForm
@@ -20,19 +25,29 @@ from .open_graph import DomainCheckImage
 from .tasks import check_domain
 
 
-class DomainCheckListView(NoStoreCacheMixin, BreadcrumbViewMixin, generic.FormView):
-    form_class = DomainCheckForm
-    template_name = "domain_check/domaincheck_list.html"
+class DomainCheckListView(
+    ConditionalGetListMixin, BreadcrumbViewMixin, generic.ListView
+):
+    model = DomainCheck
     title = _("Domain check")
     parent = "home"
     paginate_by = 50
 
+    def get_template_names(self):
+        return ["domain_check/domaincheck_list.html"]
+
+    def get_queryset(self):
+        return super().get_queryset().order_by("penalty", "-modified_at")
+
     def get_context_data(self, **kwargs):
-        return super().get_context_data(**kwargs) | {
-            "page_obj": Paginator(DomainCheck.objects.all(), self.paginate_by).get_page(
-                self.request.GET.get("page")
-            ),
-        }
+        return super().get_context_data(**kwargs) | {"form": DomainCheckForm()}
+
+
+class DomainCheckSubmitView(NoStoreCacheMixin, generic.FormView):
+    form_class = DomainCheckForm
+
+    def get(self, request, *args, **kwargs):
+        return redirect("domain_check:list")
 
     def form_valid(self, form):
         domain_check, _created = DomainCheck.objects.get_or_create(
@@ -47,8 +62,15 @@ class DomainCheckListView(NoStoreCacheMixin, BreadcrumbViewMixin, generic.FormVi
             )
         return redirect(domain_check)
 
+    def form_invalid(self, form):
+        for error in form.errors.get("name", []):
+            messages.error(self.request, error)
+        return redirect("domain_check:list")
 
-class DomainCheckDetailView(NoStoreCacheMixin, BreadcrumbViewMixin, generic.DetailView):
+
+class DomainCheckDetailView(
+    ConditionalGetMixin, BreadcrumbViewMixin, generic.DetailView
+):
     model = DomainCheck
     context_object_name = "domain_check"
     parent = "domain_check:list"

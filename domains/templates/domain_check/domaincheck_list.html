@@ -16,7 +16,7 @@
       {% endblocktranslate %}
     </p>
 
-    <form method="post" class="mb-8">
+    <form method="post" action="{% url 'domain_check:submit' %}" class="mb-8">
       {% csrf_token %}
       <fieldset class="fieldset">
         <div role="group" class="field">
@@ -33,9 +33,6 @@
               {% translate "check domain"|capfirst %}
             </button>
           </div>
-          {% if form.name.errors %}
-            <p class="text-sm text-destructive">{{ form.name.errors|join:" " }}</p>
-          {% endif %}
         </div>
       </fieldset>
     </form>
@@ -50,9 +47,7 @@
         >
           <div class="flex flex-1 flex-col gap-1">
             <span class="text-lg font-semibold break-all">{{ domain_check.name }}</span>
-            {% if domain_check.checked_at %}
-              <span class="text-sm text-muted-foreground">{{ domain_check.checked_at|naturaltime }}</span>
-            {% endif %}
+            <span class="text-sm text-muted-foreground">{{ domain_check.modified_at|naturaltime }}</span>
           </div>
           <div class="flex items-center gap-3">
             {% if domain_check.status == "complete" %}
