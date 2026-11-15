@@ -1,11 +1,11 @@
 """Build the flat payload that webhook receivers and MCP clients read."""
 
-from dataclasses import dataclass
+import dataclasses
 
 from .models import Message, Transmission
 
 
-@dataclass
+@dataclasses.dataclass
 class MessageEvent:
     """Carry one mail's routing, TLS, and spam fields, without the raw body."""
 

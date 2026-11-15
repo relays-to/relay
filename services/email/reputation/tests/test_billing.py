@@ -1,4 +1,4 @@
-from decimal import Decimal
+import decimal
 
 from services.email.reputation.billing import month_cost, overage_price
 
@@ -8,40 +8,40 @@ class TestMonthCost:
         settings.FREE_MONTHLY_MESSAGES = 1000
         settings.PRICE_PER_1000_MESSAGES = 10.0
 
-        assert month_cost(1000) == Decimal("0.00")
-        assert month_cost(0) == Decimal("0.00")
+        assert month_cost(1000) == decimal.Decimal("0.00")
+        assert month_cost(0) == decimal.Decimal("0.00")
 
     def test_past_the_allowance__bills_every_thousand(self, settings):
         settings.FREE_MONTHLY_MESSAGES = 1000
         settings.PRICE_PER_1000_MESSAGES = 10.0
 
-        assert month_cost(1500) == Decimal("5.00")
-        assert month_cost(2000) == Decimal("10.00")
+        assert month_cost(1500) == decimal.Decimal("5.00")
+        assert month_cost(2000) == decimal.Decimal("10.00")
 
     def test_without_a_price__is_free(self, settings):
         settings.FREE_MONTHLY_MESSAGES = 1
         settings.PRICE_PER_1000_MESSAGES = 0.0
 
-        assert month_cost(5000) == Decimal("0.00")
+        assert month_cost(5000) == decimal.Decimal("0.00")
 
     def test_with_a_negative_allowance__bills_from_zero(self, settings):
         settings.FREE_MONTHLY_MESSAGES = -100
         settings.PRICE_PER_1000_MESSAGES = 10.0
 
-        assert month_cost(0) == Decimal("0.00")
-        assert month_cost(50) == Decimal("0.50")
+        assert month_cost(0) == decimal.Decimal("0.00")
+        assert month_cost(50) == decimal.Decimal("0.50")
 
     def test_with_a_negative_price__is_free(self, settings):
         settings.FREE_MONTHLY_MESSAGES = 0
         settings.PRICE_PER_1000_MESSAGES = -5.0
 
-        assert month_cost(5000) == Decimal("0.00")
+        assert month_cost(5000) == decimal.Decimal("0.00")
 
     def test_for_a_free_organization__is_free(self, settings):
         settings.FREE_MONTHLY_MESSAGES = 1000
         settings.PRICE_PER_1000_MESSAGES = 10.0
 
-        assert month_cost(5000, is_free=True) == Decimal("0.00")
+        assert month_cost(5000, is_free=True) == decimal.Decimal("0.00")
 
 
 class TestOveragePrice:
@@ -53,7 +53,7 @@ class TestOveragePrice:
     def test_with_a_price__is_the_price(self, settings):
         settings.PRICE_PER_1000_MESSAGES = 2.5
 
-        assert overage_price() == Decimal("2.5")
+        assert overage_price() == decimal.Decimal("2.5")
 
     def test_with_a_negative_price__has_none(self, settings):
         settings.PRICE_PER_1000_MESSAGES = -5.0

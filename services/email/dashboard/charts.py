@@ -1,5 +1,5 @@
 import datetime
-from typing import NamedTuple
+import typing
 
 from django.db import models
 from django.db.models import Count, Sum
@@ -20,7 +20,7 @@ class ReportType(models.TextChoices):
     FBL = "fbl", _("FBL")
 
 
-class ChartSeries(NamedTuple):
+class ChartSeries(typing.NamedTuple):
     value: str
     label: str
 

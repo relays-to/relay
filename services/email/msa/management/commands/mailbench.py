@@ -1,9 +1,9 @@
+import argparse
 import asyncio
+import collections
 import contextlib
 import math
 import time
-from argparse import ArgumentTypeError
-from collections import Counter
 from email.message import EmailMessage
 from email.utils import make_msgid
 from urllib.parse import urlparse
@@ -20,7 +20,7 @@ def positive_int(value: str) -> int:
     """Parse a whole number of at least 1 for an argparse option type."""
     number = int(value)
     if number < 1:
-        raise ArgumentTypeError(  # noqa: TRY003
+        raise argparse.ArgumentTypeError(  # noqa: TRY003
             f"The value must be at least 1, not {value}."
         )
     return number
@@ -263,7 +263,7 @@ class Command(BaseCommand):
             index = math.ceil(percent / 100 * complete_count) - 1
             self.stdout.write(f"  {percent:>3}%  {durations_ms[index]:8.1f}")
 
-        errors = Counter(error for _, error, _ in send_results if error)
+        errors = collections.Counter(error for _, error, _ in send_results if error)
         if errors:
             self.stdout.write("")
             self.stdout.write("Errors:")

@@ -1,5 +1,5 @@
+import datetime
 from contextlib import suppress
-from datetime import datetime
 from email import message_from_bytes
 
 from abnf import ParseError
@@ -109,6 +109,6 @@ def apply_fbl_fields(report_data, fields):
                     report_data["feedback_type"] = feedback_type
             case "arrival-date":
                 with suppress(ValueError):
-                    report_data["arrival_at"] = datetime.fromisoformat(value)
+                    report_data["arrival_at"] = datetime.datetime.fromisoformat(value)
             case _ if key in FBL_FIELD_MAP:
                 report_data[FBL_FIELD_MAP[key]] = value

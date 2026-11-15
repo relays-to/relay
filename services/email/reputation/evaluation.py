@@ -1,5 +1,5 @@
+import datetime
 import typing
-from datetime import timedelta
 
 from django.conf import settings
 from django.core.mail import mail_managers
@@ -39,7 +39,9 @@ def compute_org_reputation(org: Organization) -> ReputationStats:
     only. A sandbox submission counts nowhere, because relay never
     transmits it.
     """
-    window_start = timezone.now() - timedelta(days=settings.REPUTATION_WINDOW_DAYS)
+    window_start = timezone.now() - datetime.timedelta(
+        days=settings.REPUTATION_WINDOW_DAYS
+    )
     total_sent = (
         OutgoingMessage.objects.filter(org=org, created_at__gte=window_start)
         .exclude(status=OutgoingMessage.Status.SANDBOXED)

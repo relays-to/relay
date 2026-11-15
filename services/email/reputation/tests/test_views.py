@@ -1,5 +1,5 @@
-from datetime import datetime, time, timedelta
-from decimal import Decimal
+import datetime
+import decimal
 
 import pytest
 from django.conf import settings
@@ -60,7 +60,9 @@ def card_containing(content, label):
 def last_month():
     first_of_this_month = timezone.localdate().replace(day=1)
     return timezone.make_aware(
-        datetime.combine(first_of_this_month - timedelta(days=1), time(hour=12))
+        datetime.datetime.combine(
+            first_of_this_month - datetime.timedelta(days=1), datetime.time(hour=12)
+        )
     )
 
 
@@ -224,7 +226,7 @@ class TestReputationOverviewView:
         response = admin_client.get(overview_url(org))
 
         assert response.status_code == 200
-        assert response.context["cost"] == Decimal("0.00")
+        assert response.context["cost"] == decimal.Decimal("0.00")
         card = card_containing(response.content.decode(), "Thank you")
         assert "Free &lt;3" in card
         assert "messages a month" not in card
@@ -267,7 +269,7 @@ class TestReputationOverviewView:
 
         assert response.status_code == 200
         content = response.content.decode()
-        assert response.context["cost"] == Decimal("0.03")
+        assert response.context["cost"] == decimal.Decimal("0.03")
         assert 'amount="0.03" currency="EUR"' in content
         assert 'amount="10.0" currency="EUR"' in content
         assert "4 messages this month." in content

@@ -1,11 +1,11 @@
 import base64
+import dataclasses
 import datetime
 import hmac
 import logging
 import random
 import re
 import uuid
-from dataclasses import dataclass
 from email import message_from_bytes
 from email.utils import parseaddr
 from enum import StrEnum
@@ -558,7 +558,7 @@ class DsnAction(StrEnum):
     EXPANDED = "expanded"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class DeliveryStatus:
     """Per-recipient delivery status fields parsed from a DSN email."""
 
