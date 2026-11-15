@@ -49,30 +49,30 @@
   --status-color: var(--color-info);
 }
 
-/* Every published check carries the tier it earned down the left edge of its
-   row, so the list reads as a ranking before you parse a single number. */
-.item[data-tier="default"] {
-  --status-color: var(--color-primary);
-}
+.item {
+  &[data-tier] {
+    box-shadow: inset 4px 0 0 var(--status-color, transparent);
+  }
 
-.item[data-tier="success"] {
-  --status-color: var(--color-success);
-}
+  &[data-tier="default"] {
+    --status-color: var(--color-primary);
+  }
 
-.item[data-tier="outline"] {
-  --status-color: var(--color-muted-foreground);
-}
+  &[data-tier="success"] {
+    --status-color: var(--color-success);
+  }
 
-.item[data-tier="warning"] {
-  --status-color: var(--color-warning);
-}
+  &[data-tier="outline"] {
+    --status-color: var(--color-muted-foreground);
+  }
 
-.item[data-tier="destructive"] {
-  --status-color: var(--color-destructive);
-}
+  &[data-tier="warning"] {
+    --status-color: var(--color-warning);
+  }
 
-.item[data-tier] {
-  box-shadow: inset 4px 0 0 var(--status-color, transparent);
+  &[data-tier="destructive"] {
+    --status-color: var(--color-destructive);
+  }
 }
 
 /* Basecoat's toast category only picks the icon. Tint the toast and its

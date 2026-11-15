@@ -24,7 +24,7 @@ from .check.evaluation import (
     evaluate_domain,
     subcheck_hint,
 )
-from .check.tiers import Tier, penalty_for, tier_for
+from .check.tiers import MAX_PENALTY, Tier, penalty_for
 
 
 def canonicalize_domain_name(value):
@@ -618,7 +618,7 @@ class DomainCheck(TimeStamped):
 
     @property
     def tier(self) -> Tier:
-        return tier_for(self.penalty)
+        return Tier(Tier.values[min(self.penalty, MAX_PENALTY)])
 
     @property
     def tier_variant(self) -> str:

@@ -1,5 +1,6 @@
 import dataclasses
 import datetime
+from collections.abc import Iterable
 
 from django.db import transaction
 from django.tasks import DEFAULT_TASK_QUEUE_NAME, TaskContext, task
@@ -18,39 +19,41 @@ from .evaluation import (
 from .lookup import Lookup
 from .tiers import penalty_for
 
-CHECK_RETRY = ExponentialBackoff(
-    base_delay=datetime.timedelta(seconds=5),
-    max_retries=2,
-)
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CheckRetry(ExponentialBackoff):
+    """Retry a check twice, five seconds apart, then fail the row."""
+
+    base_delay: datetime.timedelta = datetime.timedelta(seconds=5)
+    max_retries: int = 2
+
+    def __call__(self, context: TaskContext) -> datetime.timedelta | None:
+        """Return the wait before the next attempt, or mark the row failed on the last."""
+        delay = super().__call__(context)
+        if delay is not None:
+            return delay
+        DomainCheck.objects.filter(
+            name=context.task_result.kwargs["name"],
+            status=DomainCheck.Status.RUNNING,
+        ).update(
+            status=DomainCheck.Status.FAILED,
+            modified_at=timezone.now(),
+        )
+        return None
 
 
-def check_retry(context: TaskContext) -> datetime.timedelta | None:
-    if delay := CHECK_RETRY(context):
-        return delay
-    DomainCheck.objects.filter(
-        name=context.task_result.kwargs["name"],
-        status=DomainCheck.Status.RUNNING,
-    ).update(
-        status=DomainCheck.Status.FAILED,
-        modified_at=timezone.now(),
-    )
-    return None
-
-
-def store_results(name: str, results: list[CheckResult]) -> None:
+def store_results(name: str, results: Iterable[CheckResult]) -> None:
+    """Merge the results into the stored checks and complete the row once all are in."""
     with transaction.atomic():
         domain_check = DomainCheck.objects.select_for_update().get(name=name)
         if domain_check.status == DomainCheck.Status.RUNNING:
-            merged = {check["key"]: check for check in domain_check.checks}
-            merged.update(
-                {
-                    result.key: dataclasses.asdict(result) | {"status": result.status}
-                    for result in results
-                }
-            )
+            merged = {check["key"]: check for check in domain_check.checks} | {
+                result.key: dataclasses.asdict(result) | {"status": result.status}
+                for result in results
+            }
             checks = [merged[key] for key in CHECK_ORDER if key in merged]
             update_fields = ["checks"]
-            if all(key in merged for key in CHECK_ORDER):
+            if len(checks) == len(CHECK_ORDER):
                 domain_check.penalty = penalty_for(
                     *check.get("subchecks", []) for check in checks
                 )
@@ -61,19 +64,25 @@ def store_results(name: str, results: list[CheckResult]) -> None:
             domain_check.save(update_fields=update_fields)
 
 
-@task(queue_name=DEFAULT_TASK_QUEUE_NAME, retry=check_retry)
+@task(queue_name=DEFAULT_TASK_QUEUE_NAME, retry=CheckRetry())
 def check_delivery(name: str) -> None:
-    store_results(name, evaluate_delivery(name, Lookup()))
+    """Evaluate the delivery checks and store them on the row."""
+    results = evaluate_delivery(name, Lookup())
+    store_results(name, results)
 
 
-@task(queue_name=DEFAULT_TASK_QUEUE_NAME, retry=check_retry)
+@task(queue_name=DEFAULT_TASK_QUEUE_NAME, retry=CheckRetry())
 def check_authentication(name: str) -> None:
-    store_results(name, evaluate_authentication(name, Lookup()))
+    """Evaluate the authentication checks and store them on the row."""
+    results = evaluate_authentication(name, Lookup())
+    store_results(name, results)
 
 
-@task(queue_name=DEFAULT_TASK_QUEUE_NAME, retry=check_retry)
+@task(queue_name=DEFAULT_TASK_QUEUE_NAME, retry=CheckRetry())
 def check_reputation(name: str) -> None:
-    store_results(name, evaluate_reputation(name, Lookup()))
+    """Evaluate the reputation checks and store them on the row."""
+    results = evaluate_reputation(name, Lookup())
+    store_results(name, results)
 
 
 @task(queue_name=DEFAULT_TASK_QUEUE_NAME)

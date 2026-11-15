@@ -49,7 +49,6 @@
         "pnpm-lock.yaml",
         "root/templates/**/*.html",
         "root/templates/**/*.svg",
-        "domain_check/templates/**/*.html",
         "services/**/*.html",
         "accounts/**/*.html",
         "domains/**/*.html",

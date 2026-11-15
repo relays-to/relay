@@ -24,27 +24,6 @@ class Tier(models.TextChoices):
     F = "F", _("F tier")
 
 
-TIERS = (
-    Tier.S,
-    Tier.A_PLUS,
-    Tier.A,
-    Tier.A_MINUS,
-    Tier.B,
-    Tier.B_MINUS,
-    Tier.C,
-    Tier.C_MINUS,
-    Tier.D,
-    Tier.D_MINUS,
-    Tier.E,
-    Tier.E_MINUS,
-    Tier.F,
-)
-
-
-def tier_for(penalty: int) -> Tier:
-    return TIERS[min(penalty, MAX_PENALTY)]
-
-
 def penalty_for(subchecks: Iterable[Mapping[str, str]]) -> int:
     failed = [subcheck for subcheck in subchecks if subcheck["status"] == "fail"]
     if any(subcheck.get("severity", "broken") == "blocking" for subcheck in failed):

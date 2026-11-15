@@ -3,23 +3,29 @@ import "#js/network-location.js";
 
 /** Open the network behind an address in a dialog. */
 export class IpAddress extends LitElement {
+  /** Declare the properties the element renders from. */
   static properties = {
+    /** Address used for both the trigger label and the lookup. */
     address: { type: String },
   };
 
+  /** Initialise the address before Lit applies attributes. */
   constructor() {
     super();
     this.address = "";
   }
 
+  /** Return the light DOM so the dialog reaches the page styles. */
   createRenderRoot() {
     return this;
   }
 
+  /** Open the dialog. */
   open() {
     this.querySelector("dialog")?.showModal();
   }
 
+  /** Close the dialog when the backdrop is clicked. */
   closeOnBackdrop(event) {
     // A click on the dialog itself misses the card, so it hits the backdrop.
     if (event.target === event.currentTarget) {
@@ -27,6 +33,7 @@ export class IpAddress extends LitElement {
     }
   }
 
+  /** Render the address trigger and its dialog. */
   render() {
     const { map: mapLabel, unavailable, retry } = this.dataset;
     return html`

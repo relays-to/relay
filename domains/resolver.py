@@ -1,6 +1,7 @@
 """Authoritative DNS resolver backed by Domain models."""
 
 import base64
+import datetime
 from collections.abc import Iterator
 
 from django.conf import settings
@@ -37,8 +38,18 @@ class DNSResolver(BaseResolver):
     """Resolve DNS queries."""
 
     MX_PRIORITY: int = 10
-    NS_TTL: int = 3600
-    RECORD_TTL: int = 3600
+    NS_TTL: datetime.timedelta = datetime.timedelta(hours=1)
+    RECORD_TTL: datetime.timedelta = datetime.timedelta(hours=1)
+
+    @property
+    def ns_ttl_seconds(self) -> int:
+        """Return the NS TTL in whole seconds for the DNS wire format."""
+        return int(self.NS_TTL.total_seconds())
+
+    @property
+    def record_ttl_seconds(self) -> int:
+        """Return the record TTL in whole seconds for the DNS wire format."""
+        return int(self.RECORD_TTL.total_seconds())
 
     def resolve(self, request: DNSRecord, handler) -> DNSRecord:
         """Return an authoritative DNS reply."""
@@ -67,7 +78,7 @@ class DNSResolver(BaseResolver):
                         qname,
                         QTYPE.A,
                         rdata=A(smtp_ip_address),
-                        ttl=self.RECORD_TTL,
+                        ttl=self.record_ttl_seconds,
                     )
                     for smtp_ip_address in settings.DNS_SMTP_IPS
                 ]
@@ -100,7 +111,10 @@ class DNSResolver(BaseResolver):
             ):
                 for smtp_ip_address in settings.DNS_SMTP_IPS:
                     yield RR(
-                        qname, QTYPE.A, rdata=A(smtp_ip_address), ttl=self.RECORD_TTL
+                        qname,
+                        QTYPE.A,
+                        rdata=A(smtp_ip_address),
+                        ttl=self.record_ttl_seconds,
                     )
             case QTYPE.MX | QTYPE.ANY:
                 for hostname in settings.DNS_MX_HOSTNAMES:
@@ -108,14 +122,17 @@ class DNSResolver(BaseResolver):
                         qname,
                         QTYPE.MX,
                         rdata=MX(hostname, self.MX_PRIORITY),
-                        ttl=self.RECORD_TTL,
+                        ttl=self.record_ttl_seconds,
                     )
             case QTYPE.TXT | QTYPE.ANY:
                 yield from self.resolve_txt(qname, qtype, query_name, domain)
             case QTYPE.NS | QTYPE.ANY:
                 for nameserver in settings.DNS_NS_NAMESERVERS:
                     yield RR(
-                        qname, QTYPE.NS, rdata=NS(DNSLabel(nameserver)), ttl=self.NS_TTL
+                        qname,
+                        QTYPE.NS,
+                        rdata=NS(DNSLabel(nameserver)),
+                        ttl=self.ns_ttl_seconds,
                     )
 
     def resolve_txt(
@@ -130,14 +147,17 @@ class DNSResolver(BaseResolver):
         match query_name:
             case name if name == domain.sender_domain:
                 yield RR(
-                    qname, QTYPE.TXT, rdata=txt(domain.spf_record), ttl=self.RECORD_TTL
+                    qname,
+                    QTYPE.TXT,
+                    rdata=txt(domain.spf_record),
+                    ttl=self.record_ttl_seconds,
                 )
             case name if name == domain.dmarc_record_name:
                 yield RR(
                     qname,
                     QTYPE.TXT,
                     rdata=txt(domain.dmarc_record),
-                    ttl=self.RECORD_TTL,
+                    ttl=self.record_ttl_seconds,
                 )
             case name if name in (
                 domain.mta_sts_record_name,
@@ -147,14 +167,14 @@ class DNSResolver(BaseResolver):
                     qname,
                     QTYPE.TXT,
                     rdata=txt(domain.mta_sts_record),
-                    ttl=self.RECORD_TTL,
+                    ttl=self.record_ttl_seconds,
                 )
             case name if name == domain.tls_rpt_record_cname_target:
                 yield RR(
                     qname,
                     QTYPE.TXT,
                     rdata=txt(domain.tls_rpt_record),
-                    ttl=self.RECORD_TTL,
+                    ttl=self.record_ttl_seconds,
                 )
 
         yield from self.resolve_dkim_txt(qname, query_name, domain)
@@ -178,7 +198,7 @@ class DNSResolver(BaseResolver):
                         qname,
                         QTYPE.TXT,
                         rdata=txt(dkim_record(key)),
-                        ttl=self.RECORD_TTL,
+                        ttl=self.record_ttl_seconds,
                     )
 
     def resolve_apex_txt(
@@ -194,21 +214,21 @@ class DNSResolver(BaseResolver):
                     qname,
                     QTYPE.TXT,
                     rdata=txt(domain.root_spf_record),
-                    ttl=self.RECORD_TTL,
+                    ttl=self.record_ttl_seconds,
                 )
             case name if name == f"_dmarc.{domain.sender_domain}":
                 yield RR(
                     qname,
                     QTYPE.TXT,
                     rdata=txt(domain.sender_dmarc_record),
-                    ttl=self.RECORD_TTL,
+                    ttl=self.record_ttl_seconds,
                 )
             case name if name == domain.tls_rpt_record_name:
                 yield RR(
                     qname,
                     QTYPE.TXT,
                     rdata=txt(domain.tls_rpt_record),
-                    ttl=self.RECORD_TTL,
+                    ttl=self.record_ttl_seconds,
                 )
 
     def resolve_cname(
@@ -224,5 +244,5 @@ class DNSResolver(BaseResolver):
                     qname,
                     QTYPE.CNAME,
                     rdata=CNAME(DNSLabel(domain.mta_sts_cname_target)),
-                    ttl=self.RECORD_TTL,
+                    ttl=self.record_ttl_seconds,
                 )

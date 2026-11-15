@@ -21,13 +21,23 @@
       <fieldset class="fieldset">
         <div role="group" class="field">
           {{ form.name.label_tag }}
-          {{ form.name }}
+          <div class="input-group">
+            {{ form.name }}
+            <button
+              type="submit"
+              class="btn"
+              data-variant="secondary"
+              data-size="xs"
+              data-align="end"
+            >
+              {% translate "check domain"|capfirst %}
+            </button>
+          </div>
           {% if form.name.errors %}
             <p class="text-sm text-destructive">{{ form.name.errors|join:" " }}</p>
           {% endif %}
         </div>
       </fieldset>
-      <button type="submit" class="btn mt-6">{% translate "check domain"|capfirst %}</button>
     </form>
 
     <div class="item-group">

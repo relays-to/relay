@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from .models import Domain
-from .mta_sts import matches_mta_sts_mx_pattern, parse_mta_sts_txt_record
+from .mta_sts import MtaStsRecord
 
 CHECK_LABELS = {
     "nameserver": "NS",
@@ -125,7 +125,7 @@ def check_mta_sts(domain):
         mx_hosts = {str(record.exchange).rstrip(".").lower() for record in mx_records}
         if not mx_hosts or not all(
             any(
-                matches_mta_sts_mx_pattern(hostname, pattern)
+                MtaStsRecord.matches(hostname, pattern)
                 for pattern in domain.mta_sts_mx_hosts
             )
             for hostname in mx_hosts
@@ -145,7 +145,7 @@ def check_mta_sts(domain):
                 candidate_records.append(value)
         if len(candidate_records) != 1:
             return False
-        tags = parse_mta_sts_txt_record(candidate_records[0])
+        tags = MtaStsRecord.parse(candidate_records[0])
         if tags is None or tags["id"] != domain.mta_sts_policy_id:
             return False
 

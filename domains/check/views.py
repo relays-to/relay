@@ -16,16 +16,10 @@ from .forms import DomainCheckForm
 from .open_graph import DomainCheckImage
 from .tasks import check_domain
 
-OG_TTL = datetime.timedelta(hours=6)
-# Poll while a check runs, spread out so a burst of visitors does not
-# reload in lockstep.
-REFRESH_INTERVAL_SECS = 2
-REFRESH_JITTER_SECS = 2
-
 
 class DomainCheckListView(NoStoreCacheMixin, BreadcrumbViewMixin, generic.FormView):
     form_class = DomainCheckForm
-    template_name = "domain_check/list.html"
+    template_name = "domain_check/domaincheck_list.html"
     title = _("Domain check")
     parent = "home"
     paginate_by = 50
@@ -55,6 +49,10 @@ class DomainCheckDetailView(NoStoreCacheMixin, BreadcrumbViewMixin, generic.Deta
     model = DomainCheck
     context_object_name = "domain_check"
     parent = "domain_check:list"
+    # Poll while a check runs, spread out so a burst of visitors does not
+    # reload in lockstep.
+    REFRESH_INTERVAL_SECS = 2
+    REFRESH_JITTER_SECS = 2
 
     def get(self, request, *args, **kwargs):
         try:
@@ -70,8 +68,8 @@ class DomainCheckDetailView(NoStoreCacheMixin, BreadcrumbViewMixin, generic.Deta
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(**kwargs) | {
-            "refresh_secs": REFRESH_INTERVAL_SECS
-            + secrets.randbelow(REFRESH_JITTER_SECS + 1)
+            "refresh_secs": self.REFRESH_INTERVAL_SECS
+            + secrets.randbelow(self.REFRESH_JITTER_SECS + 1)
         }
 
     def get_template_names(self):
@@ -79,13 +77,14 @@ class DomainCheckDetailView(NoStoreCacheMixin, BreadcrumbViewMixin, generic.Deta
             DomainCheck.Status.PENDING,
             DomainCheck.Status.RUNNING,
         }:
-            return ["domain_check/checking.html"]
-        return ["domain_check/detail.html"]
+            return ["domain_check/domaincheck_checking.html"]
+        return ["domain_check/domaincheck_detail.html"]
 
 
 class DomainCheckOgImageView(CacheControlMixin, generic.View):
     """Render the share card for one domain check as a PNG."""
 
+    OG_TTL = datetime.timedelta(hours=6)
     cache_control = {
         "public": True,
         # The rendered bytes live in the Django cache for OG_TTL, so the
@@ -108,6 +107,6 @@ class DomainCheckOgImageView(CacheControlMixin, generic.View):
                 f"domain_check:open_graph:{name}:{host}:"
                 f"{int(check.modified_at.timestamp())}"
             ),
-            cache_ttl=OG_TTL,
+            cache_ttl=self.OG_TTL,
         ).render()
         return HttpResponse(image, content_type="image/png")
