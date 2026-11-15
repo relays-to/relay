@@ -8,6 +8,8 @@ import dns.resolver
 from django.core.cache import cache
 
 DNS_TIMEOUT_SECS = 2.0
+AUTHORITATIVE_TIMEOUT_SECS = 2.0
+AUTHORITATIVE_TRIES = 2
 DNS_RETRIES = 3
 DNS_RETRY_DELAY_SECS = 0.2
 DNS_CACHE_SECS = 300
@@ -43,6 +45,31 @@ def render_record(record, record_type: str) -> str:
             return record.address
         case _:
             return str(record)
+
+
+def authoritative_ttl(name: str, record_type: str) -> int | None:
+    """Read the TTL the zone publishes, not the decayed one from a cache."""
+    resolver = dns.resolver.Resolver()
+    resolver.lifetime = DNS_TIMEOUT_SECS
+    try:
+        zone = dns.resolver.zone_for_name(name)
+        nameservers = resolver.resolve(zone, "NS")
+    except dns.exception.DNSException:
+        return None
+    for nameserver in list(nameservers)[:AUTHORITATIVE_TRIES]:
+        try:
+            address = resolver.resolve(nameserver.target, "A")[0].address
+            authority = dns.resolver.Resolver(configure=False)
+            authority.lifetime = AUTHORITATIVE_TIMEOUT_SECS
+            authority.nameservers = [address]
+            answer = authority.resolve(name, record_type)
+        except dns.exception.DNSException:
+            ttl = None
+        else:
+            ttl = answer.rrset.ttl if answer.rrset is not None else None
+        if ttl is not None:
+            return ttl
+    return None
 
 
 class Lookup:
@@ -95,7 +122,11 @@ class Lookup:
         return self.query(host, "A").records + self.query(host, "AAAA").records
 
     def ttl(self, name: str, record_type: str) -> int | None:
-        return self.query(name, record_type).ttl
+        answer = self.query(name, record_type)
+        if answer.failed or not answer.records:
+            return None
+        published = authoritative_ttl(name, record_type)
+        return answer.ttl if published is None else published
 
     def ptr(self, address: str) -> tuple[str, ...] | None:
         answer = self.query(ipaddress.ip_address(address).reverse_pointer, "PTR")
