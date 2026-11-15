@@ -180,6 +180,7 @@ def summarize(subchecks: tuple[SubCheck, ...]) -> str:
 class SpfLookup:
     records: tuple[str, ...] = ()
     addresses: tuple[str, ...] = ()
+    exact: tuple[str, ...] = ()
     lookups: int = 0
     sampled: int = 0
     exhausted: bool = False
@@ -190,6 +191,7 @@ class SpfLookup:
 class SpfWalker:
     visited: set[str] = dataclasses.field(default_factory=set)
     addresses: list[str] = dataclasses.field(default_factory=list)
+    exact: list[str] = dataclasses.field(default_factory=list)
     lookups: int = 0
     sampled: int = 0
     exhausted: bool = False
@@ -305,6 +307,11 @@ def resolve_spf(name: str, lookup: Lookup) -> SpfLookup:
             for address in dict.fromkeys(walker.addresses)
             if is_global_address(address)
         ),
+        exact=tuple(
+            address
+            for address in dict.fromkeys(walker.exact)
+            if is_global_address(address)
+        ),
         lookups=walker.lookups,
         sampled=walker.sampled,
         exhausted=walker.exhausted,
@@ -327,6 +334,8 @@ def add_network(walker: SpfWalker, address: str, prefix: str) -> None:
             # range. The first host is the one right after the network address.
             host += 1
             walker.sampled += 1
+        else:
+            walker.exact.append(str(host))
         walker.addresses.append(str(host))
 
 
@@ -348,7 +357,9 @@ def add_mechanism_addresses(
     ipv6_prefix = ipv6_prefix.lstrip("/") or "128"
     for name in names:
         if not prefix:
-            walker.addresses.extend(resolve_addresses(name, lookup))
+            resolved = resolve_addresses(name, lookup)
+            walker.addresses.extend(resolved)
+            walker.exact.extend(resolved)
             continue
         for address in lookup.query(name, "A").records:
             add_network(walker, address, ipv4_prefix)
@@ -387,6 +398,7 @@ def walk_mechanism(domain: str, token: str, walker: SpfWalker, lookup: Lookup) -
                 add_network(walker, host, prefix)
             else:
                 walker.addresses.append(host)
+                walker.exact.append(host)
 
 
 def follow_spf(name: str, walker: SpfWalker, lookup: Lookup) -> None:
@@ -411,9 +423,14 @@ def has_matching_reverse_dns(address: str, lookup: Lookup) -> bool | None:
     )
 
 
-def check_reverse_dns(addresses: tuple[str, ...], lookup: Lookup) -> SubCheck:
-    if not addresses:
+def check_reverse_dns(spf: SpfLookup, lookup: Lookup) -> SubCheck:
+    if not spf.addresses:
         return SubCheck("Reverse DNS", "skip", "No SPF address", severity="weak")
+    if not spf.exact:
+        return SubCheck(
+            "Reverse DNS", "skip", "SPF covers ranges only", severity="weak"
+        )
+    addresses = spf.exact
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=REVERSE_DNS_WORKERS
     ) as executor:
@@ -432,7 +449,7 @@ def check_reverse_dns(addresses: tuple[str, ...], lookup: Lookup) -> SubCheck:
     ]
     detail = (
         f"{len(checked) - len(mismatched)} of {len(checked)} "
-        "addresses have a matching PTR"
+        "addresses point at a hostname that resolves back"
     )
     return SubCheck(
         "Reverse DNS",
@@ -503,7 +520,7 @@ def check_spf(name: str, lookup: Lookup) -> CheckResult:
             all_mechanism,
             severity="weak",
         ),
-        check_reverse_dns(spf.addresses, lookup),
+        check_reverse_dns(spf, lookup),
         check_ttl("SPF TTL", name, "TXT", lookup),
     )
     return CheckResult("spf", "SPF", summarize(subchecks), subchecks)
