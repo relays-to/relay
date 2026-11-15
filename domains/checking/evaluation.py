@@ -32,6 +32,7 @@ POLICY_LIMIT_BYTES = 64 * 1024
 MAX_MX_EXCHANGES = 5
 SMALL_NETWORK_ADDRESSES = 256
 REVERSE_DNS_WORKERS = 16
+MAX_LISTED_ADDRESSES = 5
 BLOCKLIST_WORKERS = 16
 SPF_MAX_LOOKUPS = 10
 TTL_MIN_SECS = 3600
@@ -145,6 +146,7 @@ class SubCheck:
     status: str
     detail: str
     severity: str = "broken"
+    addresses: tuple[str, ...] = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -432,13 +434,12 @@ def check_reverse_dns(addresses: tuple[str, ...], lookup: Lookup) -> SubCheck:
         f"{len(checked) - len(mismatched)} of {len(checked)} "
         "addresses have a matching PTR"
     )
-    if mismatched:
-        detail += f"; unmatched {', '.join(mismatched[:2])}"
     return SubCheck(
         "Reverse DNS",
         "fail" if mismatched else "pass",
         detail,
         severity="weak",
+        addresses=tuple(mismatched[:MAX_LISTED_ADDRESSES]),
     )
 
 
