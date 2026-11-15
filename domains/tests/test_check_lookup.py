@@ -2,7 +2,6 @@ import datetime
 from types import SimpleNamespace
 
 import dns.exception
-import dns.name
 import dns.rdata
 import dns.rdataclass
 import dns.rdatatype
@@ -91,7 +90,9 @@ class TestQuery:
         dns_resolver.add("example.com", "TXT", '"v=spf1 -all"')
 
         assert lookup.query("example.com", dns.rdatatype.TXT) == Answer(
-            ("v=spf1 -all",), ttl=datetime.timedelta(minutes=30)
+            ("v=spf1 -all",),
+            ttl=datetime.timedelta(minutes=30),
+            canonical_name="example.com",
         )
 
     def test_query__memoizes_by_normalized_name(self, lookup, dns_resolver):
@@ -203,31 +204,19 @@ class TestTtl:
     def test_ttl__returns_none_without_records(self, lookup):
         assert lookup.ttl("example.com", dns.rdatatype.TXT) is None
 
-    def test_ttl__keeps_the_resolver_ttl_without_a_zone(
-        self, lookup, dns_resolver, monkeypatch
-    ):
+    def test_ttl__keeps_the_resolver_ttl_without_a_zone(self, lookup, dns_resolver):
         dns_resolver.add("example.com", "TXT", '"v=spf1 -all"')
-
-        def zone_for_name(name, resolver=None):
-            raise dns.exception.DNSException()
-
-        monkeypatch.setattr(dns.resolver, "zone_for_name", zone_for_name)
 
         assert lookup.ttl("example.com", dns.rdatatype.TXT) == datetime.timedelta(
             minutes=30
         )
 
     def test_ttl__keeps_the_resolver_ttl_when_the_zone_agrees(
-        self, lookup, dns_resolver, monkeypatch
+        self, lookup, dns_resolver
     ):
         dns_resolver.add("example.com", "TXT", '"v=spf1 -all"')
         dns_resolver.add("example.com", "NS", "ns1.example.com.")
         dns_resolver.add("ns1.example.com", "A", "192.0.2.1")
-        monkeypatch.setattr(
-            dns.resolver,
-            "zone_for_name",
-            lambda name, resolver=None: dns.name.from_text("example.com."),
-        )
 
         assert lookup.ttl("example.com", dns.rdatatype.TXT) == datetime.timedelta(
             minutes=30
@@ -244,11 +233,6 @@ class TestTtl:
             return authority if kwargs.get("configure") is False else recursive
 
         monkeypatch.setattr(dns.resolver, "Resolver", factory)
-        monkeypatch.setattr(
-            dns.resolver,
-            "zone_for_name",
-            lambda name, resolver=None: dns.name.from_text("example.com."),
-        )
         lookup = Lookup()
 
         assert lookup.ttl("example.com", dns.rdatatype.TXT) == datetime.timedelta(
@@ -258,22 +242,30 @@ class TestTtl:
             hours=2
         )
 
-    def test_authoritative_ttl__returns_none_without_a_zone(self, lookup, monkeypatch):
-        def zone_for_name(name, resolver=None):
-            raise dns.exception.DNSException()
+    def test_ttl__reads_the_published_ttl_of_a_cname_target(self, monkeypatch):
+        recursive = StubResolver()
+        recursive.add("example.com", "CNAME", "target.example.net.")
+        recursive.add("target.example.net", "TXT", '"v=spf1 -all"')
+        recursive.add("target.example.net", "NS", "ns1.example.net.")
+        recursive.add("ns1.example.net", "A", "192.0.2.1")
+        authority = Authority(7200)
 
-        monkeypatch.setattr(dns.resolver, "zone_for_name", zone_for_name)
+        def factory(*args, **kwargs):
+            return authority if kwargs.get("configure") is False else recursive
 
+        monkeypatch.setattr(dns.resolver, "Resolver", factory)
+        lookup = Lookup()
+
+        assert lookup.ttl("example.com", dns.rdatatype.TXT) == datetime.timedelta(
+            hours=2
+        )
+
+    def test_authoritative_ttl__returns_none_without_a_zone(self, lookup):
         assert lookup.authoritative_ttl("example.com", dns.rdatatype.TXT) is None
 
     def test_authoritative_ttl__skips_a_nameserver_without_an_address(
-        self, lookup, dns_resolver, monkeypatch
+        self, lookup, dns_resolver
     ):
         dns_resolver.add("example.com", "NS", "ns1.example.com.")
-        monkeypatch.setattr(
-            dns.resolver,
-            "zone_for_name",
-            lambda name, resolver=None: dns.name.from_text("example.com."),
-        )
 
         assert lookup.authoritative_ttl("example.com", dns.rdatatype.TXT) is None
