@@ -4,14 +4,13 @@ import typing
 from abstract.open_graph import RGB, OpenGraphImage
 from domains.models import DomainCheck
 
-PADDING = 72
-TEXT_WIDTH = 660
+PADDING = 96
+TEXT_WIDTH = 600
 # The card is 630 tall. 630 / 1.618 lands on 389, which is the domain's
-# baseline. The mirrored line, 241 from the top, carries the tier.
+# baseline, so the type block sits above the middle rather than on it.
 DOMAIN_BASELINE = 389
-KICKER_BASELINE = 200
-STATUS_BASELINE = 445
-GOLDEN_BAND = round(630 - 630 / 1.618)
+HEADER_BASELINE = 150
+STATUS_BASELINE = 452
 
 
 def issue_phrase(count: int) -> str:
@@ -54,8 +53,8 @@ class DomainCheckImage(OpenGraphImage):
 
     padding: typing.ClassVar[int] = PADDING
     text_width: typing.ClassVar[int] = TEXT_WIDTH
-    tier_center: typing.ClassVar[tuple[int, int]] = (968, GOLDEN_BAND)
-    tier_radius: typing.ClassVar[int] = 160
+    tier_center: typing.ClassVar[tuple[int, int]] = (919, 300)
+    tier_radius: typing.ClassVar[int] = 185
 
     def tier_color(self) -> RGB:
         if self.check.status != self.check.Status.COMPLETE:
@@ -63,33 +62,38 @@ class DomainCheckImage(OpenGraphImage):
         return TIER_COLORS[self.check.tier_variant]
 
     def draw(self, draw) -> None:
-        self.draw_wordmark(draw)
-        self.draw_kicker(draw, "email domain check")
+        self.draw_header(draw)
         self.draw_domain(draw)
         self.draw_status(draw)
         self.draw_tier(draw)
-        self.draw_footer(draw)
 
-    def draw_wordmark(self, draw) -> None:
+    def draw_header(self, draw) -> None:
+        left = self.padding - 4
+        wordmark = self.font("space-mono-700-italic.ttf", 58)
         draw.text(
-            (self.padding - 4, self.padding - 12),
-            "relay",
-            font=self.font("space-mono-700-italic.ttf", 58),
-            fill=self.ink,
+            (left, HEADER_BASELINE), "relay", font=wordmark, fill=self.ink, anchor="ls"
         )
-
-    def draw_kicker(self, draw, label: str) -> None:
+        label = self.font("fira-sans-500.ttf", 28)
+        left += draw.textlength("relay", font=wordmark) + 18
         draw.text(
-            (self.padding, KICKER_BASELINE),
-            label,
-            font=self.font("fira-sans-500.ttf", 30),
+            (left, HEADER_BASELINE),
+            "|",
+            font=label,
+            fill=(*self.ink, 110),
+            anchor="ls",
+        )
+        left += draw.textlength("|", font=label) + 18
+        draw.text(
+            (left, HEADER_BASELINE),
+            "email domain check",
+            font=label,
             fill=(*self.ink, 200),
             anchor="ls",
         )
 
     def draw_domain(self, draw) -> None:
         name = self.check.name
-        for size in range(108, 42, -2):
+        for size in range(116, 42, -2):
             candidate = self.font("fira-sans-700.ttf", size)
             if draw.textlength(name, font=candidate) <= self.text_width:
                 draw.text(
@@ -141,7 +145,7 @@ class DomainCheckImage(OpenGraphImage):
         draw.text(
             (self.padding, STATUS_BASELINE),
             status_line(self.check),
-            font=self.font("fira-sans-500.ttf", 34),
+            font=self.font("fira-sans-500.ttf", 36),
             fill=(*self.ink, 225),
             anchor="ls",
         )
@@ -161,7 +165,7 @@ class DomainCheckImage(OpenGraphImage):
             width=4,
         )
         letter = tier_letter(self.check)
-        font = self.font("fira-sans-700.ttf", 262 if len(letter) == 1 else 190)
+        font = self.font("fira-sans-700.ttf", 300 if len(letter) == 1 else 220)
         mask, (offset_x, offset_y) = font.getmask2(letter, mode="L")
         if (ink := mask.getbbox()) is not None:
             # Center the painted pixels, not the em box, which carries the side
@@ -174,16 +178,3 @@ class DomainCheckImage(OpenGraphImage):
                 font=font,
                 fill=color,
             )
-
-    def draw_footer(self, draw) -> None:
-        draw.line(
-            (self.padding, 540, self.width - self.padding, 540),
-            fill=(*self.ink, 60),
-            width=2,
-        )
-        draw.text(
-            (self.padding, 566),
-            f"{self.host}/domain-check",
-            font=self.font("fira-sans-500.ttf", 26),
-            fill=(*self.ink, 185),
-        )
