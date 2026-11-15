@@ -1,5 +1,5 @@
 import dataclasses
-from typing import ClassVar
+import typing
 
 from abstract.open_graph import OpenGraphImage
 from domains.models import DomainCheck
@@ -37,10 +37,10 @@ class DomainCheckImage(OpenGraphImage):
     check: DomainCheck
     host: str = "relay.to"
 
-    padding: ClassVar[int] = PADDING
-    text_width: ClassVar[int] = TEXT_WIDTH
-    tier_center: ClassVar[tuple[int, int]] = (968, 300)
-    tier_radius: ClassVar[int] = 128
+    padding: typing.ClassVar[int] = PADDING
+    text_width: typing.ClassVar[int] = TEXT_WIDTH
+    tier_center: typing.ClassVar[tuple[int, int]] = (968, 300)
+    tier_radius: typing.ClassVar[int] = 128
 
     def draw(self, draw) -> None:
         self.draw_wordmark(draw)

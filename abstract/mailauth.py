@@ -1,8 +1,8 @@
+import dataclasses
 import ipaddress
 import logging
 import re
 from contextlib import suppress
-from dataclasses import dataclass
 from email import message_from_bytes
 from enum import StrEnum
 
@@ -36,7 +36,7 @@ class Disposition(StrEnum):
     REJECT = "reject"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class DmarcPolicy:
     p: str = ""
     sp: str = "none"
@@ -127,7 +127,7 @@ class DmarcPolicy:
         return ""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class DmarcEvaluation:
     source_ip_address: str | None
     header_from: str

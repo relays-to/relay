@@ -1,5 +1,5 @@
+import dataclasses
 import logging
-from dataclasses import dataclass, field
 from fnmatch import fnmatch
 
 import httpx
@@ -8,10 +8,10 @@ from django.core.cache import cache
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class MtaStsPolicy:
     mode: str = ""
-    mx_patterns: list[str] = field(default_factory=list)
+    mx_patterns: list[str] = dataclasses.field(default_factory=list)
     max_age: int = 3600
     policy_id: str = ""
     loaded: bool = False

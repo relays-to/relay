@@ -1,5 +1,5 @@
-from datetime import timedelta
-from decimal import Decimal
+import datetime
+import decimal
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -37,7 +37,7 @@ def make_message(
     )
     if days_ago:
         OutgoingMessage.objects.filter(pk=message.pk).update(
-            created_at=timezone.now() - timedelta(days=days_ago)
+            created_at=timezone.now() - datetime.timedelta(days=days_ago)
         )
     return message
 
@@ -137,7 +137,7 @@ class TestBuildDigestContext:
         assert context["bounce_threshold"] == 0.05
         assert context["complaint_threshold"] == 0.001
         assert context["free_monthly_messages"] == 1000
-        assert context["cost"] == Decimal("28.36")
+        assert context["cost"] == decimal.Decimal("28.36")
         assert "<svg" not in context["week_chart"]
         assert f'bgcolor="{chart.COLUMN}"' in context["week_chart"]
         assert context["illustration_dark"] == "img/illustrations/all-the-data-dark.svg"
@@ -156,7 +156,7 @@ class TestBuildDigestContext:
 
         assert context["week_chart"] == ""
         assert context["message_interval"] == ""
-        assert context["cost"] == Decimal("0.00")
+        assert context["cost"] == decimal.Decimal("0.00")
 
     def test_build_digest_context__makes_a_free_organization_free(self, org):
         org.is_free = True
@@ -171,7 +171,7 @@ class TestBuildDigestContext:
         )
 
         assert context["is_free"] is True
-        assert context["cost"] == Decimal("0.00")
+        assert context["cost"] == decimal.Decimal("0.00")
 
 
 @pytest.mark.django_db
@@ -191,7 +191,7 @@ class TestBuildOrgDigest:
         assert digest["recipients"] == 1
         assert digest["month_messages"] == 2
         assert digest["window_phrase"] == "last 2 days"
-        assert digest["cost"] == Decimal("0.00")
+        assert digest["cost"] == decimal.Decimal("0.00")
         assert f'bgcolor="{chart.COLUMN}"' in digest["week_chart"]
         assert digest["dashboard_path"] == reverse(
             "monitoring:overview", kwargs={"org_slug": "test-org"}

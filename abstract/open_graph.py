@@ -2,7 +2,7 @@ import dataclasses
 import datetime
 import io
 import pathlib
-from typing import ClassVar
+import typing
 
 from django.core.cache import cache
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -17,13 +17,13 @@ class OpenGraphImage:
     cache_key: str
     cache_ttl: datetime.timedelta
 
-    width: ClassVar[int] = 1200
-    height: ClassVar[int] = 630
-    background_start: ClassVar[RGB] = (105, 0, 209)
-    background_end: ClassVar[RGB] = (26, 0, 64)
-    glow_color: ClassVar[RGB] = (194, 37, 245)
-    ink: ClassVar[RGB] = (255, 255, 255)
-    fonts_dir: ClassVar[pathlib.Path] = pathlib.Path(__file__).with_name("fonts")
+    width: typing.ClassVar[int] = 1200
+    height: typing.ClassVar[int] = 630
+    background_start: typing.ClassVar[RGB] = (105, 0, 209)
+    background_end: typing.ClassVar[RGB] = (26, 0, 64)
+    glow_color: typing.ClassVar[RGB] = (194, 37, 245)
+    ink: typing.ClassVar[RGB] = (255, 255, 255)
+    fonts_dir: typing.ClassVar[pathlib.Path] = pathlib.Path(__file__).with_name("fonts")
 
     def font(self, name: str, size: int) -> ImageFont.FreeTypeFont:
         return ImageFont.truetype(str(self.fonts_dir / name), size)

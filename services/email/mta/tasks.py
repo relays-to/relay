@@ -1,10 +1,10 @@
+import dataclasses
 import datetime
 import json
 import logging
 import secrets
 import time
 import uuid
-from dataclasses import dataclass, field
 
 import httpx
 from asgiref.sync import async_to_sync
@@ -112,10 +112,10 @@ def mark_failed_if_pending(message_id):
     ).update(status=IncomingMessage.Status.WEBHOOK_FAILED, modified_at=timezone.now())
 
 
-@dataclass
+@dataclasses.dataclass
 class WebhookEvent(MessageEvent):
     type: str = ""
-    received_at: str = field(
+    received_at: str = dataclasses.field(
         default_factory=lambda: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     )
 

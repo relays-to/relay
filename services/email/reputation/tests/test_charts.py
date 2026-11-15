@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+import datetime
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -28,7 +28,9 @@ def make_message(org, day):
         raw_body=SimpleUploadedFile("message.eml", b"body"),
     )
     OutgoingMessage.objects.filter(pk=message.pk).update(
-        created_at=timezone.make_aware(datetime.combine(day, time(hour=12)))
+        created_at=timezone.make_aware(
+            datetime.datetime.combine(day, datetime.time(hour=12))
+        )
     )
     return message
 
@@ -42,7 +44,9 @@ def make_received_message(org, day):
         rcpt_to="postmaster@acme.com",
     )
     IncomingMessage.objects.filter(pk=message.pk).update(
-        created_at=timezone.make_aware(datetime.combine(day, time(hour=12)))
+        created_at=timezone.make_aware(
+            datetime.datetime.combine(day, datetime.time(hour=12))
+        )
     )
     return message
 
@@ -50,7 +54,7 @@ def make_received_message(org, day):
 @pytest.mark.django_db
 class TestBuildReputationChart:
     def test_with_a_zero_window__counts_as_one_day(self, org, settings, monkeypatch):
-        freeze_today(monkeypatch, date(2026, 9, 19))
+        freeze_today(monkeypatch, datetime.date(2026, 9, 19))
         settings.REPUTATION_WINDOW_DAYS = 0
 
         chart = build_reputation_chart(org)
@@ -63,7 +67,7 @@ class TestBuildReputationChart:
     def test_with_a_negative_window__counts_as_one_day(
         self, org, settings, monkeypatch
     ):
-        freeze_today(monkeypatch, date(2026, 9, 19))
+        freeze_today(monkeypatch, datetime.date(2026, 9, 19))
         settings.REPUTATION_WINDOW_DAYS = -7
 
         chart = build_reputation_chart(org)
@@ -72,10 +76,10 @@ class TestBuildReputationChart:
         assert chart["rows"][0]["day"] == "2026-09-19"
 
     def test_reports_the_cumulative_rates(self, org, settings, monkeypatch):
-        freeze_today(monkeypatch, date(2026, 9, 19))
+        freeze_today(monkeypatch, datetime.date(2026, 9, 19))
         settings.REPUTATION_WINDOW_DAYS = 7
-        make_message(org, date(2026, 9, 15))
-        bounced = make_message(org, date(2026, 9, 16))
+        make_message(org, datetime.date(2026, 9, 15))
+        bounced = make_message(org, datetime.date(2026, 9, 16))
         Transmission.objects.create(
             message=bounced,
             status=Transmission.Status.BOUNCED,
@@ -93,10 +97,10 @@ class TestBuildReputationChart:
         assert rows[-1]["complaint_rate"] == 0.0
 
     def test_reports_the_cumulative_soft_bounce_rate(self, org, settings, monkeypatch):
-        freeze_today(monkeypatch, date(2026, 9, 19))
+        freeze_today(monkeypatch, datetime.date(2026, 9, 19))
         settings.REPUTATION_WINDOW_DAYS = 7
-        hard = make_message(org, date(2026, 9, 16))
-        soft = make_message(org, date(2026, 9, 16))
+        hard = make_message(org, datetime.date(2026, 9, 16))
+        soft = make_message(org, datetime.date(2026, 9, 16))
         soft.status = OutgoingMessage.Status.FAILED
         soft.save(update_fields=["status"])
         Transmission.objects.create(
@@ -134,7 +138,7 @@ class TestBuildReputationChart:
 @pytest.mark.django_db
 class TestBuildVolumeChart:
     def test_covers_the_whole_month(self, org, monkeypatch):
-        freeze_today(monkeypatch, date(2026, 9, 19))
+        freeze_today(monkeypatch, datetime.date(2026, 9, 19))
 
         chart = build_volume_chart(org)
 
@@ -152,7 +156,7 @@ class TestBuildVolumeChart:
         assert chart["subtitle"] == "Cumulative, this month and last month"
 
     def test_covers_a_short_month(self, org, monkeypatch):
-        freeze_today(monkeypatch, date(2026, 2, 15))
+        freeze_today(monkeypatch, datetime.date(2026, 2, 15))
 
         chart = build_volume_chart(org)
 
@@ -160,7 +164,7 @@ class TestBuildVolumeChart:
         assert chart["rows"][0]["day"] == "2026-02-01"
 
     def test_at_a_month_end__stops_at_that_month(self, org, monkeypatch):
-        freeze_today(monkeypatch, date(2026, 3, 31))
+        freeze_today(monkeypatch, datetime.date(2026, 3, 31))
 
         chart = build_volume_chart(org)
 
@@ -168,7 +172,7 @@ class TestBuildVolumeChart:
         assert chart["rows"][-1]["day"] == "2026-03-31"
 
     def test_at_a_short_month_end__stops_at_that_month(self, org, monkeypatch):
-        freeze_today(monkeypatch, date(2026, 2, 28))
+        freeze_today(monkeypatch, datetime.date(2026, 2, 28))
 
         chart = build_volume_chart(org)
 
@@ -176,7 +180,7 @@ class TestBuildVolumeChart:
         assert chart["rows"][-1]["day"] == "2026-02-28"
 
     def test_at_a_year_end__stops_at_that_month(self, org, monkeypatch):
-        freeze_today(monkeypatch, date(2026, 12, 31))
+        freeze_today(monkeypatch, datetime.date(2026, 12, 31))
 
         chart = build_volume_chart(org)
 
@@ -184,11 +188,11 @@ class TestBuildVolumeChart:
         assert chart["rows"][-1]["day"] == "2026-12-31"
 
     def test_reports_the_cumulative_volume(self, org, monkeypatch):
-        freeze_today(monkeypatch, date(2026, 9, 19))
-        make_message(org, date(2026, 8, 10))
-        make_message(org, date(2026, 9, 1))
-        make_message(org, date(2026, 9, 1))
-        make_message(org, date(2026, 9, 3))
+        freeze_today(monkeypatch, datetime.date(2026, 9, 19))
+        make_message(org, datetime.date(2026, 8, 10))
+        make_message(org, datetime.date(2026, 9, 1))
+        make_message(org, datetime.date(2026, 9, 1))
+        make_message(org, datetime.date(2026, 9, 3))
 
         chart = build_volume_chart(org)
 
@@ -202,10 +206,10 @@ class TestBuildVolumeChart:
         assert rows[-1]["this_month"] is None
 
     def test_reports_the_month_total(self, org, monkeypatch):
-        freeze_today(monkeypatch, date(2026, 9, 19))
-        make_message(org, date(2026, 8, 10))
-        make_message(org, date(2026, 9, 1))
-        make_message(org, date(2026, 9, 18))
+        freeze_today(monkeypatch, datetime.date(2026, 9, 19))
+        make_message(org, datetime.date(2026, 8, 10))
+        make_message(org, datetime.date(2026, 9, 1))
+        make_message(org, datetime.date(2026, 9, 18))
 
         chart = build_volume_chart(org)
 
@@ -213,12 +217,12 @@ class TestBuildVolumeChart:
         assert chart["rows"][-1]["last_month"] == 1
 
     def test_counts_received_mail(self, org, monkeypatch):
-        freeze_today(monkeypatch, date(2026, 9, 19))
-        make_message(org, date(2026, 8, 10))
-        make_received_message(org, date(2026, 8, 10))
-        make_message(org, date(2026, 9, 1))
-        make_received_message(org, date(2026, 9, 1))
-        make_received_message(org, date(2026, 9, 3))
+        freeze_today(monkeypatch, datetime.date(2026, 9, 19))
+        make_message(org, datetime.date(2026, 8, 10))
+        make_received_message(org, datetime.date(2026, 8, 10))
+        make_message(org, datetime.date(2026, 9, 1))
+        make_received_message(org, datetime.date(2026, 9, 1))
+        make_received_message(org, datetime.date(2026, 9, 3))
 
         chart = build_volume_chart(org)
 
@@ -230,12 +234,12 @@ class TestBuildVolumeChart:
         assert chart["this_month_total"] == 3
 
     def test_at_a_short_month__folds_the_previous_months_tail(self, org, monkeypatch):
-        freeze_today(monkeypatch, date(2026, 2, 28))
-        make_message(org, date(2026, 1, 15))
-        make_message(org, date(2026, 1, 29))
-        make_message(org, date(2026, 1, 30))
-        make_message(org, date(2026, 1, 31))
-        make_message(org, date(2026, 2, 28))
+        freeze_today(monkeypatch, datetime.date(2026, 2, 28))
+        make_message(org, datetime.date(2026, 1, 15))
+        make_message(org, datetime.date(2026, 1, 29))
+        make_message(org, datetime.date(2026, 1, 30))
+        make_message(org, datetime.date(2026, 1, 31))
+        make_message(org, datetime.date(2026, 2, 28))
 
         chart = build_volume_chart(org)
 

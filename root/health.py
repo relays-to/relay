@@ -1,7 +1,7 @@
 import asyncio
 import dataclasses
+import datetime
 import ipaddress
-from datetime import timedelta
 
 import dns.asyncresolver
 import dns.exception
@@ -92,7 +92,7 @@ class BlocklistAddressError(ServiceUnavailable):
 
 @dataclasses.dataclass
 class DnsBlocklist(HealthCheck):
-    timeout = timedelta(seconds=10)
+    timeout = datetime.timedelta(seconds=10)
 
     address: str
     providers: tuple[BlocklistProvider, ...] = dataclasses.field(
@@ -196,7 +196,7 @@ application_checks = [
         {
             "url": f"{settings.PLATFORM_URL}/health/reputation/",
             "label": "Reputation",
-            "timeout": timedelta(seconds=15),
+            "timeout": datetime.timedelta(seconds=15),
         },
     ),
 ]
@@ -226,7 +226,7 @@ urlpatterns = [
         "application/",
         HealthCheckView.as_view(
             checks=application_checks,
-            max_age=timedelta(seconds=30),
+            max_age=datetime.timedelta(seconds=30),
             allow_anonymous=True,
         ),
         name="health-application",
@@ -235,7 +235,7 @@ urlpatterns = [
         "reputation/",
         ReputationHealthCheckView.as_view(
             checks=reputation_checks,
-            max_age=timedelta(seconds=30),
+            max_age=datetime.timedelta(seconds=30),
             allow_anonymous=True,
         ),
         name="health-reputation",
@@ -244,7 +244,7 @@ urlpatterns = [
         "pipeline/",
         HealthCheckView.as_view(
             checks=pipeline_checks,
-            max_age=timedelta(seconds=30),
+            max_age=datetime.timedelta(seconds=30),
             allow_anonymous=True,
         ),
         name="health-pipeline",

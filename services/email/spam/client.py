@@ -1,6 +1,6 @@
 """rspamd spam-detection client."""
 
-from dataclasses import dataclass, field
+import dataclasses
 from enum import StrEnum
 
 import httpx
@@ -48,7 +48,7 @@ class ScannerUnavailableError(Exception):
     """ClamAV did not complete a scan, so the message is still unscanned."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True, slots=True)
 class SpamResult:
     """Outcome of a rspamd scan."""
 
@@ -56,10 +56,10 @@ class SpamResult:
     action: SpamAction = SpamAction.NO_ACTION
     virus_action: VirusAction = VirusAction.CLEAN
     virus_name: str = ""
-    virus_symbols: dict[str, dict] = field(default_factory=dict)
+    virus_symbols: dict[str, dict] = dataclasses.field(default_factory=dict)
     scan_ms: float | None = None
     antivirus_ms: float | None = None
-    profile_ms: dict[str, float] = field(default_factory=dict)
+    profile_ms: dict[str, float] = dataclasses.field(default_factory=dict)
 
     @classmethod
     def from_response(cls, data: dict) -> SpamResult:

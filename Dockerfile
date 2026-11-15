@@ -12,7 +12,7 @@ COPY --exclude=.env ./ /app
 ENV GOMEMLIMIT=2GiB
 RUN mkdir -p root/static/css && pnpm run build
 
-FROM ghcr.io/astral-sh/uv:0.13.7-trixie-slim AS build
+FROM ghcr.io/astral-sh/uv:0.13.8-trixie-slim AS build
 LABEL title="SMTP Server"
 LABEL license="BSD-2-Clause"
 LABEL url="https://github.com/codingjoe/the-box"
@@ -20,8 +20,8 @@ LABEL url="https://github.com/codingjoe/the-box"
 # Install dependencies
 RUN --mount=type=bind,source=./Aptfile,target=/tmp/Aptfile \
     cd /tmp && apt-get update && cat Aptfile | xargs apt-get download \
-    && mkdir -p /dpkg && \
-    for deb in *.deb; do dpkg --extract $deb /dpkg || exit 10; done
+    && mkdir -p /dpkg \
+    && for deb in *.deb; do dpkg --extract $deb /dpkg || exit 10; done
 
 # UV
 ARG UV_NO_DEV
