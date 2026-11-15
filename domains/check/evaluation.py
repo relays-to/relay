@@ -5,6 +5,7 @@ import functools
 import hashlib
 import ipaddress
 import time
+import typing
 from collections.abc import Iterable, Iterator, Mapping
 from urllib.parse import urlsplit, urlunsplit
 
@@ -64,10 +65,10 @@ class Check:
     that more than one check needs lives here and is inherited.
     """
 
-    key: str
-    label: str
-    slug: str | None = None
-    hints: Mapping[str, str] = {}
+    KEY: typing.ClassVar[str]
+    LABEL: typing.ClassVar[str]
+    SLUG: typing.ClassVar[str | None] = None
+    HINTS: typing.ClassVar[Mapping[str, str]] = {}
     TTL_MIN = datetime.timedelta(hours=1)
     # Resolvers return the remaining TTL, so an hour-long record can answer with
     # minutes left. Absorb that countdown before calling a record too short-lived.
@@ -91,7 +92,7 @@ class Check:
         """Return the remediation hint for a subcheck label."""
         if label.endswith("TTL"):
             return cls.TTL_HINT
-        return cls.hints.get(label, "")
+        return cls.HINTS.get(label, "")
 
     @classmethod
     def evaluate(cls, name: str) -> Iterator[CheckResult]:
@@ -103,17 +104,17 @@ class Check:
     @classmethod
     def by_key(cls, key: str) -> type[Check] | None:
         """Return the check registered under a stored key."""
-        return next((check for check in CHECKS if check.key == key), None)
+        return next((check for check in CHECKS if key == check.KEY), None)
 
     @classmethod
     def order(cls) -> tuple[str, ...]:
         """Return every check key in the order the page lists them."""
-        return tuple(check.key for check in CHECKS)
+        return tuple(check.KEY for check in CHECKS)
 
     @classmethod
     def slugs(cls) -> dict[str, str]:
         """Return the public anchor of every check that has one."""
-        return {check.key: check.slug for check in CHECKS if check.slug}
+        return {check.KEY: check.SLUG for check in CHECKS if check.SLUG}
 
     @classmethod
     def hint_for(cls, key: str, label: str) -> str:
@@ -134,7 +135,7 @@ class Check:
                 )
                 + "."
             )
-        return CheckResult(cls.key, cls.label, detail, subchecks)
+        return CheckResult(cls.KEY, cls.LABEL, detail, subchecks)
 
     @classmethod
     def ttl_subcheck(
@@ -175,10 +176,10 @@ class Check:
 class MxCheck(Check):
     """Grade the MX records and their TTL."""
 
-    key = "mx"
-    label = "MX"
-    slug = "mx"
-    hints = {
+    KEY = "mx"
+    LABEL = "MX"
+    SLUG = "mx"
+    HINTS = {
         "MX record": "Publish an MX record that points at the server that receives mail for this domain.",
     }
     MAX_MX_EXCHANGES = 5
@@ -324,10 +325,10 @@ class SpfWalk:
 class SpfCheck(Check):
     """Grade the SPF record, its lookup budget, and the addresses it authorizes."""
 
-    key = "spf"
-    label = "SPF"
-    slug = "spf"
-    hints = {
+    KEY = "spf"
+    LABEL = "SPF"
+    SLUG = "spf"
+    HINTS = {
         "SPF record": "Publish exactly one TXT record at the domain root that starts with v=spf1.",
         "Lookup limit": "Cut include:, a:, and mx: terms until the record needs at most 10 DNS lookups.",
         "Strict all": "End the SPF record with -all instead of ~all.",
@@ -482,10 +483,10 @@ class SpfCheck(Check):
 class DmarcCheck(Check):
     """Grade the DMARC record and the policy it publishes."""
 
-    key = "dmarc"
-    label = "DMARC"
-    slug = "dmarc"
-    hints = {
+    KEY = "dmarc"
+    LABEL = "DMARC"
+    SLUG = "dmarc"
+    HINTS = {
         "DMARC record": "Publish a TXT record at _dmarc.<domain> that starts with v=DMARC1.",
         "Policy": "Set p=reject in the _dmarc record so receivers reject unauthenticated mail.",
         "Aggregate reports": "Add rua=mailto:<address> so receivers send aggregate reports.",
@@ -561,10 +562,10 @@ class DmarcCheck(Check):
 class MtaStsCheck(Check):
     """Grade the MTA-STS record and the policy it points at."""
 
-    key = "mta_sts"
-    label = "MTA-STS"
-    slug = "mta-sts"
-    hints = {
+    KEY = "mta_sts"
+    LABEL = "MTA-STS"
+    SLUG = "mta-sts"
+    HINTS = {
         "MTA-STS record": "Publish a TXT record at _mta-sts.<domain> that starts with v=STSv1.",
         "Policy": "Serve the policy at https://mta-sts.<domain>/.well-known/mta-sts.txt.",
         "Enforced mode": "Set mode: enforce in the MTA-STS policy.",
@@ -768,10 +769,10 @@ class MtaStsCheck(Check):
 class TlsRptCheck(Check):
     """Grade the TLS-RPT record and its reporting address."""
 
-    key = "tls_rpt"
-    label = "TLS-RPT"
-    slug = "tls-rpt"
-    hints = {
+    KEY = "tls_rpt"
+    LABEL = "TLS-RPT"
+    SLUG = "tls-rpt"
+    HINTS = {
         "TLS-RPT record": "Publish a TXT record at _smtp._tls.<domain> that starts with v=TLSRPTv1.",
         "Reporting address": "Add rua=mailto:<address> to the TLS-RPT record.",
     }
@@ -839,9 +840,9 @@ class BlocklistAnswer:
 class BlocklistsCheck(Check):
     """Grade the domain and its SPF addresses against DNS blocklists."""
 
-    key = "blocklists"
-    label = "Blocklists"
-    hints = {
+    KEY = "blocklists"
+    LABEL = "Blocklists"
+    HINTS = {
         "Domain blocklists": "Ask the operator to delist the domain, then fix the sending behavior that caused it.",
         "SPF address blocklists": "Ask the operator to delist the address, then fix the sending behavior that caused it.",
     }
