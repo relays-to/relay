@@ -4,7 +4,7 @@ from django import forms
 class DomainInput(forms.TextInput):
     """Text input tuned for typing a bare domain name."""
 
-    default_attrs = {
+    DEFAULT_ATTRS = {
         "placeholder": "example.com",
         "autocomplete": "off",
         "autocorrect": "off",
@@ -14,4 +14,4 @@ class DomainInput(forms.TextInput):
     }
 
     def __init__(self, attrs=None):
-        super().__init__({**self.default_attrs, **(attrs or {})})
+        super().__init__({**self.DEFAULT_ATTRS, **(attrs or {})})

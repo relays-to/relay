@@ -2,6 +2,7 @@ import base64
 import dataclasses
 import datetime
 import hashlib
+from collections.abc import Iterable, Mapping
 from functools import reduce
 from operator import or_
 
@@ -9,7 +10,7 @@ import idna
 import validators
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models.functions import Length, Lower
 from django.urls import reverse
 from django.utils import timezone
@@ -18,13 +19,8 @@ from django.utils.translation import gettext_lazy as _
 from abstract.models import TimeStamped
 from kms.models import SigningKey
 
-from .check.evaluation import (
-    CHECK_ORDER,
-    CHECK_SLUGS,
-    evaluate_domain,
-    subcheck_hint,
-)
-from .check.tiers import MAX_PENALTY, Tier, penalty_for
+from .check.evaluation import Check, CheckResult
+from .check.tiers import Tier
 
 
 def canonicalize_domain_name(value):
@@ -575,13 +571,13 @@ class DomainCheck(TimeStamped):
         subchecks = [
             {
                 "severity": "broken",
-                "hint": subcheck_hint(check["key"], subcheck["label"]),
+                "hint": Check.hint_for(check["key"], subcheck["label"]),
             }
             | subcheck
             for subcheck in check.get("subchecks", [])
         ]
         return check | {
-            "slug": CHECK_SLUGS.get(check["key"]),
+            "slug": Check.slugs().get(check["key"]),
             "subchecks": subchecks,
             "issue_count": sum(
                 subcheck["status"] not in {"pass", "skip"} for subcheck in subchecks
@@ -593,12 +589,52 @@ class DomainCheck(TimeStamped):
         return [
             self.build_check_row(check)
             for check in self.checks
-            if check["key"] in CHECK_ORDER
+            if check["key"] in Check.order()
         ]
 
     @property
     def issue_count(self) -> int:
         return sum(row["issue_count"] for row in self.check_rows)
+
+    @classmethod
+    def store(cls, name: str, results: Iterable[CheckResult]) -> None:
+        """Merge fresh results into the row and complete it once all arrived."""
+        with transaction.atomic():
+            domain_check = cls.objects.select_for_update().get(name=name)
+            if domain_check.status == cls.Status.RUNNING:
+                merged = {check["key"]: check for check in domain_check.checks}
+                merged.update(
+                    {
+                        result.key: dataclasses.asdict(result)
+                        | {"status": result.status}
+                        for result in results
+                    }
+                )
+                checks = [merged[key] for key in cls.order() if key in merged]
+                update_fields = ["checks"]
+                if len(checks) == len(cls.order()):
+                    domain_check.penalty = cls.penalty_for(checks)
+                    domain_check.status = cls.Status.COMPLETE
+                    domain_check.checked_at = timezone.now()
+                    update_fields += ["penalty", "status", "checked_at"]
+                domain_check.checks = checks
+                domain_check.save(update_fields=update_fields)
+
+    @classmethod
+    def penalty_for(cls, checks: Iterable[Mapping]) -> int:
+        """Return the half grades the stored checks lost."""
+        failed = [
+            subcheck
+            for check in checks
+            for subcheck in check.get("subchecks", [])
+            if subcheck["status"] == "fail"
+        ]
+        if any(subcheck.get("severity", "broken") == "blocking" for subcheck in failed):
+            return len(Tier) - 1
+        return sum(
+            2 if subcheck.get("severity", "broken") == "broken" else 1
+            for subcheck in failed
+        )
 
     @property
     def issue_phrase(self) -> str:
@@ -627,7 +663,7 @@ class DomainCheck(TimeStamped):
 
     @property
     def tier(self) -> Tier:
-        return list(Tier)[min(self.penalty, MAX_PENALTY)]
+        return list(Tier)[min(self.penalty, len(Tier) - 1)]
 
     @property
     def tier_variant(self) -> str:
@@ -635,13 +671,13 @@ class DomainCheck(TimeStamped):
 
     def evaluate(self):
         results = sorted(
-            evaluate_domain(self.name),
-            key=lambda result: CHECK_ORDER.index(result.key),
+            Check.evaluate(self.name),
+            key=lambda result: Check.order().index(result.key),
         )
         self.checks = [
             dataclasses.asdict(result) | {"status": result.status} for result in results
         ]
-        self.penalty = penalty_for(*check.get("subchecks", []) for check in self.checks)
+        self.penalty = self.penalty_for(self.checks)
         self.status = self.Status.COMPLETE
         self.checked_at = timezone.now()
         update_fields = (

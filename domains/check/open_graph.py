@@ -15,22 +15,18 @@ class DomainCheckImage(OpenGraphImage):
     check: DomainCheck
     host: str = "relay.to"
 
-    PADDING: typing.ClassVar[int] = 96
-    TEXT_WIDTH: typing.ClassVar[int] = 600
+    PADDING_PX: typing.ClassVar[int] = 96
+    TEXT_WIDTH_PX: typing.ClassVar[int] = 600
     # The card is 630 tall. 630 / 1.618 lands on 389, which is the domain's
     # baseline, so the type block sits above the middle rather than on it.
-    DOMAIN_BASELINE: typing.ClassVar[int] = 389
-    HEADER_BASELINE: typing.ClassVar[int] = 150
-    STATUS_BASELINE: typing.ClassVar[int] = 452
-    TIER_CENTER: typing.ClassVar[tuple[int, int]] = (919, 300)
-    TIER_RADIUS: typing.ClassVar[int] = 185
+    DOMAIN_BASELINE_PX: typing.ClassVar[int] = 389
+    HEADER_BASELINE_PX: typing.ClassVar[int] = 150
+    STATUS_BASELINE_PX: typing.ClassVar[int] = 452
+    TIER_CENTER_PX: typing.ClassVar[tuple[int, int]] = (919, 300)
+    TIER_RADIUS_PX: typing.ClassVar[int] = 185
     RING_SEGMENTS: typing.ClassVar[int] = 96
-    RING_WIDTH: typing.ClassVar[int] = 10
+    RING_WIDTH_PX: typing.ClassVar[int] = 10
     RING_SCALE: typing.ClassVar[int] = 4
-
-    def tier_bed(self, color: RGB) -> RGB:
-        """Return a near-black cast of the metal for the face of the medal."""
-        return tuple(round(channel * 0.2 + 8) for channel in color)
 
     def tier_color(self) -> RGB:
         """Return the tier's colour, or the ink while the check runs."""
@@ -46,10 +42,10 @@ class DomainCheckImage(OpenGraphImage):
         self.draw_tier(image, draw)
 
     def draw_header(self, draw) -> None:
-        left = self.PADDING - 4
+        left = self.PADDING_PX - 4
         wordmark = self.font("space-mono-700-italic.ttf", 58)
         draw.text(
-            (left, self.HEADER_BASELINE),
+            (left, self.HEADER_BASELINE_PX),
             "relay",
             font=wordmark,
             fill=self.INK,
@@ -58,7 +54,7 @@ class DomainCheckImage(OpenGraphImage):
         label = self.font("fira-sans-500.ttf", 28)
         left += draw.textlength("relay", font=wordmark) + 18
         draw.text(
-            (left, self.HEADER_BASELINE),
+            (left, self.HEADER_BASELINE_PX),
             "|",
             font=label,
             fill=(*self.INK, 110),
@@ -66,7 +62,7 @@ class DomainCheckImage(OpenGraphImage):
         )
         left += draw.textlength("|", font=label) + 18
         draw.text(
-            (left, self.HEADER_BASELINE),
+            (left, self.HEADER_BASELINE_PX),
             "email domain check",
             font=label,
             fill=(*self.INK, 200),
@@ -77,9 +73,9 @@ class DomainCheckImage(OpenGraphImage):
         name = self.check.name
         for size in range(116, 42, -2):
             candidate = self.font("fira-sans-700.ttf", size)
-            if draw.textlength(name, font=candidate) <= self.TEXT_WIDTH:
+            if draw.textlength(name, font=candidate) <= self.TEXT_WIDTH_PX:
                 draw.text(
-                    (self.PADDING - 4, self.DOMAIN_BASELINE),
+                    (self.PADDING_PX - 4, self.DOMAIN_BASELINE_PX),
                     name,
                     font=candidate,
                     fill=self.INK,
@@ -91,18 +87,18 @@ class DomainCheckImage(OpenGraphImage):
             for size in range(64, 34, -2):
                 candidate = self.font("fira-sans-700.ttf", size)
                 if (
-                    draw.textlength(f"{head}.", font=candidate) <= self.TEXT_WIDTH
-                    and draw.textlength(tail, font=candidate) <= self.TEXT_WIDTH
+                    draw.textlength(f"{head}.", font=candidate) <= self.TEXT_WIDTH_PX
+                    and draw.textlength(tail, font=candidate) <= self.TEXT_WIDTH_PX
                 ):
                     draw.text(
-                        (self.PADDING - 4, self.DOMAIN_BASELINE - size - 12),
+                        (self.PADDING_PX - 4, self.DOMAIN_BASELINE_PX - size - 12),
                         f"{head}.",
                         font=candidate,
                         fill=self.INK,
                         anchor="ls",
                     )
                     draw.text(
-                        (self.PADDING - 4, self.DOMAIN_BASELINE),
+                        (self.PADDING_PX - 4, self.DOMAIN_BASELINE_PX),
                         tail,
                         font=candidate,
                         fill=self.INK,
@@ -112,11 +108,12 @@ class DomainCheckImage(OpenGraphImage):
         candidate = self.font("fira-sans-700.ttf", 42)
         trimmed = name
         while (
-            trimmed and draw.textlength(f"{trimmed}…", font=candidate) > self.TEXT_WIDTH
+            trimmed
+            and draw.textlength(f"{trimmed}…", font=candidate) > self.TEXT_WIDTH_PX
         ):
             trimmed = trimmed[:-1]
         draw.text(
-            (self.PADDING - 4, self.DOMAIN_BASELINE),
+            (self.PADDING_PX - 4, self.DOMAIN_BASELINE_PX),
             f"{trimmed}…",
             font=candidate,
             fill=self.INK,
@@ -125,7 +122,7 @@ class DomainCheckImage(OpenGraphImage):
 
     def draw_status(self, draw) -> None:
         draw.text(
-            (self.PADDING, self.STATUS_BASELINE),
+            (self.PADDING_PX, self.STATUS_BASELINE_PX),
             self.check.status_line,
             font=self.font("fira-sans-500.ttf", 36),
             fill=(*self.INK, 225),
@@ -134,7 +131,7 @@ class DomainCheckImage(OpenGraphImage):
 
     def tier_ring(self, color: RGB) -> Image.Image:
         """Render the rim of the medal, lit from the top left."""
-        diameter = 2 * self.TIER_RADIUS
+        diameter = 2 * self.TIER_RADIUS_PX
         scale = self.RING_SCALE
         layer = Image.new("RGBA", (diameter * scale, diameter * scale), (0, 0, 0, 0))
         pen = ImageDraw.Draw(layer)
@@ -158,20 +155,21 @@ class DomainCheckImage(OpenGraphImage):
                 start,
                 start + span + 0.5,
                 fill=(*fill, 255),
-                width=self.RING_WIDTH * scale,
+                width=self.RING_WIDTH_PX * scale,
             )
         return layer.resize((diameter, diameter), Image.Resampling.LANCZOS)
 
     def draw_tier(self, image: Image.Image, draw) -> None:
-        center_x, center_y = self.TIER_CENTER
+        center_x, center_y = self.TIER_CENTER_PX
         color = self.tier_color()
         bounds = (
-            center_x - self.TIER_RADIUS,
-            center_y - self.TIER_RADIUS,
-            center_x + self.TIER_RADIUS,
-            center_y + self.TIER_RADIUS,
+            center_x - self.TIER_RADIUS_PX,
+            center_y - self.TIER_RADIUS_PX,
+            center_x + self.TIER_RADIUS_PX,
+            center_y + self.TIER_RADIUS_PX,
         )
-        draw.ellipse(bounds, fill=(*self.tier_bed(color), 240))
+        bed = tuple(round(channel * 0.2 + 8) for channel in color)
+        draw.ellipse(bounds, fill=(*bed, 240))
         image.alpha_composite(self.tier_ring(color), bounds[:2])
         letter = self.check.tier_letter
         font = self.font("fira-sans-700.ttf", 300 if len(letter) == 1 else 220)

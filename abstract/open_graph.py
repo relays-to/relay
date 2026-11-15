@@ -17,8 +17,8 @@ class OpenGraphImage:
     cache_key: str
     cache_ttl: datetime.timedelta
 
-    WIDTH: typing.ClassVar[int] = 1200
-    HEIGHT: typing.ClassVar[int] = 630
+    WIDTH_PX: typing.ClassVar[int] = 1200
+    HEIGHT_PX: typing.ClassVar[int] = 630
     # The favicon gradient: #6200d1 to #14b8a6.
     BACKGROUND_START: typing.ClassVar[RGB] = (98, 0, 209)
     BACKGROUND_END: typing.ClassVar[RGB] = (20, 184, 166)
@@ -42,7 +42,7 @@ class OpenGraphImage:
         start, end = self.BACKGROUND_START, self.BACKGROUND_END
         # The favicon angle, corner to corner. A tenth of the canvas holds the
         # same ramp, and bilinear upscaling keeps it smooth.
-        small = Image.new("RGB", (self.WIDTH // 10, self.HEIGHT // 10))
+        small = Image.new("RGB", (self.WIDTH_PX // 10, self.HEIGHT_PX // 10))
         for y in range(small.height):
             for x in range(small.width):
                 step = (x / (small.width - 1) + y / (small.height - 1)) / 2
@@ -50,7 +50,7 @@ class OpenGraphImage:
                     (x, y),
                     tuple(round(a + (b - a) * step) for a, b in zip(start, end)),
                 )
-        return small.resize((self.WIDTH, self.HEIGHT)).convert("RGBA")
+        return small.resize((self.WIDTH_PX, self.HEIGHT_PX)).convert("RGBA")
 
     def draw(self, image: Image.Image) -> None:
         raise NotImplementedError
@@ -58,7 +58,7 @@ class OpenGraphImage:
     def render(self) -> bytes:
         if not (payload := cache.get(self.cache_key)):
             image = self.background()
-            overlay = Image.new("RGBA", (self.WIDTH, self.HEIGHT), (0, 0, 0, 0))
+            overlay = Image.new("RGBA", (self.WIDTH_PX, self.HEIGHT_PX), (0, 0, 0, 0))
             self.draw(overlay)
             image = Image.alpha_composite(image, overlay)
             buffer = io.BytesIO()

@@ -94,6 +94,34 @@ class Check:
         return cls.hints.get(label, "")
 
     @classmethod
+    def evaluate(cls, name: str) -> Iterator[CheckResult]:
+        """Grade the domain with every check, sharing one resolver."""
+        lookup = Lookup()
+        for check in CHECKS:
+            yield check.run(name, lookup)
+
+    @classmethod
+    def by_key(cls, key: str) -> type[Check] | None:
+        """Return the check registered under a stored key."""
+        return next((check for check in CHECKS if check.key == key), None)
+
+    @classmethod
+    def order(cls) -> tuple[str, ...]:
+        """Return every check key in the order the page lists them."""
+        return tuple(check.key for check in CHECKS)
+
+    @classmethod
+    def slugs(cls) -> dict[str, str]:
+        """Return the public anchor of every check that has one."""
+        return {check.key: check.slug for check in CHECKS if check.slug}
+
+    @classmethod
+    def hint_for(cls, key: str, label: str) -> str:
+        """Return the hint a stored subcheck was graded with."""
+        check = cls.by_key(key)
+        return check.hint(label) if check is not None else ""
+
+    @classmethod
     def result(
         cls, subchecks: Iterable[SubCheck], detail: str | None = None
     ) -> CheckResult:
@@ -951,37 +979,3 @@ CHECKS: tuple[type[Check], ...] = (
     TlsRptCheck,
     BlocklistsCheck,
 )
-CHECK_ORDER = tuple(check.key for check in CHECKS)
-CHECKS_BY_KEY = {check.key: check for check in CHECKS}
-CHECK_SLUGS = {check.key: check.slug for check in CHECKS if check.slug}
-
-
-def subcheck_hint(key: str, label: str) -> str:
-    """Return the remediation hint for a stored subcheck."""
-    check = CHECKS_BY_KEY.get(key)
-    return check.hint(label) if check is not None else ""
-
-
-def evaluate_domain(name: str) -> Iterator[CheckResult]:
-    """Run every check against the domain."""
-    lookup = Lookup()
-    yield from evaluate_delivery(name, lookup)
-    yield from evaluate_authentication(name, lookup)
-    yield from evaluate_reputation(name, lookup)
-
-
-def evaluate_delivery(name: str, lookup: Lookup) -> Iterator[CheckResult]:
-    """Run the delivery checks: MX, MTA-STS, and TLS-RPT."""
-    for check in (MxCheck, MtaStsCheck, TlsRptCheck):
-        yield check.run(name, lookup)
-
-
-def evaluate_authentication(name: str, lookup: Lookup) -> Iterator[CheckResult]:
-    """Run the authentication checks: SPF and DMARC."""
-    for check in (SpfCheck, DmarcCheck):
-        yield check.run(name, lookup)
-
-
-def evaluate_reputation(name: str, lookup: Lookup) -> Iterator[CheckResult]:
-    """Run the reputation checks: blocklists."""
-    yield BlocklistsCheck.run(name, lookup)
