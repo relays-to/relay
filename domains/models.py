@@ -18,13 +18,13 @@ from django.utils.translation import gettext_lazy as _
 from abstract.models import TimeStamped
 from kms.models import SigningKey
 
-from .checking.evaluation import (
+from .check.evaluation import (
     CHECK_ORDER,
     CHECK_SLUGS,
     evaluate_domain,
     subcheck_hint,
 )
-from .checking.tiers import Tier, penalty_for, tier_for
+from .check.tiers import Tier, penalty_for, tier_for
 
 
 def canonicalize_domain_name(value):

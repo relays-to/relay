@@ -5,7 +5,7 @@ import typing
 from PIL import Image, ImageDraw
 
 from abstract.open_graph import RGB, OpenGraphImage
-from domains.checking.tiers import Tier
+from domains.check.tiers import Tier
 from domains.models import DomainCheck
 
 PADDING = 96
