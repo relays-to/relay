@@ -6,6 +6,11 @@ from domains.models import DomainCheck
 
 PADDING = 72
 TEXT_WIDTH = 660
+# The card is 630 tall. Its golden section lands on 241 from the top, which
+# is where the domain and the tier sit, so the block is not dead centered.
+GOLDEN_BAND = round(630 - 630 / 1.618)
+BAND_TEXT = GOLDEN_BAND - 58
+LABEL_BASELINE = 430
 
 
 def issue_phrase(count: int) -> str:
@@ -48,8 +53,8 @@ class DomainCheckImage(OpenGraphImage):
 
     padding: typing.ClassVar[int] = PADDING
     text_width: typing.ClassVar[int] = TEXT_WIDTH
-    tier_center: typing.ClassVar[tuple[int, int]] = (1000, 300)
-    tier_radius: typing.ClassVar[int] = 128
+    tier_center: typing.ClassVar[tuple[int, int]] = (1000, GOLDEN_BAND)
+    tier_radius: typing.ClassVar[int] = 118
 
     def tier_color(self) -> RGB:
         if self.check.status != self.check.Status.COMPLETE:
@@ -73,7 +78,7 @@ class DomainCheckImage(OpenGraphImage):
 
     def draw_kicker(self, draw, label: str) -> None:
         draw.text(
-            (self.padding, 488),
+            (self.padding, LABEL_BASELINE),
             label,
             font=self.font("fira-sans-500.ttf", 30),
             fill=(*self.ink, 200),
@@ -85,7 +90,9 @@ class DomainCheckImage(OpenGraphImage):
         for size in range(108, 42, -2):
             candidate = self.font("fira-sans-700.ttf", size)
             if draw.textlength(name, font=candidate) <= self.text_width:
-                draw.text((self.padding - 4, 242), name, font=candidate, fill=self.ink)
+                draw.text(
+                    (self.padding - 4, BAND_TEXT), name, font=candidate, fill=self.ink
+                )
                 return
         head, _, tail = name.rpartition(".")
         if head:
@@ -96,13 +103,13 @@ class DomainCheckImage(OpenGraphImage):
                     and draw.textlength(tail, font=candidate) <= self.text_width
                 ):
                     draw.text(
-                        (self.padding - 4, 222),
+                        (self.padding - 4, BAND_TEXT - 20),
                         f"{head}.",
                         font=candidate,
                         fill=self.ink,
                     )
                     draw.text(
-                        (self.padding - 4, 222 + size + 12),
+                        (self.padding - 4, BAND_TEXT - 20 + size + 12),
                         tail,
                         font=candidate,
                         fill=self.ink,
@@ -114,7 +121,9 @@ class DomainCheckImage(OpenGraphImage):
             trimmed and draw.textlength(f"{trimmed}…", font=candidate) > self.text_width
         ):
             trimmed = trimmed[:-1]
-        draw.text((self.padding - 4, 242), f"{trimmed}…", font=candidate, fill=self.ink)
+        draw.text(
+            (self.padding - 4, BAND_TEXT), f"{trimmed}…", font=candidate, fill=self.ink
+        )
 
     def draw_tier(self, draw) -> None:
         center_x, center_y = self.tier_center
@@ -145,7 +154,7 @@ class DomainCheckImage(OpenGraphImage):
                 fill=color,
             )
         draw.text(
-            (center_x, 488),
+            (center_x, LABEL_BASELINE),
             "Tier",
             font=self.font("fira-sans-500.ttf", 24),
             fill=(*self.ink, 170),
