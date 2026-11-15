@@ -79,7 +79,7 @@
       </p>
       <section class="accordion" data-multiple>
         {% for check in domain_check.check_rows %}
-          <details>
+          <details {% if check.status != "pass" %}open{% endif %}>
             <summary>
               <span class="flex flex-1 flex-wrap items-center justify-between gap-4">
                 <span>{{ check.label }}</span>
