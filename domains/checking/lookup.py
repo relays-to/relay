@@ -1,4 +1,5 @@
 import dataclasses
+import hashlib
 import ipaddress
 import time
 
@@ -52,7 +53,8 @@ class Lookup:
         key = record_type, name.lower().rstrip(".")
         if key in self._memo:
             return self._memo[key]
-        cache_key = f"domain_check:lookup:{record_type}:{key[1]}"
+        digest = hashlib.sha256(key[1].encode()).hexdigest()
+        cache_key = f"domain_check:lookup:{record_type}:{digest}"
         if (cached := cache.get(cache_key)) is not None:
             answer = Answer(
                 tuple(cached["records"]), cached["failed"], cached.get("ttl")

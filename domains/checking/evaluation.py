@@ -7,6 +7,7 @@ import time
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
+from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _
 
@@ -83,7 +84,13 @@ CHECK_SLUGS = {
     "tls_rpt": "tls-rpt",
 }
 
-DOMAIN_PROVIDERS = (BlocklistProvider("Spamhaus DBL", "dbl.spamhaus.org"),)
+DOMAIN_PROVIDERS = (
+    BlocklistProvider(
+        "Spamhaus DBL",
+        "dbl.spamhaus.org",
+        keyed_zone="{key}.dbl.dq.spamhaus.net",
+    ),
+)
 
 TRANSITION_NETWORKS = (
     ipaddress.ip_network("64:ff9b::/96"),
@@ -909,11 +916,17 @@ def check_blocklists(name: str, lookup: Lookup) -> CheckResult:
     )
 
 
+def blocklist_zone(provider: BlocklistProvider) -> str:
+    if provider.keyed_zone and settings.SPAMHAUS_KEY:
+        return provider.keyed_zone.format(key=settings.SPAMHAUS_KEY)
+    return provider.zone
+
+
 def lookup_domain_listing(name: str, lookup: Lookup) -> tuple[list[str], list[str]]:
     listed = []
     problems = []
     for provider in DOMAIN_PROVIDERS:
-        answer = resolve_blocklist_codes(f"{name}.{provider.zone}", lookup)
+        answer = resolve_blocklist_codes(f"{name}.{blocklist_zone(provider)}", lookup)
         if answer.problem:
             problems.append(f"{provider.name} {answer.problem}")
         elif answer.codes:
@@ -926,7 +939,9 @@ def lookup_address_listing(address: str, lookup: Lookup) -> tuple[list[str], lis
     problems = []
     pointer = reverse_pointer(address)
     for provider in PUBLIC_ADDRESS_PROVIDERS:
-        answer = resolve_blocklist_codes(f"{pointer}.{provider.zone}", lookup)
+        answer = resolve_blocklist_codes(
+            f"{pointer}.{blocklist_zone(provider)}", lookup
+        )
         if answer.problem:
             problems.append(f"{provider.name} {answer.problem}")
         elif answer.codes:
