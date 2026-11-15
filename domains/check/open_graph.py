@@ -25,7 +25,6 @@ class DomainCheckImage(OpenGraphImage):
     TIER_CENTER_PX: typing.ClassVar[tuple[int, int]] = (919, 300)
     TIER_RADIUS_PX: typing.ClassVar[int] = 185
     RING_SEGMENTS: typing.ClassVar[int] = 96
-    RING_WIDTH_PX: typing.ClassVar[int] = 10
     RING_SCALE: typing.ClassVar[int] = 4
 
     def tier_color(self) -> RGB:
@@ -33,6 +32,12 @@ class DomainCheckImage(OpenGraphImage):
         if self.check.status != self.check.Status.COMPLETE:
             return self.INK
         return self.check.tier.color
+
+    def tier_accent(self) -> RGB | None:
+        """Return the tier's second colour, or nothing while the check runs."""
+        if self.check.status != self.check.Status.COMPLETE:
+            return None
+        return self.check.tier.accent
 
     def draw(self, image: Image.Image) -> None:
         draw = ImageDraw.Draw(image)
@@ -136,14 +141,22 @@ class DomainCheckImage(OpenGraphImage):
         layer = Image.new("RGBA", (diameter * scale, diameter * scale), (0, 0, 0, 0))
         pen = ImageDraw.Draw(layer)
         bounds = (0, 0, diameter * scale - 1, diameter * scale - 1)
-        medal = self.check.tier.medal
+        tier = self.check.tier
+        accent = self.tier_accent()
         light = tuple(round(c + (255 - c) * 0.62) for c in color)
         dark = tuple(round(c * 0.34) for c in color)
         span = 360 / self.RING_SEGMENTS
         for step in range(self.RING_SEGMENTS):
             start = step * span
-            if medal:
-                shine = (math.cos(math.radians(start + span / 2 - 225)) + 1) / 2
+            shine = (math.cos(math.radians(start + span / 2 - 225)) + 1) / 2
+            if accent:
+                # A two-tone medal: the accent owns the lit side, the base
+                # colour the shaded side.
+                fill = tuple(
+                    round(base + (bright - base) * shine)
+                    for base, bright in zip(color, accent)
+                )
+            elif tier.medal:
                 fill = tuple(
                     round(shadow + (bright - shadow) * shine)
                     for shadow, bright in zip(dark, light)
@@ -155,7 +168,7 @@ class DomainCheckImage(OpenGraphImage):
                 start,
                 start + span + 0.5,
                 fill=(*fill, 255),
-                width=self.RING_WIDTH_PX * scale,
+                width=tier.ring_width * scale,
             )
         return layer.resize((diameter, diameter), Image.Resampling.LANCZOS)
 
@@ -172,7 +185,7 @@ class DomainCheckImage(OpenGraphImage):
         draw.ellipse(bounds, fill=(*bed, 240))
         image.alpha_composite(self.tier_ring(color), bounds[:2])
         letter = self.check.tier_letter
-        font = self.font("fira-sans-700.ttf", 300 if len(letter) == 1 else 220)
+        font = self.font("playfair-display-700.ttf", 300 if len(letter) == 1 else 220)
         mask, (offset_x, offset_y) = font.getmask2(letter, mode="L")
         ink = mask.getbbox()
         # Center the painted pixels, not the em box, which carries the side
@@ -183,5 +196,5 @@ class DomainCheckImage(OpenGraphImage):
             (center_x - (left + right) / 2, center_y - (top + bottom) / 2),
             letter,
             font=font,
-            fill=color,
+            fill=self.tier_accent() or color,
         )
