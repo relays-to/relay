@@ -35,8 +35,10 @@ class Authority:
         self.rrset = SimpleNamespace(ttl=ttl)
         self.lifetime = 0
         self.nameservers = []
+        self.queries = []
 
     def resolve(self, name, record_type):
+        self.queries.append(str(name).rstrip("."))
         return self
 
 
@@ -259,6 +261,7 @@ class TestTtl:
         assert lookup.ttl("example.com", dns.rdatatype.TXT) == datetime.timedelta(
             hours=2
         )
+        assert authority.queries == ["target.example.net"]
 
     def test_authoritative_ttl__returns_none_without_a_zone(self, lookup):
         assert lookup.authoritative_ttl("example.com", dns.rdatatype.TXT) is None
