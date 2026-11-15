@@ -72,6 +72,12 @@ def authoritative_ttl(name: str, record_type: str) -> int | None:
     return None
 
 
+def cache_key(name: str, record_type: str) -> str:
+    """Key the cache by a digest so no query name lands in the cache backend."""
+    digest = hashlib.sha256(name.lower().rstrip(".").encode()).hexdigest()
+    return f"domain_check:lookup:{record_type}:{digest}"
+
+
 class Lookup:
     def __init__(self) -> None:
         self._memo: dict[tuple[str, str], Answer] = {}
@@ -80,9 +86,8 @@ class Lookup:
         key = record_type, name.lower().rstrip(".")
         if key in self._memo:
             return self._memo[key]
-        digest = hashlib.sha256(key[1].encode()).hexdigest()
-        cache_key = f"domain_check:lookup:{record_type}:{digest}"
-        if (cached := cache.get(cache_key)) is not None:
+        key_name = cache_key(name, record_type)
+        if (cached := cache.get(key_name)) is not None:
             answer = Answer(
                 tuple(cached["records"]), cached["failed"], cached.get("ttl")
             )
@@ -110,7 +115,7 @@ class Lookup:
                     )
                     break
             if not answer.failed:
-                cache.set(cache_key, dataclasses.asdict(answer), DNS_CACHE_SECS)
+                cache.set(key_name, dataclasses.asdict(answer), DNS_CACHE_SECS)
         self._memo[key] = answer
         return answer
 
@@ -125,8 +130,15 @@ class Lookup:
         answer = self.query(name, record_type)
         if answer.failed or not answer.records:
             return None
-        published = authoritative_ttl(name, record_type)
-        return answer.ttl if published is None else published
+        duration = authoritative_ttl(name, record_type)
+        if duration is None or duration == answer.ttl:
+            return answer.ttl
+        answer = dataclasses.replace(answer, ttl=duration)
+        self._memo[record_type, name.lower().rstrip(".")] = answer
+        cache.set(
+            cache_key(name, record_type), dataclasses.asdict(answer), DNS_CACHE_SECS
+        )
+        return duration
 
     def ptr(self, address: str) -> tuple[str, ...] | None:
         answer = self.query(ipaddress.ip_address(address).reverse_pointer, "PTR")
