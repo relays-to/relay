@@ -106,36 +106,12 @@ def timestamp(value):
 
 @register.inclusion_tag("abstract/ip_address.html")
 def ip_address(value):
-    """Render an address as a chip that opens a drawer of its details."""
+    """Render an address as a link that opens a drawer with its location."""
     try:
-        parsed = ipaddress.ip_address(value)
+        address = str(ipaddress.ip_address(value))
     except ValueError:
         return {"address": value, "known": False}
-
-    match parsed:
-        case _ if parsed.is_loopback:
-            scope = "loopback"
-        case _ if parsed.is_link_local:
-            scope = "link-local"
-        case _ if parsed.is_multicast:
-            scope = "multicast"
-        case _ if parsed.is_reserved:
-            scope = "reserved"
-        case _ if parsed.is_private:
-            scope = "private"
-        case _ if parsed.is_global:
-            scope = "global"
-        case _:
-            scope = "special"
-
-    return {
-        "address": str(parsed),
-        "known": True,
-        "token": uuid.uuid4().hex[:8],
-        "version": parsed.version,
-        "scope": scope,
-        "reverse_pointer": parsed.reverse_pointer,
-    }
+    return {"address": address, "known": True, "token": uuid.uuid4().hex[:8]}
 
 
 @register.inclusion_tag("abstract/pagination.html", takes_context=True)

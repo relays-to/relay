@@ -36,7 +36,7 @@
           {% tabler name="x" size="4" %}
         </button>
       </header>
-      <section class="flex flex-col gap-6 px-4 pb-4">
+      <section class="px-4 pb-4">
         <network-location
           address="{{ address }}"
           map
@@ -45,14 +45,6 @@
           data-unavailable='{% translate "location unavailable" %}'
           data-retry='{% translate "retry"|capfirst %}'
         ></network-location>
-        <dl class="m-0 grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-2 text-sm">
-          <dt class="text-muted-foreground">{% translate "protocol"|capfirst %}</dt>
-          <dd class="m-0">IPv{{ version }}</dd>
-          <dt class="text-muted-foreground">{% translate "scope"|capfirst %}</dt>
-          <dd class="m-0">{{ scope }}</dd>
-          <dt class="text-muted-foreground">{% translate "reverse name"|capfirst %}</dt>
-          <dd class="m-0 break-all"><code>{{ reverse_pointer }}</code></dd>
-        </dl>
       </section>
     </article>
   </dialog>
