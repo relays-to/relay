@@ -96,29 +96,24 @@ class Check:
 
     @classmethod
     def evaluate(cls, name: str) -> Iterator[CheckResult]:
-        """Grade the domain with every check, sharing one resolver."""
         lookup = Lookup()
         for check in CHECKS:
             yield check.run(name, lookup)
 
     @classmethod
     def by_key(cls, key: str) -> type[Check] | None:
-        """Return the check registered under a stored key."""
         return next((check for check in CHECKS if key == check.KEY), None)
 
     @classmethod
     def order(cls) -> tuple[str, ...]:
-        """Return every check key in the order the page lists them."""
         return tuple(check.KEY for check in CHECKS)
 
     @classmethod
     def slugs(cls) -> dict[str, str]:
-        """Return the public anchor of every check that has one."""
         return {check.KEY: check.SLUG for check in CHECKS if check.SLUG}
 
     @classmethod
     def hint_for(cls, key: str, label: str) -> str:
-        """Return the hint a stored subcheck was graded with."""
         check = cls.by_key(key)
         return check.hint(label) if check is not None else ""
 

@@ -26,7 +26,6 @@ class CheckRetry(ExponentialBackoff):
     max_retries: int = 2
 
     def __call__(self, context: TaskContext) -> datetime.timedelta | None:
-        """Return the next delay, or fail the row once the retries run out."""
         if delay := super().__call__(context):
             return delay
         DomainCheck.objects.filter(
@@ -41,7 +40,6 @@ class CheckRetry(ExponentialBackoff):
 
 @task(queue_name=DEFAULT_TASK_QUEUE_NAME, retry=CheckRetry())
 def check_delivery(name: str) -> None:
-    """Grade how the domain receives mail and store the results."""
     lookup = Lookup()
     DomainCheck.store(
         name, [check.run(name, lookup) for check in (MxCheck, MtaStsCheck, TlsRptCheck)]
@@ -50,7 +48,6 @@ def check_delivery(name: str) -> None:
 
 @task(queue_name=DEFAULT_TASK_QUEUE_NAME, retry=CheckRetry())
 def check_authentication(name: str) -> None:
-    """Grade the domain's authentication records and store the results."""
     lookup = Lookup()
     DomainCheck.store(
         name, [check.run(name, lookup) for check in (SpfCheck, DmarcCheck)]
@@ -59,13 +56,11 @@ def check_authentication(name: str) -> None:
 
 @task(queue_name=DEFAULT_TASK_QUEUE_NAME, retry=CheckRetry())
 def check_reputation(name: str) -> None:
-    """Grade the domain against the blocklists and store the result."""
     DomainCheck.store(name, [BlocklistsCheck.run(name, Lookup())])
 
 
 @task(queue_name=DEFAULT_TASK_QUEUE_NAME)
 def check_domain(name: str) -> None:
-    """Queue every check group for a domain that is due."""
     domain_check = DomainCheck.objects.get(name=name)
     is_fresh = (
         domain_check.status == DomainCheck.Status.COMPLETE and not domain_check.is_stale

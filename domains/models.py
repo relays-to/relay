@@ -598,7 +598,6 @@ class DomainCheck(TimeStamped):
 
     @classmethod
     def store(cls, name: str, results: Iterable[CheckResult]) -> None:
-        """Merge fresh results into the row and complete it once all arrived."""
         with transaction.atomic():
             domain_check = cls.objects.select_for_update().get(name=name)
             if domain_check.status == cls.Status.RUNNING:
@@ -622,7 +621,6 @@ class DomainCheck(TimeStamped):
 
     @classmethod
     def penalty_for(cls, checks: Iterable[Mapping]) -> int:
-        """Return the half grades the stored checks lost."""
         failed = [
             subcheck
             for check in checks
