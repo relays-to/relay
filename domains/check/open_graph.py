@@ -38,42 +38,42 @@ class DomainCheckImage(OpenGraphImage):
     check: DomainCheck
     host: str = "relay.to"
 
-    padding: typing.ClassVar[int] = 96
-    text_width: typing.ClassVar[int] = 600
+    PADDING: typing.ClassVar[int] = 96
+    TEXT_WIDTH: typing.ClassVar[int] = 600
     # The card is 630 tall. 630 / 1.618 lands on 389, which is the domain's
     # baseline, so the type block sits above the middle rather than on it.
-    domain_baseline: typing.ClassVar[int] = 389
-    header_baseline: typing.ClassVar[int] = 150
-    status_baseline: typing.ClassVar[int] = 452
-    tier_center: typing.ClassVar[tuple[int, int]] = (919, 300)
-    tier_radius: typing.ClassVar[int] = 185
-    ring_segments: typing.ClassVar[int] = 96
-    ring_width: typing.ClassVar[int] = 10
-    ring_scale: typing.ClassVar[int] = 4
+    DOMAIN_BASELINE: typing.ClassVar[int] = 389
+    HEADER_BASELINE: typing.ClassVar[int] = 150
+    STATUS_BASELINE: typing.ClassVar[int] = 452
+    TIER_CENTER: typing.ClassVar[tuple[int, int]] = (919, 300)
+    TIER_RADIUS: typing.ClassVar[int] = 185
+    RING_SEGMENTS: typing.ClassVar[int] = 96
+    RING_WIDTH: typing.ClassVar[int] = 10
+    RING_SCALE: typing.ClassVar[int] = 4
 
     # Platinum, gold, silver, bronze, then plain white and red.
-    platinum: typing.ClassVar[RGB] = (240, 243, 248)
-    gold: typing.ClassVar[RGB] = (255, 200, 45)
-    silver: typing.ClassVar[RGB] = (170, 178, 192)
-    bronze: typing.ClassVar[RGB] = (198, 122, 64)
-    white: typing.ClassVar[RGB] = (255, 255, 255)
-    red: typing.ClassVar[RGB] = (255, 88, 92)
-    tier_colors: typing.ClassVar[dict[Tier, RGB]] = {
-        Tier.S: platinum,
-        Tier.A_PLUS: gold,
-        Tier.A: gold,
-        Tier.A_MINUS: gold,
-        Tier.B: silver,
-        Tier.B_MINUS: silver,
-        Tier.C: bronze,
-        Tier.C_MINUS: bronze,
-        Tier.D: white,
-        Tier.D_MINUS: white,
-        Tier.E: red,
-        Tier.E_MINUS: red,
-        Tier.F: red,
+    PLATINUM: typing.ClassVar[RGB] = (240, 243, 248)
+    GOLD: typing.ClassVar[RGB] = (255, 200, 45)
+    SILVER: typing.ClassVar[RGB] = (170, 178, 192)
+    BRONZE: typing.ClassVar[RGB] = (198, 122, 64)
+    WHITE: typing.ClassVar[RGB] = (255, 255, 255)
+    RED: typing.ClassVar[RGB] = (255, 88, 92)
+    TIER_COLORS: typing.ClassVar[dict[Tier, RGB]] = {
+        Tier.S: PLATINUM,
+        Tier.A_PLUS: GOLD,
+        Tier.A: GOLD,
+        Tier.A_MINUS: GOLD,
+        Tier.B: SILVER,
+        Tier.B_MINUS: SILVER,
+        Tier.C: BRONZE,
+        Tier.C_MINUS: BRONZE,
+        Tier.D: WHITE,
+        Tier.D_MINUS: WHITE,
+        Tier.E: RED,
+        Tier.E_MINUS: RED,
+        Tier.F: RED,
     }
-    medal_tiers: typing.ClassVar[frozenset[Tier]] = frozenset(
+    MEDAL_TIERS: typing.ClassVar[frozenset[Tier]] = frozenset(
         {
             Tier.S,
             Tier.A_PLUS,
@@ -92,8 +92,8 @@ class DomainCheckImage(OpenGraphImage):
 
     def tier_color(self) -> RGB:
         if self.check.status != self.check.Status.COMPLETE:
-            return self.ink
-        return self.tier_colors[self.check.tier]
+            return self.INK
+        return self.TIER_COLORS[self.check.tier]
 
     def draw(self, image: Image.Image) -> None:
         draw = ImageDraw.Draw(image)
@@ -103,30 +103,30 @@ class DomainCheckImage(OpenGraphImage):
         self.draw_tier(image, draw)
 
     def draw_header(self, draw) -> None:
-        left = self.padding - 4
+        left = self.PADDING - 4
         wordmark = self.font("space-mono-700-italic.ttf", 58)
         draw.text(
-            (left, self.header_baseline),
+            (left, self.HEADER_BASELINE),
             "relay",
             font=wordmark,
-            fill=self.ink,
+            fill=self.INK,
             anchor="ls",
         )
         label = self.font("fira-sans-500.ttf", 28)
         left += draw.textlength("relay", font=wordmark) + 18
         draw.text(
-            (left, self.header_baseline),
+            (left, self.HEADER_BASELINE),
             "|",
             font=label,
-            fill=(*self.ink, 110),
+            fill=(*self.INK, 110),
             anchor="ls",
         )
         left += draw.textlength("|", font=label) + 18
         draw.text(
-            (left, self.header_baseline),
+            (left, self.HEADER_BASELINE),
             "email domain check",
             font=label,
-            fill=(*self.ink, 200),
+            fill=(*self.INK, 200),
             anchor="ls",
         )
 
@@ -134,12 +134,12 @@ class DomainCheckImage(OpenGraphImage):
         name = self.check.name
         for size in range(116, 42, -2):
             candidate = self.font("fira-sans-700.ttf", size)
-            if draw.textlength(name, font=candidate) <= self.text_width:
+            if draw.textlength(name, font=candidate) <= self.TEXT_WIDTH:
                 draw.text(
-                    (self.padding - 4, self.domain_baseline),
+                    (self.PADDING - 4, self.DOMAIN_BASELINE),
                     name,
                     font=candidate,
-                    fill=self.ink,
+                    fill=self.INK,
                     anchor="ls",
                 )
                 return
@@ -148,59 +148,59 @@ class DomainCheckImage(OpenGraphImage):
             for size in range(64, 34, -2):
                 candidate = self.font("fira-sans-700.ttf", size)
                 if (
-                    draw.textlength(f"{head}.", font=candidate) <= self.text_width
-                    and draw.textlength(tail, font=candidate) <= self.text_width
+                    draw.textlength(f"{head}.", font=candidate) <= self.TEXT_WIDTH
+                    and draw.textlength(tail, font=candidate) <= self.TEXT_WIDTH
                 ):
                     draw.text(
-                        (self.padding - 4, self.domain_baseline - size - 12),
+                        (self.PADDING - 4, self.DOMAIN_BASELINE - size - 12),
                         f"{head}.",
                         font=candidate,
-                        fill=self.ink,
+                        fill=self.INK,
                         anchor="ls",
                     )
                     draw.text(
-                        (self.padding - 4, self.domain_baseline),
+                        (self.PADDING - 4, self.DOMAIN_BASELINE),
                         tail,
                         font=candidate,
-                        fill=self.ink,
+                        fill=self.INK,
                         anchor="ls",
                     )
                     return
         candidate = self.font("fira-sans-700.ttf", 42)
         trimmed = name
         while (
-            trimmed and draw.textlength(f"{trimmed}…", font=candidate) > self.text_width
+            trimmed and draw.textlength(f"{trimmed}…", font=candidate) > self.TEXT_WIDTH
         ):
             trimmed = trimmed[:-1]
         draw.text(
-            (self.padding - 4, self.domain_baseline),
+            (self.PADDING - 4, self.DOMAIN_BASELINE),
             f"{trimmed}…",
             font=candidate,
-            fill=self.ink,
+            fill=self.INK,
             anchor="ls",
         )
 
     def draw_status(self, draw) -> None:
         draw.text(
-            (self.padding, self.status_baseline),
+            (self.PADDING, self.STATUS_BASELINE),
             status_line(self.check),
             font=self.font("fira-sans-500.ttf", 36),
-            fill=(*self.ink, 225),
+            fill=(*self.INK, 225),
             anchor="ls",
         )
 
     def tier_ring(self, color: RGB) -> Image.Image:
         """Render the rim of the medal, lit from the top left."""
-        diameter = 2 * self.tier_radius
-        scale = self.ring_scale
+        diameter = 2 * self.TIER_RADIUS
+        scale = self.RING_SCALE
         layer = Image.new("RGBA", (diameter * scale, diameter * scale), (0, 0, 0, 0))
         pen = ImageDraw.Draw(layer)
         bounds = (0, 0, diameter * scale - 1, diameter * scale - 1)
-        medal = self.check.tier in self.medal_tiers
+        medal = self.check.tier in self.MEDAL_TIERS
         light = tuple(round(c + (255 - c) * 0.62) for c in color)
         dark = tuple(round(c * 0.34) for c in color)
-        span = 360 / self.ring_segments
-        for step in range(self.ring_segments):
+        span = 360 / self.RING_SEGMENTS
+        for step in range(self.RING_SEGMENTS):
             start = step * span
             if medal:
                 shine = (math.cos(math.radians(start + span / 2 - 225)) + 1) / 2
@@ -215,18 +215,18 @@ class DomainCheckImage(OpenGraphImage):
                 start,
                 start + span + 0.5,
                 fill=(*fill, 255),
-                width=self.ring_width * scale,
+                width=self.RING_WIDTH * scale,
             )
         return layer.resize((diameter, diameter), Image.Resampling.LANCZOS)
 
     def draw_tier(self, image: Image.Image, draw) -> None:
-        center_x, center_y = self.tier_center
+        center_x, center_y = self.TIER_CENTER
         color = self.tier_color()
         bounds = (
-            center_x - self.tier_radius,
-            center_y - self.tier_radius,
-            center_x + self.tier_radius,
-            center_y + self.tier_radius,
+            center_x - self.TIER_RADIUS,
+            center_y - self.TIER_RADIUS,
+            center_x + self.TIER_RADIUS,
+            center_y + self.TIER_RADIUS,
         )
         draw.ellipse(bounds, fill=(*self.tier_bed(color), 240))
         image.alpha_composite(self.tier_ring(color), bounds[:2])

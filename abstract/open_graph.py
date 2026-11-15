@@ -17,16 +17,16 @@ class OpenGraphImage:
     cache_key: str
     cache_ttl: datetime.timedelta
 
-    width: typing.ClassVar[int] = 1200
-    height: typing.ClassVar[int] = 630
+    WIDTH: typing.ClassVar[int] = 1200
+    HEIGHT: typing.ClassVar[int] = 630
     # The favicon gradient: #6200d1 to #14b8a6.
-    background_start: typing.ClassVar[RGB] = (98, 0, 209)
-    background_end: typing.ClassVar[RGB] = (20, 184, 166)
-    ink: typing.ClassVar[RGB] = (255, 255, 255)
-    fonts_dir: typing.ClassVar[pathlib.Path] = pathlib.Path(__file__).with_name("fonts")
+    BACKGROUND_START: typing.ClassVar[RGB] = (98, 0, 209)
+    BACKGROUND_END: typing.ClassVar[RGB] = (20, 184, 166)
+    INK: typing.ClassVar[RGB] = (255, 255, 255)
+    FONTS_DIR: typing.ClassVar[pathlib.Path] = pathlib.Path(__file__).with_name("fonts")
 
     def font(self, name: str, size: int) -> ImageFont.FreeTypeFont:
-        return ImageFont.truetype(str(self.fonts_dir / name), size)
+        return ImageFont.truetype(str(self.FONTS_DIR / name), size)
 
     def fit(
         self, draw, text: str, name: str, start: int, minimum: int, limit: int
@@ -39,10 +39,10 @@ class OpenGraphImage:
         return self.font(name, size)
 
     def background(self) -> Image.Image:
-        start, end = self.background_start, self.background_end
+        start, end = self.BACKGROUND_START, self.BACKGROUND_END
         # The favicon angle, corner to corner. A tenth of the canvas holds the
         # same ramp, and bilinear upscaling keeps it smooth.
-        small = Image.new("RGB", (self.width // 10, self.height // 10))
+        small = Image.new("RGB", (self.WIDTH // 10, self.HEIGHT // 10))
         for y in range(small.height):
             for x in range(small.width):
                 step = (x / (small.width - 1) + y / (small.height - 1)) / 2
@@ -50,7 +50,7 @@ class OpenGraphImage:
                     (x, y),
                     tuple(round(a + (b - a) * step) for a, b in zip(start, end)),
                 )
-        return small.resize((self.width, self.height)).convert("RGBA")
+        return small.resize((self.WIDTH, self.HEIGHT)).convert("RGBA")
 
     def draw(self, image: Image.Image) -> None:
         raise NotImplementedError
@@ -58,7 +58,7 @@ class OpenGraphImage:
     def render(self) -> bytes:
         if not (payload := cache.get(self.cache_key)):
             image = self.background()
-            overlay = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
+            overlay = Image.new("RGBA", (self.WIDTH, self.HEIGHT), (0, 0, 0, 0))
             self.draw(overlay)
             image = Image.alpha_composite(image, overlay)
             buffer = io.BytesIO()

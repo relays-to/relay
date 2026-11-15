@@ -11,7 +11,7 @@ import dns.resolver
 class Answer:
     records: tuple[str, ...] = ()
     failed: bool = False
-    ttl: int | None = None
+    ttl_secs: int | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -78,7 +78,7 @@ class Lookup:
                     tuple(
                         self.render_record(record, record_type) for record in answers
                     ),
-                    ttl=answers.rrset.ttl if answers.rrset is not None else None,
+                    ttl_secs=(answers.rrset.ttl if answers.rrset is not None else None),
                 )
                 break
         self._memo[key] = answer
@@ -94,19 +94,19 @@ class Lookup:
             + self.query(host, dns.rdatatype.AAAA).records
         )
 
-    def ttl(self, name: str, record_type: dns.rdatatype.RdataType) -> int | None:
+    def ttl_secs(self, name: str, record_type: dns.rdatatype.RdataType) -> int | None:
         answer = self.query(name, record_type)
         if answer.failed or not answer.records:
             return None
-        duration = self.authoritative_ttl(name, record_type)
-        if duration is None or duration == answer.ttl:
-            return answer.ttl
+        published_secs = self.authoritative_ttl_secs(name, record_type)
+        if published_secs is None or published_secs == answer.ttl_secs:
+            return answer.ttl_secs
         self._memo[record_type, name.lower().rstrip(".")] = dataclasses.replace(
-            answer, ttl=duration
+            answer, ttl_secs=published_secs
         )
-        return duration
+        return published_secs
 
-    def authoritative_ttl(
+    def authoritative_ttl_secs(
         self, name: str, record_type: dns.rdatatype.RdataType
     ) -> int | None:
         """Read the TTL the zone publishes, not the decayed one from a cache."""
@@ -123,11 +123,11 @@ class Lookup:
                 authority.nameservers = [addresses[0].address]
                 answer = authority.resolve(name, record_type)
             except dns.exception.DNSException:
-                ttl = None
+                ttl_secs = None
             else:
-                ttl = answer.rrset.ttl if answer.rrset is not None else None
-            if ttl is not None:
-                return ttl
+                ttl_secs = answer.rrset.ttl if answer.rrset is not None else None
+            if ttl_secs is not None:
+                return ttl_secs
         return None
 
     def ptr(self, address: str) -> tuple[str, ...] | None:
