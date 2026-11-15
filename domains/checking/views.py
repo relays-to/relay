@@ -1,4 +1,5 @@
 import datetime
+import secrets
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -16,6 +17,10 @@ from .open_graph import DomainCheckImage
 from .tasks import check_domain
 
 OG_TTL = datetime.timedelta(hours=6)
+# Poll while a check runs, spread out so a burst of visitors does not
+# reload in lockstep.
+REFRESH_INTERVAL_SECS = 2
+REFRESH_JITTER_SECS = 2
 
 
 class DomainCheckListView(NoStoreCacheMixin, BreadcrumbViewMixin, generic.FormView):
@@ -62,6 +67,12 @@ class DomainCheckDetailView(NoStoreCacheMixin, BreadcrumbViewMixin, generic.Deta
 
     def get_object(self, queryset=None):
         return get_object_or_404(DomainCheck, name=self.kwargs["name"])
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(**kwargs) | {
+            "refresh_secs": REFRESH_INTERVAL_SECS
+            + secrets.randbelow(REFRESH_JITTER_SECS + 1)
+        }
 
     def get_template_names(self):
         if self.object.status in {
