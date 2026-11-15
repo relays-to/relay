@@ -177,8 +177,6 @@ explains why they are also your reputation story. Read
 
 ## Related pages
 
-- <a href="{% url 'docs:detail' slug='domain-check' %}">Domain check</a>.
-  Grade any public domain's records, free and without a signup.
 - <a href="{% url 'docs:detail' slug='sending' %}">Sending</a>. The SMTP
   interface and all acceptance rules.
 - <a href="{% url 'docs:detail' slug='reliability' %}">Reliability</a>. What

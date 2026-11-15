@@ -53,7 +53,6 @@ class TestDocsListView:
         assert "articles" in response.context
         slugs = [article["slug"] for article in response.context["articles"]]
         assert slugs == sorted(SLUGS)
-        assert "domain-check" in slugs
 
 
 class TestDocsDetailView:
