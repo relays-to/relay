@@ -5,7 +5,6 @@ import typing
 from PIL import Image, ImageDraw
 
 from abstract.open_graph import RGB, OpenGraphImage
-from domains.check.tiers import Tier
 from domains.models import DomainCheck
 
 
@@ -58,32 +57,18 @@ class DomainCheckImage(OpenGraphImage):
     BRONZE: typing.ClassVar[RGB] = (198, 122, 64)
     WHITE: typing.ClassVar[RGB] = (255, 255, 255)
     RED: typing.ClassVar[RGB] = (255, 88, 92)
-    TIER_COLORS: typing.ClassVar[dict[Tier, RGB]] = {
-        Tier.S: PLATINUM,
-        Tier.A_PLUS: GOLD,
-        Tier.A: GOLD,
-        Tier.A_MINUS: GOLD,
-        Tier.B: SILVER,
-        Tier.B_MINUS: SILVER,
-        Tier.C: BRONZE,
-        Tier.C_MINUS: BRONZE,
-        Tier.D: WHITE,
-        Tier.D_MINUS: WHITE,
-        Tier.E: RED,
-        Tier.E_MINUS: RED,
-        Tier.F: RED,
+    # One colour per tier family, so a plus and its minus share the medal.
+    TIER_COLORS: typing.ClassVar[dict[str, RGB]] = {
+        "S": PLATINUM,
+        "A": GOLD,
+        "B": SILVER,
+        "C": BRONZE,
+        "D": WHITE,
+        "E": RED,
+        "F": RED,
     }
-    MEDAL_TIERS: typing.ClassVar[frozenset[Tier]] = frozenset(
-        {
-            Tier.S,
-            Tier.A_PLUS,
-            Tier.A,
-            Tier.A_MINUS,
-            Tier.B,
-            Tier.B_MINUS,
-            Tier.C,
-            Tier.C_MINUS,
-        }
+    METALS: typing.ClassVar[frozenset[RGB]] = frozenset(
+        {PLATINUM, GOLD, SILVER, BRONZE}
     )
 
     def tier_bed(self, color: RGB) -> RGB:
@@ -91,9 +76,10 @@ class DomainCheckImage(OpenGraphImage):
         return tuple(round(channel * 0.2 + 8) for channel in color)
 
     def tier_color(self) -> RGB:
+        """Return the colour of the tier's family, or the ink while it runs."""
         if self.check.status != self.check.Status.COMPLETE:
             return self.INK
-        return self.TIER_COLORS[self.check.tier]
+        return self.TIER_COLORS[str(self.check.tier)[0]]
 
     def draw(self, image: Image.Image) -> None:
         draw = ImageDraw.Draw(image)
@@ -196,7 +182,7 @@ class DomainCheckImage(OpenGraphImage):
         layer = Image.new("RGBA", (diameter * scale, diameter * scale), (0, 0, 0, 0))
         pen = ImageDraw.Draw(layer)
         bounds = (0, 0, diameter * scale - 1, diameter * scale - 1)
-        medal = self.check.tier in self.MEDAL_TIERS
+        medal = color in self.METALS
         light = tuple(round(c + (255 - c) * 0.62) for c in color)
         dark = tuple(round(c * 0.34) for c in color)
         span = 360 / self.RING_SEGMENTS
