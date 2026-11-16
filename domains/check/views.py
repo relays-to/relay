@@ -6,8 +6,10 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.http import urlencode
 from django.utils.translation import gettext_lazy as _
 from django.views import generic
 
@@ -40,7 +42,9 @@ class DomainCheckListView(
         return super().get_queryset().order_by("penalty", "-modified_at")
 
     def get_context_data(self, **kwargs):
-        return super().get_context_data(**kwargs) | {"form": DomainCheckForm()}
+        return super().get_context_data(**kwargs) | {
+            "form": DomainCheckForm(initial={"name": self.request.GET.get("name", "")})
+        }
 
 
 class DomainCheckSubmitView(NoStoreCacheMixin, generic.FormView):
@@ -82,11 +86,18 @@ class DomainCheckDetailView(
     def get(self, request, *args, **kwargs):
         try:
             name = canonicalize_domain_name(self.kwargs["name"])
-        except ValidationError as error:
-            raise Http404 from error
+        except ValidationError:
+            return self.redirect_to_list(self.kwargs["name"])
         if name != self.kwargs["name"]:
             return redirect("domain_check:detail", name=name)
-        return super().get(request, *args, **kwargs)
+        try:
+            return super().get(request, *args, **kwargs)
+        except Http404:
+            return self.redirect_to_list(name)
+
+    def redirect_to_list(self, name):
+        """Send the visitor to the list with the check form prefilled."""
+        return redirect(f"{reverse('domain_check:list')}?{urlencode({'name': name})}")
 
     def get_object(self, queryset=None):
         return get_object_or_404(DomainCheck, name=self.kwargs["name"])
