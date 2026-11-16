@@ -126,6 +126,9 @@ class TestDomainPropertiesNoDb:
         assert "v=spf1" in record
         assert "include:mail.relay.example.com" in record
 
+    def test_root_spf_record__fails_senders_outside_the_include(self):
+        assert Domain(name="example.com").root_spf_record.endswith("-all")
+
     def test_str__labels_managed_domain(self):
         assert str(Domain(name="open.example.com", is_managed=True)) == (
             "open.example.com (managed)"

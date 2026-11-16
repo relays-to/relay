@@ -415,7 +415,7 @@ class Domain(TimeStamped):
 
     @property
     def root_spf_record(self):
-        return f"v=spf1 include:{self.sender_domain} ~all"
+        return f"v=spf1 include:{self.sender_domain} -all"
 
     @property
     def dmarc_reporting_address(self):
