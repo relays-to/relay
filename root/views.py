@@ -1,6 +1,9 @@
 from django.conf import settings
+from django.core.exceptions import PermissionDenied
+from django.http import Http404
 from django.utils.translation import gettext_lazy as _
-from django.views import generic
+from django.views import defaults, generic
+from django.views.csrf import csrf_failure
 
 from abstract.views import (
     PUBLIC_PAGE_CACHE,
@@ -70,3 +73,38 @@ class OpenSourceView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateVie
     title = _("the open-source pledge")
     parent = "home"
     cache_control = PUBLIC_PAGE_CACHE
+
+
+class Error400PreviewView(generic.View):
+    """Render the production 400 page so DEBUG mode can preview it."""
+
+    def get(self, request):
+        return defaults.bad_request(request, Exception("Preview"))
+
+
+class Error403PreviewView(generic.View):
+    """Render the production 403 page so DEBUG mode can preview it."""
+
+    def get(self, request):
+        return defaults.permission_denied(request, PermissionDenied("Preview"))
+
+
+class Error403CSRFPreviewView(generic.View):
+    """Render the production CSRF failure page so DEBUG mode can preview it."""
+
+    def get(self, request):
+        return csrf_failure(request, reason="CSRF token missing.")
+
+
+class Error404PreviewView(generic.View):
+    """Render the production 404 page so DEBUG mode can preview it."""
+
+    def get(self, request):
+        return defaults.page_not_found(request, Http404("Preview"))
+
+
+class Error500PreviewView(generic.View):
+    """Render the production 500 page so DEBUG mode can preview it."""
+
+    def get(self, request):
+        return defaults.server_error(request)

@@ -1,0 +1,68 @@
+{% extends "errors/base.html" %}
+{% load i18n abstract %}
+{% block title %}{% translate "Page not found" %}{% endblock %}
+{% block code %}404{% endblock %}
+{% block stamp %}{% translate "Return to sender" %}{% endblock %}
+{% block eyebrow %}{% translate "Bounce notice" %}{% endblock %}
+{% block heading %}{% translate "This page got lost in the mail." %}{% endblock %}
+{% block message %}
+  {% blocktranslate trimmed %}
+    We checked every mailbox, both spam folders, and the back of the sorting room. It is not here.
+  {% endblocktranslate %}
+{% endblock %}
+{% block actions %}
+  <a class="btn" data-size="lg" href="{% url 'home' %}">
+    {% tabler name="inbox" size="5" %}
+    {% translate "Back to the inbox" %}
+  </a>
+  <a
+    class="btn"
+    data-variant="secondary"
+    data-size="lg"
+    href="{% url 'docs:list' %}"
+    target="_blank"
+    rel="noopener"
+  >
+    {% tabler name="book" size="5" %}
+    {% translate "Read the docs" %}
+  </a>
+{% endblock %}
+{% block report %}
+  <article class="card error-page-paper overflow-hidden p-0">
+    <div class="flex items-center gap-2 border-b border-border bg-muted/50 px-5 py-3 font-mono text-xs uppercase tracking-widest text-muted-foreground">
+      {% tabler name="mail-off" size="4" %}
+      {% translate "Delivery status notification" %}
+      <span class="badge ms-auto" data-size="sm" data-variant="destructive">{% translate "Undeliverable" %}</span>
+    </div>
+    <dl class="m-0 grid gap-2 px-5 py-5 font-mono text-sm">
+      <div class="flex gap-3">
+        <dt class="w-16 shrink-0 text-muted-foreground">{% translate "From" %}</dt>
+        <dd class="m-0">relay postmaster</dd>
+      </div>
+      <div class="flex gap-3">
+        <dt class="w-16 shrink-0 text-muted-foreground">{% translate "To" %}</dt>
+        <dd class="m-0 break-all">{{ request_path|default:"/" }}</dd>
+      </div>
+      <div class="flex gap-3">
+        <dt class="w-16 shrink-0 text-muted-foreground">{% translate "Subject" %}</dt>
+        <dd class="m-0">{% translate "Delivery failed" %}</dd>
+      </div>
+    </dl>
+    <div class="grid gap-3 border-t border-border px-5 py-5 text-sm">
+      <p class="m-0">
+        {% blocktranslate trimmed %}
+          The address you asked for does not exist. It may have moved, retired, or never existed at all.
+        {% endblocktranslate %}
+      </p>
+      <p class="m-0 font-mono text-xs text-muted-foreground">
+        {% translate "Diagnostic code" %}: smtp; 550 5.1.1 {% translate "The page is not at this address." %}
+      </p>
+    </div>
+    <div class="border-t border-border bg-muted/30 px-5 py-4">
+      <div class="mx-auto max-w-xs">
+        {% include "partials/illustration.html" with name="empty-mailbox" %}
+      </div>
+    </div>
+  </article>
+{% endblock %}
+{% block footnote %}{% translate "The postmaster has been notified. Nobody is surprised." %}{% endblock %}

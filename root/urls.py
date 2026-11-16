@@ -50,6 +50,13 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns = [
         *urlpatterns,
+        path("400/", views.Error400PreviewView.as_view(), name="error-400"),
+        path("403/", views.Error403PreviewView.as_view(), name="error-403"),
+        path(
+            "403/csrf/", views.Error403CSRFPreviewView.as_view(), name="error-403-csrf"
+        ),
+        path("404/", views.Error404PreviewView.as_view(), name="error-404"),
+        path("500/", views.Error500PreviewView.as_view(), name="error-500"),
         path("__debug__/", include("debug_toolbar.urls")),
         path("emails/", include("django_letter.urls")),
     ]

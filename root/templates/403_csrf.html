@@ -1,0 +1,29 @@
+{% extends "403.html" %}
+{% load i18n abstract %}
+{% block title %}{% translate "Security check failed" %}{% endblock %}
+{% block stamp %}{% translate "Missing wax seal" %}{% endblock %}
+{% block eyebrow %}{% translate "Mailroom security" %}{% endblock %}
+{% block heading %}{% translate "This form arrived without its wax seal." %}{% endblock %}
+{% block message %}
+  {% blocktranslate trimmed %}
+    The security stamp did not match, so the request was sent back unopened. Reload the page and try again.
+  {% endblocktranslate %}
+{% endblock %}
+{% block report %}
+  <article class="card error-page-paper overflow-hidden p-0">
+    <div class="flex items-center gap-2 border-b border-border bg-muted/50 px-5 py-3 font-mono text-xs uppercase tracking-widest text-muted-foreground">
+      {% tabler name="email-stamp" size="4" %}
+      {% translate "Inspection note" %}
+      <span class="badge ms-auto" data-size="sm" data-variant="destructive">{% translate "Rejected" %}</span>
+    </div>
+    <div class="grid gap-3 px-5 py-5 text-sm">
+      <p class="m-0">{% translate "The wax seal was missing, broken, or belonging to another envelope." %}</p>
+      <p class="m-0 text-muted-foreground">
+        {% blocktranslate trimmed %}
+          Nothing was delivered. Refresh the page to collect a fresh seal and try again.
+        {% endblocktranslate %}
+      </p>
+    </div>
+  </article>
+{% endblock %}
+{% block footnote %}{% translate "Better safe than sorry. Mostly safe, occasionally annoying." %}{% endblock %}
