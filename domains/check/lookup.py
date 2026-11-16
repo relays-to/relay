@@ -176,11 +176,12 @@ class Lookup:
         answer = self.query(name, dns.rdatatype.MX)
         if answer.failed:
             return MxLookup(failed=True)
-        return MxLookup(
-            records=tuple(
-                MxRecord(int(preference), exchange)
-                for preference, _, exchange in (
-                    record.partition(" ") for record in answer.records
-                )
+        records = (
+            MxRecord(int(preference), exchange)
+            for preference, _, exchange in (
+                record.partition(" ") for record in answer.records
             )
+        )
+        return MxLookup(
+            records=tuple(sorted(records, key=lambda record: record.preference))
         )
