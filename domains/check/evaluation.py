@@ -24,7 +24,7 @@ from abstract.templatetags.abstract import human_duration
 from domains.mailauth import DmarcPolicy
 from domains.mta_sts import MtaStsRecord
 
-from .lookup import Lookup
+from .lookup import Lookup, MxLookup
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -171,8 +171,57 @@ class MxCheck(Check):
     SLUG = "mx"
     HINTS = {
         "MX record": "Publish an MX record that points at the server that receives mail for this domain.",
+        "Google Workspace": (
+            "Google Workspace now uses smtp.google.com, priority 1. "
+            "[Update the MX records]"
+            "(https://knowledge.workspace.google.com/admin/domains/"
+            "set-up-mx-records-for-google-workspace)"
+        ),
     }
     MAX_MX_EXCHANGES = 5
+    GOOGLE_WORKSPACE_EXCHANGE = "smtp.google.com"
+    GOOGLE_LEGACY_EXCHANGES = ("aspmx.l.google.com", "googlemail.com")
+
+    @classmethod
+    def is_legacy_google_exchange(cls, exchange: str) -> bool:
+        exchange = exchange.lower()
+        return any(
+            exchange == legacy or exchange.endswith(f".{legacy}")
+            for legacy in cls.GOOGLE_LEGACY_EXCHANGES
+        )
+
+    @classmethod
+    def google_subcheck(cls, mx: MxLookup) -> SubCheck | None:
+        legacy = [
+            exchange
+            for exchange in mx.exchanges
+            if cls.is_legacy_google_exchange(exchange)
+        ]
+        if legacy:
+            detail = ", ".join(legacy[: cls.MAX_MX_EXCHANGES])
+            if len(legacy) > cls.MAX_MX_EXCHANGES:
+                detail += f" (+{len(legacy) - cls.MAX_MX_EXCHANGES} more)"
+            return SubCheck(
+                "Google Workspace",
+                "fail",
+                f"Legacy MX records: {detail}",
+                severity="weak",
+            )
+        current = next(
+            (
+                record
+                for record in mx.records
+                if record.exchange.lower() == cls.GOOGLE_WORKSPACE_EXCHANGE
+            ),
+            None,
+        )
+        if current is not None:
+            return SubCheck(
+                "Google Workspace",
+                "pass",
+                f"{current.exchange}, priority {current.preference}",
+            )
+        return None
 
     @classmethod
     def run(cls, name: str, lookup: Lookup) -> CheckResult:
@@ -192,6 +241,8 @@ class MxCheck(Check):
         subchecks = [record]
         if record.status == "pass":
             subchecks.append(cls.ttl_subcheck("MX TTL", name, dns.rdatatype.MX, lookup))
+            if google := cls.google_subcheck(mx):
+                subchecks.append(google)
         return cls.result(subchecks)
 
 

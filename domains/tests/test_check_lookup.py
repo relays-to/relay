@@ -9,7 +9,7 @@ import dns.resolver
 import pytest
 
 from conftest import StubResolver
-from domains.check.lookup import Answer, Lookup, MxLookup
+from domains.check.lookup import Answer, Lookup, MxLookup, MxRecord
 
 
 def record(text, record_type):
@@ -181,7 +181,10 @@ class TestAccessors:
     def test_mx__reports_a_null_mx(self, lookup, dns_resolver):
         dns_resolver.add("example.com", "MX", "0 .")
 
-        assert lookup.mx("example.com") == MxLookup(null=True)
+        mx = lookup.mx("example.com")
+
+        assert mx.null
+        assert mx.records == (MxRecord(0, ""),)
 
     def test_mx__returns_the_exchanges(self, lookup, dns_resolver):
         dns_resolver.add(
@@ -192,6 +195,16 @@ class TestAccessors:
             "mx1.example.com",
             "mx2.example.com",
         }
+
+    def test_mx__returns_the_preferences(self, lookup, dns_resolver):
+        dns_resolver.add(
+            "example.com", "MX", "10 mx1.example.com.", "20 mx2.example.com."
+        )
+
+        assert lookup.mx("example.com").records == (
+            MxRecord(10, "mx1.example.com"),
+            MxRecord(20, "mx2.example.com"),
+        )
 
     def test_mx__returns_an_empty_answer_without_records(self, lookup, dns_resolver):
         assert lookup.mx("example.com") == MxLookup()

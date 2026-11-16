@@ -269,6 +269,56 @@ class TestDomainCheckDetailView:
         assert "8.8.8.8" in content
         assert "Fix:" in content
 
+    def test_get__renders_a_markdown_hint(self, client):
+        make_check(
+            checks=[
+                make_row(
+                    "mx",
+                    "MX",
+                    "partial",
+                    [
+                        {
+                            "label": "Google Workspace",
+                            "status": "fail",
+                            "detail": "Legacy MX records",
+                            "severity": "weak",
+                        }
+                    ],
+                )
+            ]
+        )
+
+        response = client.get("/domain-check/example.com/")
+
+        content = response.content.decode()
+        assert (
+            '<a href="https://knowledge.workspace.google.com/admin/domains/'
+            'set-up-mx-records-for-google-workspace">Update the MX records</a>'
+        ) in content
+
+    def test_get__escapes_raw_html_in_a_markdown_hint(self, client):
+        make_check(
+            checks=[
+                make_row(
+                    "dmarc",
+                    "DMARC",
+                    "fail",
+                    [
+                        {
+                            "label": "DMARC record",
+                            "status": "fail",
+                            "detail": "none",
+                            "severity": "blocking",
+                        }
+                    ],
+                )
+            ]
+        )
+
+        response = client.get("/domain-check/example.com/")
+
+        assert "_dmarc.&lt;domain&gt;" in response.content.decode()
+
     def test_get__revalidates_with_an_etag(self, client):
         make_check()
         etag = client.get("/domain-check/example.com/").headers["ETag"]

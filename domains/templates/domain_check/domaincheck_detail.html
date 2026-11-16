@@ -149,10 +149,10 @@
                         </div>
                       {% endif %}
                       {% if subcheck.status == "fail" and subcheck.hint %}
-                        <span class="text-sm">
+                        <div class="text-sm [&_a]:text-[var(--color-link)] [&_a]:underline [&_a]:underline-offset-2 [&_p]:m-0 [&_p]:inline">
                           <span class="font-medium">{% translate "Fix:" %}</span>
-                          {{ subcheck.hint }}
-                        </span>
+                          {{ subcheck.hint|markdown }}
+                        </div>
                       {% endif %}
                     </div>
                   </li>
