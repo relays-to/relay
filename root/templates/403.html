@@ -1,0 +1,59 @@
+{% extends "errors/base.html" %}
+{% load i18n abstract %}
+{% block title %}{% translate "Access denied" %}{% endblock %}
+{% block code %}403{% endblock %}
+{% block stamp %}{% translate "Not on the guest list" %}{% endblock %}
+{% block eyebrow %}{% translate "Access log" %}{% endblock %}
+{% block heading %}{% translate "This mailbox has a velvet rope." %}{% endblock %}
+{% block message %}
+  {% blocktranslate trimmed %}
+    Your account is not on the list for this page. If you are sure it should be, ask whoever handed out the keys.
+  {% endblocktranslate %}
+{% endblock %}
+{% block actions %}
+  <a class="btn" data-size="lg" href="{% url 'home' %}">
+    {% tabler name="home" size="5" %}
+    {% translate "Back to the lobby" %}
+  </a>
+  {% if not user.is_authenticated %}
+    <a
+      class="btn"
+      data-variant="secondary"
+      data-size="lg"
+      href="{% url 'accounts:login' %}"
+      rel="nofollow"
+    >
+      {% tabler name="login" size="5" %}
+      {% translate "Sign in" %}
+    </a>
+  {% endif %}
+{% endblock %}
+{% block report %}
+  <article class="card error-page-paper overflow-hidden p-0">
+    <div class="flex items-center gap-2 border-b border-border bg-muted/50 px-5 py-3 font-mono text-xs uppercase tracking-widest text-muted-foreground">
+      {% tabler name="lock" size="4" %}
+      {% translate "Access log" %}
+      <span class="badge ms-auto" data-size="sm" data-variant="destructive">{% translate "Denied" %}</span>
+    </div>
+    <dl class="m-0 grid gap-2 px-5 py-5 font-mono text-sm">
+      <div class="flex gap-3">
+        <dt class="w-16 shrink-0 text-muted-foreground">{% translate "Guest" %}</dt>
+        <dd class="m-0 break-all">
+          {% if user.is_authenticated %}{% translate "You" %}{% else %}{% translate "Anonymous" %}{% endif %}
+        </dd>
+      </div>
+      <div class="flex gap-3">
+        <dt class="w-16 shrink-0 text-muted-foreground">{% translate "Request" %}</dt>
+        <dd class="m-0 break-all">{{ request.method|default:"GET" }} {{ request.path|default:"/" }}</dd>
+      </div>
+      <div class="flex gap-3">
+        <dt class="w-16 shrink-0 text-muted-foreground">{% translate "Verdict" %}</dt>
+        <dd class="m-0">{% translate "Denied, but politely" %}</dd>
+      </div>
+    </dl>
+    <div class="border-t border-border px-5 py-5 text-sm">
+      <p class="m-0">{% translate "The bouncer says: come back with a permission slip." %}</p>
+    </div>
+  </article>
+{% endblock %}
+{% block footnote %}{% translate "The velvet rope is doing its job." %}{% endblock %}

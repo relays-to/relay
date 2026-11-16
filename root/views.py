@@ -1,6 +1,7 @@
 from django.conf import settings
+from django.http import Http404
 from django.utils.translation import gettext_lazy as _
-from django.views import generic
+from django.views import defaults, generic
 
 from abstract.views import (
     PUBLIC_PAGE_CACHE,
@@ -70,3 +71,17 @@ class OpenSourceView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateVie
     title = _("the open-source pledge")
     parent = "home"
     cache_control = PUBLIC_PAGE_CACHE
+
+
+class Error404PreviewView(generic.View):
+    """Render the production 404 page so DEBUG mode can preview it."""
+
+    def get(self, request):
+        return defaults.page_not_found(request, Http404("Preview"))
+
+
+class Error500PreviewView(generic.View):
+    """Render the production 500 page so DEBUG mode can preview it."""
+
+    def get(self, request):
+        return defaults.server_error(request)

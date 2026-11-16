@@ -1,0 +1,51 @@
+{% extends "errors/base.html" %}
+{% load i18n abstract %}
+{% block title %}{% translate "Server error" %}{% endblock %}
+{% block code %}500{% endblock %}
+{% block stamp %}{% translate "Handle with care" %}{% endblock %}
+{% block eyebrow %}{% translate "Incident report" %}{% endblock %}
+{% block heading %}{% translate "We dropped the mailbag." %}{% endblock %}
+{% block message %}
+  {% blocktranslate trimmed %}
+    Something broke on our side. You did nothing wrong. A human has been paged and is currently looking for the handle.
+  {% endblocktranslate %}
+{% endblock %}
+{% block actions %}
+  <a class="btn" data-size="lg" href="{% url 'home' %}">
+    {% tabler name="home" size="5" %}
+    {% translate "Back to safety" %}
+  </a>
+  <a
+    class="btn"
+    data-variant="secondary"
+    data-size="lg"
+    href="{% url 'docs:list' %}"
+    target="_blank"
+    rel="noopener"
+  >
+    {% tabler name="book" size="5" %}
+    {% translate "Read the docs" %}
+  </a>
+{% endblock %}
+{% block report %}
+  <article class="card error-page-paper overflow-hidden p-0">
+    <div class="flex items-center gap-2 border-b border-border bg-muted/50 px-5 py-3 font-mono text-xs uppercase tracking-widest text-muted-foreground">
+      {% tabler name="alert-triangle" size="4" %}
+      {% translate "Incident report" %}
+      <span class="badge ms-auto" data-size="sm" data-variant="warning">{% translate "In progress" %}</span>
+    </div>
+    <pre class="m-0 min-w-0 max-w-full overflow-x-auto px-5 py-5 font-mono text-xs leading-relaxed text-muted-foreground"><code>Traceback (most recent call last):
+  File "relay/postmaster.py", line 500, in deliver
+    return self.pretend_everything_is_fine()
+  File "relay/postmaster.py", line 500, in pretend_everything_is_fine
+    raise MailbagDropped("The handle came off.")
+MailbagDropped: The handle came off.</code></pre>
+    <div class="grid gap-2 border-t border-border px-5 py-5 text-sm">
+      <p class="m-0">{% translate "The letters are fine. The handle is not." %}</p>
+      <p class="m-0 font-mono text-xs text-muted-foreground">
+        {% translate "Status" %}: {% translate "the server is having a moment" %}
+      </p>
+    </div>
+  </article>
+{% endblock %}
+{% block footnote %}{% translate "This page is doing breathing exercises. Give it a minute." %}{% endblock %}

@@ -322,3 +322,76 @@ html:has(body.admin) {
   --secondary: #417690;
   --accent: #f5dd5d;
 }
+
+/* Error pages: the status code floats like a lost parcel, and the stamp
+   looks like the mailroom has given up. Scoped so no other page inherits
+   the tilt or the animation. */
+.error-page {
+  background-image:
+    radial-gradient(
+      55rem 38rem at 88% -8%,
+      color-mix(in srgb, var(--color-primary) 12%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      42rem 32rem at -8% 108%,
+      color-mix(in srgb, var(--color-info) 10%, transparent),
+      transparent 65%
+    );
+  background-repeat: no-repeat;
+}
+
+.error-page-code {
+  color: var(--color-primary-text);
+  font-family: var(--font-mono);
+  font-size: clamp(5.5rem, 16vi, 10rem);
+  font-weight: 700;
+  letter-spacing: -0.09em;
+  line-height: 0.78;
+  animation: error-page-float 6s ease-in-out infinite;
+}
+
+.error-page-stamp {
+  border: 2px dashed currentcolor;
+  border-radius: 0.4rem;
+  color: var(--color-destructive);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  padding: 0.4rem 0.65rem;
+  text-transform: uppercase;
+  transform: rotate(-8deg);
+  transition: transform 180ms ease;
+  inline-size: fit-content;
+
+  &:hover {
+    transform: rotate(4deg) scale(1.06);
+  }
+}
+
+.error-page-paper {
+  transform: rotate(0.8deg);
+  box-shadow: 0 1.5rem 3rem color-mix(in srgb, var(--color-foreground) 10%, transparent);
+}
+
+@keyframes error-page-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+
+  50% {
+    transform: translateY(-0.4rem) rotate(1.5deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .error-page-code {
+    animation: none;
+  }
+
+  .error-page-stamp {
+    transition: none;
+  }
+}
