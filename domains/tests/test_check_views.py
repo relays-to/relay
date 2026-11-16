@@ -130,6 +130,16 @@ class TestDomainCheckListView:
         assert response.status_code == 200
         assert response.headers["ETag"] != etag
 
+    def test_get__shows_domain_icons(self, client):
+        make_check(name="example.com")
+
+        response = client.get("/domain-check/")
+
+        assert (
+            'src="https://icons.duckduckgo.com/ip3/example.com.ico"'
+            in response.content.decode()
+        )
+
     def test_get__lists_every_status(self, client):
         make_check()
         make_check(name="failed.example", status=DomainCheck.Status.FAILED)

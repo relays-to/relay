@@ -82,6 +82,15 @@
             data-tier="{% if domain_check.status == 'complete' %}{{ domain_check.tier_variant }}{% elif domain_check.status == 'failed' %}destructive{% else %}outline{% endif %}"
             href="{{ domain_check.get_absolute_url }}"
           >
+            <img
+              src="https://icons.duckduckgo.com/ip3/{{ domain_check.name }}.ico"
+              alt=""
+              width="32"
+              height="32"
+              loading="lazy"
+              referrerpolicy="no-referrer"
+              class="size-8 shrink-0 rounded-md bg-muted object-contain"
+            >
             <div class="flex flex-1 flex-col gap-1">
               <span class="text-lg font-semibold break-all">{{ domain_check.name }}</span>
               <span class="text-sm text-muted-foreground">

@@ -112,7 +112,12 @@ SECURE_CSP = {
     "default-src": [CSP.SELF],
     "script-src": [CSP.SELF],
     "style-src": [CSP.SELF, CSP.UNSAFE_INLINE],
-    "img-src": [CSP.SELF, "data:", "https://www.gravatar.com"],
+    "img-src": [
+        CSP.SELF,
+        "data:",
+        "https://www.gravatar.com",
+        "https://icons.duckduckgo.com",
+    ],
     "font-src": [CSP.SELF],
     "media-src": [CSP.SELF],
     "connect-src": [CSP.SELF, "https://ipwho.is", "https://tiles.openfreemap.org"],
