@@ -436,10 +436,12 @@ class SpfCheck(Check):
                 [SubCheck("SPF record", "skip", "Lookup failed")],
                 detail="Lookup failed.",
             )
+        # DKIM alone can satisfy DMARC, so a missing SPF record costs tiers but
+        # does not pin the domain to F.
         if not spf.records:
             detail = "No SPF record"
             return cls.result(
-                [SubCheck("SPF record", "fail", detail, severity="blocking")],
+                [SubCheck("SPF record", "fail", detail)],
                 detail=f"{detail}.",
             )
         if len(spf.records) > 1:

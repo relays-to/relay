@@ -552,9 +552,7 @@ class TestSpfRun:
 
         result = SpfCheck.run("example.com", lookup)
 
-        assert result.subchecks == (
-            SubCheck("SPF record", "fail", "No SPF record", severity="blocking"),
-        )
+        assert result.subchecks == (SubCheck("SPF record", "fail", "No SPF record"),)
         assert result.detail == "No SPF record."
 
     def test_run__fails_on_several_records(self, lookup, dns_resolver):
