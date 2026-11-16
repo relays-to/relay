@@ -176,7 +176,7 @@ class TestTtlSubcheck:
             "MX TTL",
             "example.com",
             dns.rdatatype.MX,
-            TtlLookup(datetime.timedelta(seconds=3599)),
+            TtlLookup(datetime.timedelta(seconds=1799)),
         )
 
         assert subcheck.status == "pass"
@@ -186,7 +186,7 @@ class TestTtlSubcheck:
             "MX TTL",
             "example.com",
             dns.rdatatype.MX,
-            TtlLookup(datetime.timedelta(minutes=55)),
+            TtlLookup(datetime.timedelta(minutes=25)),
         )
 
         assert subcheck.status == "pass"
@@ -196,7 +196,7 @@ class TestTtlSubcheck:
             "MX TTL",
             "example.com",
             dns.rdatatype.MX,
-            TtlLookup(datetime.timedelta(minutes=54)),
+            TtlLookup(datetime.timedelta(minutes=24)),
         )
 
         assert subcheck.status == "fail"
@@ -666,7 +666,7 @@ class TestDmarcCheck:
         assert result.subchecks == (
             SubCheck("DMARC record", "pass", "1 record"),
             SubCheck("Policy", "fail", "No valid p tag", severity="blocking"),
-            SubCheck("DMARC TTL", "fail", "30 minutes", severity="weak"),
+            SubCheck("DMARC TTL", "pass", "30 minutes"),
         )
 
     def test_run__passes_a_strict_policy(self, lookup, dns_resolver):

@@ -64,9 +64,9 @@ class Check:
     LABEL: typing.ClassVar[str]
     SLUG: typing.ClassVar[str | None] = None
     HINTS: typing.ClassVar[Mapping[str, str]] = {}
-    TTL_MIN = datetime.timedelta(hours=1)
-    # Resolvers return the remaining TTL, so an hour-long record can answer with
-    # minutes left. Absorb that countdown before calling a record too short-lived.
+    TTL_MIN = datetime.timedelta(minutes=30)
+    # Resolvers return the remaining TTL, so a record can answer with minutes
+    # left. Absorb that countdown before calling a record too short-lived.
     TTL_TOLERANCE = datetime.timedelta(minutes=5)
     TTL_HINT = f"Raise the record's TTL to at least {human_duration(TTL_MIN)}."
     MAX_LISTED_ADDRESSES = 5
