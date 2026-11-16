@@ -173,6 +173,11 @@ class TestDomainCheckListView:
             "broken.example",
         ]
 
+    def test_get__prefills_the_form_from_the_query(self, client):
+        response = client.get("/domain-check/?name=example.com")
+
+        assert response.context["form"]["name"].value() == "example.com"
+
     def test_get__paginates(self, client):
         for index in range(51):
             make_check(name=f"domain{index}.example")
@@ -350,8 +355,11 @@ class TestDomainCheckDetailView:
 
         assert response.headers["Location"] == "/domain-check/xn--mnich-kva.com/"
 
-    def test_get__rejects_an_unknown_domain(self, client):
-        assert client.get("/domain-check/example.com/").status_code == 404
+    def test_get__forwards_an_unknown_domain_to_the_list(self, client):
+        response = client.get("/domain-check/example.com/")
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/domain-check/?name=example.com"
 
     def test_get__labels_the_recheck_for_anonymous_users(self, client):
         make_check()
@@ -466,10 +474,11 @@ class TestDomainCheckOgImageView:
 
 
 class TestInvalidNames:
-    def test_detail__rejects_an_invalid_name(self, client):
+    def test_detail__forwards_an_invalid_name_to_the_list(self, client):
         response = client.get(f"/domain-check/{quote('❤')}/")
 
-        assert response.status_code == 404
+        assert response.status_code == 302
+        assert response.headers["Location"] == "/domain-check/?name=%E2%9D%A4"
 
     def test_og_image__rejects_an_invalid_name(self, client):
         response = client.get(f"/domain-check/{quote('❤')}/og.png")
