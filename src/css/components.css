@@ -244,6 +244,18 @@
   max-inline-size: 100%;
 }
 
+/* A dotted backdrop behind the domain check hero, fading away from the
+   illustration side. */
+.domain-check-grid {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: 0;
+  background-image: radial-gradient(circle at 1px 1px, var(--color-border) 1px, transparent 0);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 80% 90% at 90% 0%, black 15%, transparent 70%);
+  pointer-events: none;
+}
+
 /* Restore the admin shell and native controls after basecoat's resets. */
 :where(
   html:has(body.admin),
