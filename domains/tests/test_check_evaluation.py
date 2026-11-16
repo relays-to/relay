@@ -277,6 +277,46 @@ class TestMxCheck:
 
         assert result.subchecks[0].detail.endswith(" (+2 more)")
 
+    def test_run__passes_the_current_google_workspace_mx(self, lookup, dns_resolver):
+        dns_resolver.add("example.com", "MX", "1 smtp.google.com.")
+
+        result = MxCheck.run("example.com", lookup)
+
+        assert result.subchecks[2] == SubCheck(
+            "Google Workspace", "pass", "smtp.google.com, priority 1"
+        )
+
+    def test_run__flags_the_legacy_google_workspace_mx(self, lookup, dns_resolver):
+        dns_resolver.add(
+            "example.com",
+            "MX",
+            "1 aspmx.l.google.com.",
+            "10 aspmx2.googlemail.com.",
+            "20 alt1.aspmx.l.google.com.",
+        )
+
+        result = MxCheck.run("example.com", lookup)
+
+        assert result.subchecks[2] == SubCheck(
+            "Google Workspace",
+            "fail",
+            "Legacy MX records: aspmx.l.google.com, aspmx2.googlemail.com, "
+            "alt1.aspmx.l.google.com",
+            severity="weak",
+        )
+        assert result.status == "partial"
+
+    def test_run__skips_the_google_subcheck_for_other_providers(
+        self, lookup, dns_resolver
+    ):
+        dns_resolver.add("example.com", "MX", "10 mx1.example.com.")
+
+        result = MxCheck.run("example.com", lookup)
+
+        assert all(
+            subcheck.label != "Google Workspace" for subcheck in result.subchecks
+        )
+
 
 class TestSpfQualifier:
     @pytest.mark.parametrize(

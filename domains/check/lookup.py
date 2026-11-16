@@ -18,10 +18,25 @@ class Answer:
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
+class MxRecord:
+    preference: int
+    exchange: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
 class MxLookup:
-    exchanges: tuple[str, ...] = ()
-    null: bool = False
+    records: tuple[MxRecord, ...] = ()
     failed: bool = False
+
+    @property
+    def exchanges(self) -> tuple[str, ...]:
+        return tuple(record.exchange for record in self.records if record.exchange)
+
+    @property
+    def null(self) -> bool:
+        return any(
+            record.preference == 0 and not record.exchange for record in self.records
+        )
 
 
 class Lookup:
@@ -161,10 +176,11 @@ class Lookup:
         answer = self.query(name, dns.rdatatype.MX)
         if answer.failed:
             return MxLookup(failed=True)
-        records = [record.split(" ", 1) for record in answer.records]
         return MxLookup(
-            exchanges=tuple(exchange for _, exchange in records if exchange),
-            null=any(
-                preference == "0" and not exchange for preference, exchange in records
-            ),
+            records=tuple(
+                MxRecord(int(preference), exchange)
+                for preference, _, exchange in (
+                    record.partition(" ") for record in answer.records
+                )
+            )
         )

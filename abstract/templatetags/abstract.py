@@ -1,5 +1,6 @@
 import datetime
 import decimal
+from html import escape
 
 from django.contrib.admin.templatetags.admin_urls import admin_urlname
 from django.contrib.humanize.templatetags import humanize
@@ -160,6 +161,12 @@ def include_md(template_name, **context):
     """Render a Markdown template to HTML, stripping any YAML frontmatter."""
     rendered = loader.get_template(template_name).render(context=context)
     return utils.md_2_html(utils.strip_frontmatter(rendered))
+
+
+@register.filter
+def markdown(value: str) -> str:
+    """Render a short Markdown string as HTML, escaping raw HTML."""
+    return utils.md_2_html(escape(value, quote=False), line_breaks=False)
 
 
 @register.simple_tag
