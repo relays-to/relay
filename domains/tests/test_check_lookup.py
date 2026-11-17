@@ -37,7 +37,7 @@ class Authority:
         self.nameservers = []
         self.queries = []
 
-    def resolve(self, name, record_type):
+    def resolve(self, name, record_type, lifetime=None):
         self.queries.append(str(name).rstrip("."))
         return self
 
