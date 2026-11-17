@@ -30,9 +30,15 @@ urlpatterns = [
     path("llms-full.txt", views.LlmsFullTxtView.as_view(), name="llms-full-txt"),
     path(
         "sitemap.xml",
-        views.SitemapView.as_view(),
+        views.SitemapIndexView.as_view(),
         {"sitemaps": sitemaps},
         name="sitemap",
+    ),
+    path(
+        "sitemap-<section>.xml",
+        views.SitemapSectionView.as_view(),
+        {"sitemaps": sitemaps},
+        name="sitemap-section",
     ),
     # https://datatracker.ietf.org/doc/html/rfc8615
     path(

@@ -1,7 +1,7 @@
 import datetime
 
 from django.conf import settings
-from django.contrib.sitemaps.views import sitemap
+from django.contrib.sitemaps.views import index, sitemap
 from django.http import JsonResponse
 from django.template import loader
 from django.urls import reverse
@@ -138,13 +138,26 @@ class LlmsFullTxtView(CacheControlMixin, generic.TemplateView):
         }
 
 
-class SitemapView(CacheControlMixin, generic.View):
-    """Serve the site index with a short public cache."""
+class SitemapIndexView(CacheControlMixin, generic.View):
+    """Serve the sitemap index with a short public cache."""
 
     cache_control = {"public": True, "max_age": datetime.timedelta(minutes=5)}
 
     def get(self, request, sitemaps, *args, **kwargs):
-        return sitemap(request, sitemaps=sitemaps)
+        return index(
+            request,
+            sitemaps=sitemaps,
+            sitemap_url_name="well_known:sitemap-section",
+        )
+
+
+class SitemapSectionView(CacheControlMixin, generic.View):
+    """Serve one sitemap section with a short public cache."""
+
+    cache_control = {"public": True, "max_age": datetime.timedelta(minutes=5)}
+
+    def get(self, request, section, sitemaps, *args, **kwargs):
+        return sitemap(request, sitemaps=sitemaps, section=section)
 
 
 class OAuthProtectedResourceView(CacheControlMixin, generic.View):
