@@ -37,7 +37,7 @@ class Authority:
         self.nameservers = []
         self.queries = []
 
-    def resolve(self, name, record_type):
+    def resolve(self, name, record_type, lifetime=None):
         self.queries.append(str(name).rstrip("."))
         return self
 
@@ -219,19 +219,17 @@ class TestTtl:
     def test_ttl__returns_none_without_records(self, lookup):
         assert lookup.ttl("example.com", dns.rdatatype.TXT) is None
 
-    def test_ttl__keeps_the_resolver_ttl_without_a_zone(self, lookup, dns_resolver):
+    def test_ttl__returns_none_without_a_zone(self, lookup, dns_resolver):
         dns_resolver.add("example.com", "TXT", '"v=spf1 -all"')
 
-        assert lookup.ttl("example.com", dns.rdatatype.TXT) == datetime.timedelta(
-            minutes=30
-        )
+        assert lookup.ttl("example.com", dns.rdatatype.TXT) is None
 
     def test_ttl__keeps_the_resolver_ttl_when_the_zone_agrees(
         self, lookup, dns_resolver
     ):
         dns_resolver.add("example.com", "TXT", '"v=spf1 -all"')
         dns_resolver.add("example.com", "NS", "ns1.example.com.")
-        dns_resolver.add("ns1.example.com", "A", "192.0.2.1")
+        dns_resolver.add("ns1.example.com", "A", "8.8.8.8")
 
         assert lookup.ttl("example.com", dns.rdatatype.TXT) == datetime.timedelta(
             minutes=30
@@ -241,7 +239,7 @@ class TestTtl:
         recursive = StubResolver()
         recursive.add("example.com", "TXT", '"v=spf1 -all"')
         recursive.add("example.com", "NS", "ns1.example.com.")
-        recursive.add("ns1.example.com", "A", "192.0.2.1")
+        recursive.add("ns1.example.com", "A", "8.8.8.8")
         authority = Authority(7200)
 
         def factory(*args, **kwargs):
@@ -262,7 +260,7 @@ class TestTtl:
         recursive.add("example.com", "CNAME", "target.example.net.")
         recursive.add("target.example.net", "TXT", '"v=spf1 -all"')
         recursive.add("target.example.net", "NS", "ns1.example.net.")
-        recursive.add("ns1.example.net", "A", "192.0.2.1")
+        recursive.add("ns1.example.net", "A", "8.8.8.8")
         authority = Authority(7200)
 
         def factory(*args, **kwargs):

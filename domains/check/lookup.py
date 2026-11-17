@@ -45,7 +45,8 @@ class Lookup:
     DNS_TIMEOUT = datetime.timedelta(seconds=2)
     DNS_RETRIES = 3
     DNS_RETRY_DELAY = datetime.timedelta(seconds=0.2)
-    AUTHORITATIVE_TIMEOUT = datetime.timedelta(seconds=2)
+    AUTHORITATIVE_TIMEOUT = datetime.timedelta(seconds=3)
+    AUTHORITATIVE_TRY_TIMEOUT = datetime.timedelta(seconds=1)
     AUTHORITATIVE_TRIES = 2
     TRANSIENT_ERRORS = (
         dns.exception.Timeout,
@@ -71,35 +72,57 @@ class Lookup:
             case _:
                 return str(record)
 
-    def query(self, name: str, record_type: dns.rdatatype.RdataType) -> Answer:
+    def resolve(
+        self,
+        resolver: dns.resolver.Resolver,
+        name: str,
+        record_type: dns.rdatatype.RdataType,
+        tries: int,
+        lifetime: datetime.timedelta | None = None,
+    ) -> dns.resolver.Answer:
+        deadline = (
+            None if lifetime is None else time.monotonic() + lifetime.total_seconds()
+        )
+        for attempt in range(tries):
+            remaining = (
+                resolver.lifetime if deadline is None else deadline - time.monotonic()
+            )
+            if remaining <= 0:
+                raise dns.exception.Timeout()
+            try:
+                return resolver.resolve(name, record_type, lifetime=remaining)
+            except self.TRANSIENT_ERRORS:
+                if attempt == tries - 1:
+                    raise
+                time.sleep((self.DNS_RETRY_DELAY * 2**attempt).total_seconds())
+        raise dns.exception.Timeout()
+
+    def query(
+        self,
+        name: str,
+        record_type: dns.rdatatype.RdataType,
+        lifetime: datetime.timedelta | None = None,
+    ) -> Answer:
         """Resolve one name and type, retrying transient resolver failures."""
         key = record_type, name.lower().rstrip(".")
         if (answer := self._memo.get(key)) is not None:
             return answer
-        for attempt in range(self.DNS_RETRIES):
-            try:
-                answers = self._resolver.resolve(name, record_type)
-            except dns.resolver.NXDOMAIN, dns.resolver.NoAnswer:
-                answer = Answer()
-                break
-            except self.TRANSIENT_ERRORS:
-                if attempt == self.DNS_RETRIES - 1:
-                    answer = Answer(failed=True)
-                    break
-                time.sleep((self.DNS_RETRY_DELAY * 2**attempt).total_seconds())
-            except dns.exception.DNSException:
-                answer = Answer(failed=True)
-                break
-            else:
-                answer = Answer(
-                    tuple(
-                        self.render_record(record, record_type) for record in answers
-                    ),
-                    ttl=datetime.timedelta(seconds=answers.rrset.ttl),
-                    canonical_name=str(answers.canonical_name).rstrip("."),
-                )
-                break
-        self._memo[key] = answer
+        try:
+            answers = self.resolve(
+                self._resolver, name, record_type, self.DNS_RETRIES, lifetime
+            )
+        except dns.resolver.NXDOMAIN, dns.resolver.NoAnswer:
+            answer = Answer()
+        except dns.exception.DNSException:
+            answer = Answer(failed=True)
+        else:
+            answer = Answer(
+                tuple(self.render_record(record, record_type) for record in answers),
+                ttl=datetime.timedelta(seconds=answers.rrset.ttl),
+                canonical_name=str(answers.canonical_name).rstrip("."),
+            )
+        if not answer.failed or lifetime is None:
+            self._memo[key] = answer
         return answer
 
     def text(self, name: str) -> tuple[str, ...] | None:
@@ -119,8 +142,8 @@ class Lookup:
         if answer.failed or not answer.records:
             return None
         published = self.authoritative_ttl(answer.canonical_name or name, record_type)
-        if published is None or published == answer.ttl:
-            return answer.ttl
+        if published is None:
+            return None
         self._memo[record_type, name.lower().rstrip(".")] = dataclasses.replace(
             answer, ttl=published
         )
@@ -128,16 +151,19 @@ class Lookup:
 
     def authoritative_nameservers(self, name: str):
         candidate = dns.name.from_text(name)
-        while len(candidate) > 1:
+        deadline = time.monotonic() + self.AUTHORITATIVE_TIMEOUT.total_seconds()
+        while len(candidate) > 1 and (remaining := deadline - time.monotonic()) > 0:
             try:
-                answer = self._resolver.resolve(
-                    candidate, dns.rdatatype.NS, raise_on_no_answer=False
+                answer = self.resolve(
+                    self._resolver,
+                    str(candidate),
+                    dns.rdatatype.NS,
+                    self.DNS_RETRIES,
+                    datetime.timedelta(seconds=remaining / (len(candidate) - 1)),
                 )
-            except dns.resolver.NXDOMAIN, dns.resolver.NoAnswer:
-                answer = None
             except dns.exception.DNSException:
-                return None
-            if answer is not None and len(answer):
+                pass
+            else:
                 return answer
             candidate = candidate.parent()
         return None
@@ -147,21 +173,37 @@ class Lookup:
     ) -> datetime.timedelta | None:
         """Read the TTL the zone publishes, not the decayed one from a cache."""
         if nameservers := self.authoritative_nameservers(name):
-            for nameserver in list(nameservers)[: self.AUTHORITATIVE_TRIES]:
+            deadline = time.monotonic() + self.AUTHORITATIVE_TIMEOUT.total_seconds()
+            addresses = (
+                address
+                for nameserver in list(nameservers)[: self.AUTHORITATIVE_TRIES]
+                if (remaining := deadline - time.monotonic()) > 0
+                for address in self.query(
+                    str(nameserver.target),
+                    dns.rdatatype.A,
+                    datetime.timedelta(seconds=remaining),
+                ).records
+                if (ip := ipaddress.ip_address(address)).is_global
+                and not ip.is_multicast
+            )
+            authority = dns.resolver.Resolver(configure=False)
+            authority.timeout = self.AUTHORITATIVE_TRY_TIMEOUT.total_seconds()
+            for address in addresses:
+                if (remaining := deadline - time.monotonic()) <= 0:
+                    break
+                authority.nameservers = [address]
                 try:
-                    addresses = self._resolver.resolve(
-                        nameserver.target, dns.rdatatype.A
+                    answer = self.resolve(
+                        authority,
+                        name,
+                        record_type,
+                        self.AUTHORITATIVE_TRIES,
+                        datetime.timedelta(seconds=remaining),
                     )
-                    authority = dns.resolver.Resolver(configure=False)
-                    authority.lifetime = self.AUTHORITATIVE_TIMEOUT.total_seconds()
-                    authority.nameservers = [addresses[0].address]
-                    answer = authority.resolve(name, record_type)
                 except dns.exception.DNSException:
-                    ttl = None
+                    pass
                 else:
-                    ttl = datetime.timedelta(seconds=answer.rrset.ttl)
-                if ttl is not None:
-                    return ttl
+                    return datetime.timedelta(seconds=answer.rrset.ttl)
         return None
 
     def ptr(self, address: str) -> tuple[str, ...] | None:

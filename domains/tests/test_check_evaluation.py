@@ -698,6 +698,8 @@ class TestDmarcCheck:
 
     def test_run__fails_an_invalid_policy(self, lookup, dns_resolver):
         dns_resolver.add("_dmarc.example.com", "TXT", '"v=DMARC1; p=foo"')
+        dns_resolver.add("example.com", "NS", "ns1.example.com.")
+        dns_resolver.add("ns1.example.com", "A", "8.8.8.8")
 
         result = DmarcCheck.run("example.com", lookup)
 
