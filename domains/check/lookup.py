@@ -174,7 +174,7 @@ class Lookup:
         """Read the TTL the zone publishes, not the decayed one from a cache."""
         if nameservers := self.authoritative_nameservers(name):
             deadline = time.monotonic() + self.AUTHORITATIVE_TIMEOUT.total_seconds()
-            addresses = [
+            addresses = (
                 address
                 for nameserver in list(nameservers)[: self.AUTHORITATIVE_TRIES]
                 if (remaining := deadline - time.monotonic()) > 0
@@ -185,7 +185,7 @@ class Lookup:
                 ).records
                 if (ip := ipaddress.ip_address(address)).is_global
                 and not ip.is_multicast
-            ]
+            )
             authority = dns.resolver.Resolver(configure=False)
             authority.timeout = self.AUTHORITATIVE_TRY_TIMEOUT.total_seconds()
             for address in addresses:
