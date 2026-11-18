@@ -85,7 +85,6 @@ class OpenSourceView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateVie
 class OpenGraphImageView(CacheControlMixin, generic.View):
     """Render a share card for a signed page title as a PNG."""
 
-    CACHE_VERSION = "v1"
     MAX_TITLE_LENGTH = 120
     OG_TTL = dt.timedelta(days=1)
     cache_control = {
@@ -107,8 +106,7 @@ class OpenGraphImageView(CacheControlMixin, generic.View):
         image = TitleImage(
             title=title,
             cache_key=(
-                f"open_graph:title:{self.CACHE_VERSION}:"
-                f"{hashlib.sha256(title.encode()).hexdigest()}"
+                f"open_graph:title:{hashlib.sha256(title.encode()).hexdigest()}"
             ),
             cache_ttl=self.OG_TTL,
         ).render()
