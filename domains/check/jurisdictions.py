@@ -30,14 +30,6 @@ class JurisdictionFlag:
     def flag_url(self) -> str:
         return f"https://flagcdn.com/{self.country_code.lower()}.svg"
 
-    @property
-    def has_flag(self) -> bool:
-        return (
-            len(self.country_code) == 2
-            and self.country_code.isalpha()
-            and self.country_code not in {"AP", "ZZ"}
-        )
-
 
 def match(
     exchange: str, providers: Iterable[MailProvider] = MAIL_PROVIDERS

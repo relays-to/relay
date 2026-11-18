@@ -1,46 +1,32 @@
-{% load i18n %}
 {% if flags %}
   {% if compact %}
     <span class="inline-flex flex-wrap items-center gap-1">
       {% for flag in flags %}
-        {% if flag.has_flag %}
-          <img
-            src="{{ flag.flag_url }}"
-            referrerpolicy="no-referrer"
-            alt="{{ flag.country_name }}"
-            data-tooltip="{{ flag.country_name }}: {{ flag.sources|join:', ' }}"
-            width="24"
-            height="24"
-            loading="lazy"
-            class="h-6 w-6 object-contain drop-shadow-sm"
-          >
-        {% else %}
-          <span
-            class="badge"
-            data-variant="outline"
-            data-size="sm"
-            data-tooltip="{{ flag.country_name }}: {{ flag.sources|join:', ' }}"
-          >{{ flag.country_code }}</span>
-        {% endif %}
+        <img
+          src="{{ flag.flag_url }}"
+          referrerpolicy="no-referrer"
+          alt="{{ flag.country_name }}"
+          data-tooltip="{{ flag.country_name }}: {{ flag.sources|join:', ' }}"
+          width="24"
+          height="24"
+          loading="lazy"
+          class="h-6 w-6 object-contain drop-shadow-sm"
+        >
       {% endfor %}
     </span>
   {% else %}
     <ul class="m-0 flex list-none flex-col gap-3 p-0">
       {% for flag in flags %}
         <li class="flex items-start gap-3">
-          {% if flag.has_flag %}
-            <img
-              src="{{ flag.flag_url }}"
-              referrerpolicy="no-referrer"
-              alt=""
-              width="24"
-              height="18"
-              loading="lazy"
-              class="h-[1.125rem] w-6 shrink-0 object-contain drop-shadow-sm"
-            >
-          {% else %}
-            <span class="badge shrink-0" data-variant="outline" data-size="sm">{{ flag.country_code }}</span>
-          {% endif %}
+          <img
+            src="{{ flag.flag_url }}"
+            referrerpolicy="no-referrer"
+            alt=""
+            width="24"
+            height="18"
+            loading="lazy"
+            class="h-[1.125rem] w-6 shrink-0 object-contain drop-shadow-sm"
+          >
           <div class="flex flex-col gap-0.5">
             <span class="font-medium">{{ flag.country_name }}</span>
             <span class="text-sm text-muted-foreground">{{ flag.sources|join:", " }}</span>
