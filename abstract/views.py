@@ -163,6 +163,9 @@ class BreadcrumbViewMixin:
     the request (for example, the current org name from `request.current_org`).
     Override `get_url(cls, request)` for URL patterns that need kwargs
     from the request (for example, org-scoped views).
+
+    Templates receive `page_title` for share cards, falling back to the
+    object's string on detail pages.
     """
 
     title: str = ""
@@ -180,11 +183,16 @@ class BreadcrumbViewMixin:
             return None
         return reverse(cls.parent)
 
+    def get_page_title(self) -> str:
+        """Return the current page title, falling back to the object's string."""
+        title = self.get_title(self.request)
+        if not title and (obj := getattr(self, "object", None)):
+            title = str(obj)
+        return title
+
     def get_breadcrumbs(self):
         """Build the breadcrumb chain by traversing parents to the root."""
-        breadcrumbs = [{"title": self.get_title(self.request), "url": None}]
-        if not breadcrumbs[0]["title"] and hasattr(self, "object") and self.object:
-            breadcrumbs[0]["title"] = str(self.object)
+        breadcrumbs = [{"title": self.get_page_title(), "url": None}]
 
         url = self.get_url(self.request)
         while url:
@@ -204,6 +212,7 @@ class BreadcrumbViewMixin:
     def get_context_data(self, **kwargs):
         return super().get_context_data(**kwargs) | {
             "breadcrumbs": self.get_breadcrumbs(),
+            "page_title": self.get_page_title(),
         }
 
 

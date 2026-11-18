@@ -1,10 +1,14 @@
+import datetime as dt
+import hashlib
+
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.utils.translation import gettext_lazy as _
 from django.views import defaults, generic
 from django.views.csrf import csrf_failure
 
+from abstract.open_graph import TitleImage
 from abstract.views import (
     PUBLIC_PAGE_CACHE,
     BreadcrumbViewMixin,
@@ -58,6 +62,7 @@ class HomeView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateView):
     def get_context_data(self, **kwargs):
         platform = self.request.get_host().split(":")[0]
         return super().get_context_data(**kwargs) | {
+            "page_title": _("relay: communication as a service"),
             "nameservers": [f"ns1.{platform}", f"ns2.{platform}"],
             "brands": BRANDS,
             "testimonials": TESTIMONIALS,
@@ -73,6 +78,34 @@ class OpenSourceView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateVie
     title = _("the open-source pledge")
     parent = "home"
     cache_control = PUBLIC_PAGE_CACHE
+
+
+class OpenGraphImageView(CacheControlMixin, generic.View):
+    """Render a share card for a page title as a PNG."""
+
+    CACHE_VERSION = "v1"
+    MAX_TITLE_LENGTH = 120
+    OG_TTL = dt.timedelta(days=1)
+    cache_control = {
+        "public": True,
+        "max_age": dt.timedelta(hours=1),
+        "s_maxage": dt.timedelta(days=1),
+    }
+
+    def get(self, request, *args, **kwargs):
+        title = " ".join((request.GET.get("title") or "").split())
+        title = title[: self.MAX_TITLE_LENGTH]
+        if not title:
+            title = str(_("relay: communication as a service"))
+        image = TitleImage(
+            title=title,
+            cache_key=(
+                f"open_graph:title:{self.CACHE_VERSION}:"
+                f"{hashlib.sha256(title.encode()).hexdigest()}"
+            ),
+            cache_ttl=self.OG_TTL,
+        ).render()
+        return HttpResponse(image, content_type="image/png")
 
 
 class Error400PreviewView(generic.View):

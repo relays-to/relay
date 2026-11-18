@@ -1,6 +1,7 @@
 import datetime as dt
 import decimal
 from html import escape
+from urllib.parse import urlencode
 
 from django.contrib.admin.templatetags.admin_urls import admin_urlname
 from django.contrib.humanize.templatetags import humanize
@@ -87,6 +88,13 @@ def admin_url(context):
         return reverse(admin_urlname(model._meta, url_suffix), args=args)
     except NoReverseMatch:
         return reverse("admin:index")
+
+
+@register.simple_tag(takes_context=True)
+def og_image_url(context, title):
+    """Return the absolute URL of the generated share card for `title`."""
+    url = context.request.build_absolute_uri(reverse("og-image"))
+    return f"{url}?{urlencode({'title': title})}"
 
 
 @register.inclusion_tag("abstract/timestamp.html")

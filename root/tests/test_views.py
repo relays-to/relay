@@ -29,6 +29,21 @@ class TestHomeView:
         assert context["nameservers"] == ["ns1.localhost", "ns2.localhost"]
 
 
+class TestOpenGraphImageView:
+    def test_get__returns_a_png(self, client):
+        response = client.get(reverse("og-image"), {"title": "Message log"})
+
+        assert response.status_code == 200
+        assert response.headers["Content-Type"] == "image/png"
+        assert response.content.startswith(b"\x89PNG\r\n\x1a\n")
+
+    def test_get__uses_the_default_title_without_one(self, client):
+        response = client.get(reverse("og-image"))
+
+        assert response.status_code == 200
+        assert response.headers["Content-Type"] == "image/png"
+
+
 class TestHomeViewRender:
     def test_get__renders_for_anonymous(self, client):
         response = client.get("/")

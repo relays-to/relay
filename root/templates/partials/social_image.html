@@ -1,0 +1,11 @@
+{% load abstract i18n %}
+{% og_image_url title as image_url %}
+{% blocktranslate trimmed with card_title=title asvar image_alt %}
+  Relay share card: {{ card_title }}
+{% endblocktranslate %}
+<meta property="og:image" content="{{ image_url }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{{ image_alt }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="{{ image_url }}">

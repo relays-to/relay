@@ -15,12 +15,10 @@ class DomainCheckImage(OpenGraphImage):
     check: DomainCheck
     host: str = "relay.to"
 
-    PADDING_PX: typing.ClassVar[int] = 96
     TEXT_WIDTH_PX: typing.ClassVar[int] = 600
     # The card is 630 tall. 630 / 1.618 lands on 389, which is the domain's
     # baseline, so the type block sits above the middle rather than on it.
     DOMAIN_BASELINE_PX: typing.ClassVar[int] = 389
-    HEADER_BASELINE_PX: typing.ClassVar[int] = 150
     STATUS_BASELINE_PX: typing.ClassVar[int] = 452
     TIER_CENTER_PX: typing.ClassVar[tuple[int, int]] = (919, 300)
     TIER_RADIUS_PX: typing.ClassVar[int] = 185
@@ -47,32 +45,7 @@ class DomainCheckImage(OpenGraphImage):
         self.draw_tier(image, draw)
 
     def draw_header(self, draw) -> None:
-        left = self.PADDING_PX - 4
-        wordmark = self.font("space-mono-700-italic.ttf", 58)
-        draw.text(
-            (left, self.HEADER_BASELINE_PX),
-            "relay",
-            font=wordmark,
-            fill=self.INK,
-            anchor="ls",
-        )
-        label = self.font("fira-sans-500.ttf", 28)
-        left += draw.textlength("relay", font=wordmark) + 18
-        draw.text(
-            (left, self.HEADER_BASELINE_PX),
-            "|",
-            font=label,
-            fill=(*self.INK, 110),
-            anchor="ls",
-        )
-        left += draw.textlength("|", font=label) + 18
-        draw.text(
-            (left, self.HEADER_BASELINE_PX),
-            "email domain check",
-            font=label,
-            fill=(*self.INK, 200),
-            anchor="ls",
-        )
+        self.draw_wordmark(draw, "email domain check")
 
     def draw_domain(self, draw) -> None:
         name = self.check.name

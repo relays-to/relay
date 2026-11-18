@@ -96,6 +96,11 @@ class RequireAdminMixin:
 class LoginView(NoStoreCacheMixin, generic.TemplateView):
     template_name = "login.html"
 
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(**kwargs) | {
+            "page_title": _("Login"),
+        }
+
 
 class OrganizationListView(LoginRequiredMixin, NoStoreCacheMixin, generic.ListView):
     context_object_name = "organizations"
@@ -111,7 +116,10 @@ class OrganizationListView(LoginRequiredMixin, NoStoreCacheMixin, generic.ListVi
         )
 
     def get_context_data(self, **kwargs):
-        return super().get_context_data(**kwargs) | {"form": OrganizationForm()}
+        return super().get_context_data(**kwargs) | {
+            "form": OrganizationForm(),
+            "page_title": _("Organizations"),
+        }
 
     def post(self, request, *args, **kwargs):
         form = OrganizationForm(request.POST)
@@ -189,6 +197,7 @@ class OrganizationDetailView(
             "memberships": self.org.memberships.select_related("user"),
             "is_admin": self.is_admin,
             "member_form": MembershipForm(),
+            "page_title": str(self.org),
         }
 
 
@@ -228,7 +237,7 @@ class MembershipCreateView(
     generic.DetailView,
 ):
     context_object_name = "organization"
-    title = _("Settings")
+    title = _("Edit member")
     parent = "accounts:org-home"
 
     def post(self, request, org_slug, *args, **kwargs):
@@ -267,6 +276,7 @@ class MembershipDeleteView(
     OrganizationScopedView, RequireAdminMixin, NoStoreCacheMixin, generic.DeleteView
 ):
     model = Membership
+    title = _("Remove member")
     parent = "accounts:org-detail"
 
     def get_object(self, queryset=None):
@@ -289,6 +299,7 @@ class MembershipUpdateView(
 ):
     model = Membership
     form_class = MembershipForm
+    title = _("Edit member")
     parent = "accounts:org-detail"
 
     def get_object(self, queryset=None):
@@ -356,3 +367,8 @@ class UserPreferenceUpdateView(LoginRequiredMixin, NoStoreCacheMixin, generic.Fo
 
     def get_success_url(self):
         return reverse("accounts:preference-update")
+
+    def get_context_data(self, **kwargs):
+        return super().get_context_data(**kwargs) | {
+            "page_title": _("Localization"),
+        }
