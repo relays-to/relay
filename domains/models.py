@@ -628,7 +628,7 @@ class DomainCheck(TimeStamped):
                 "flag_url": f"https://flagcdn.com/{country_code.lower()}.svg",
             }
             for country_code in country_codes
-            if country_code in sources
+            if country_code in sources and len(country_code) == 2
         )
 
     @staticmethod

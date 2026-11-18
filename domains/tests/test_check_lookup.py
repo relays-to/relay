@@ -215,7 +215,7 @@ class TestFetchAsn:
         dns_resolver.add(
             "1.2.0.192.origin.asn.cymru.com",
             "TXT",
-            '"15169 | 192.0.2.1 | 192.0.2.0/24 | US | arin | 2000-03-30"',
+            '"15169 | 192.0.2.0/24 | US | arin | 2000-03-30"',
         )
         dns_resolver.add(
             "AS15169.asn.cymru.com",
@@ -231,7 +231,7 @@ class TestFetchAsn:
         dns_resolver.add(
             "1.2.0.192.origin.asn.cymru.com",
             "TXT",
-            '"64500 | 192.0.2.1 | 192.0.2.0/24 | NL | ripencc | 2010-01-01"',
+            '"64500 | 192.0.2.0/24 | NL | ripencc | 2010-01-01"',
         )
         dns_resolver.fail("AS64500.asn.cymru.com", "TXT", dns.resolver.NXDOMAIN())
 
