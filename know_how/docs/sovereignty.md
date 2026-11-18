@@ -42,7 +42,7 @@ A reseller or an email gateway can hide the backend. The check only sees the MX 
 
 ## Provider jurisdictions
 
-The provider map is in the source code. It uses the country of the parent company, not the location of a data center. Some examples:
+The provider map is in `jurisdictions.yaml`. It uses the country of the parent company, not the location of a data center. Some examples:
 
 | Provider         | Country       |
 | ---------------- | ------------- |

@@ -1,111 +1,36 @@
 import dataclasses
 from collections.abc import Iterable
+from importlib import resources
 
-from django.utils.translation import gettext_lazy as _
+import yaml
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class MailProvider:
     name: str
     country_code: str
+    country_name: str
     suffixes: tuple[str, ...]
 
 
-MAIL_PROVIDERS: tuple[MailProvider, ...] = (
-    MailProvider("Microsoft 365", "US", ("mail.protection.outlook.com", "outlook.com")),
-    MailProvider(
-        "Google Workspace", "US", ("smtp.google.com", "google.com", "googlemail.com")
-    ),
-    MailProvider("Amazon", "US", ("amazonaws.com", "awsapps.com")),
-    MailProvider("Apple iCloud", "US", ("mail.icloud.com", "icloud.com")),
-    MailProvider("Cloudflare Email Routing", "US", ("mx.cloudflare.net",)),
-    MailProvider("Proofpoint", "US", ("pphosted.com",)),
-    MailProvider("Barracuda", "US", ("barracudanetworks.com",)),
-    MailProvider("Cisco", "US", ("iphmx.com",)),
-    MailProvider("Mimecast", "GB", ("mimecast.com",)),
-    MailProvider("Zoho", "IN", ("zoho.com", "zoho.eu", "zohomail.com")),
-    MailProvider("Proton", "CH", ("protonmail.ch", "protonmail.com", "proton.me")),
-    MailProvider("mailbox.org", "DE", ("mailbox.org",)),
-    MailProvider(
-        "IONOS",
-        "DE",
-        ("ionos.de", "ionos.com", "1and1.com", "kundenserver.de"),
-    ),
-    MailProvider("Hetzner", "DE", ("your-server.de", "hetzner.com")),
-    MailProvider("OVHcloud", "FR", ("ovh.net", "ovh.com", "ovh.fr")),
-    MailProvider("Scaleway", "FR", ("scaleway.com",)),
-    MailProvider("Infomaniak", "CH", ("infomaniak.ch", "infomaniak.com")),
-    MailProvider("Tuta", "DE", ("tutanota.de", "tutanota.com", "tuta.com")),
-    MailProvider("Posteo", "DE", ("posteo.de",)),
-    MailProvider("Fastmail", "AU", ("messagingengine.com", "fastmail.com")),
-    MailProvider("Yandex", "RU", ("yandex.net", "yandex.ru", "yandex.com")),
-    MailProvider("VK", "RU", ("mail.ru", "vk.com")),
-    MailProvider("Alibaba Cloud", "CN", ("aliyun.com", "alibaba.com")),
-    MailProvider("Tencent", "CN", ("qq.com", "tencent.com")),
-    MailProvider("GoDaddy", "US", ("secureserver.net", "godaddy.com")),
-    MailProvider("Rackspace", "US", ("emailsrvr.com",)),
-    MailProvider("Gandi", "FR", ("gandi.net",)),
-    MailProvider("Hornetsecurity", "DE", ("hornetsecurity.com",)),
-    MailProvider("Retarus", "DE", ("retarus.com",)),
-    MailProvider("Mailgun", "SE", ("mailgun.org",)),
-    MailProvider("SendGrid", "US", ("sendgrid.net",)),
-    MailProvider("Postmark", "US", ("postmarkapp.com",)),
-)
+def load_mail_providers() -> tuple[MailProvider, ...]:
+    data = yaml.safe_load(
+        resources.files(__package__)
+        .joinpath("jurisdictions.yaml")
+        .read_text(encoding="utf-8")
+    )
+    return tuple(
+        MailProvider(
+            name=entry["name"],
+            country_code=entry["country_code"],
+            country_name=entry["country_name"],
+            suffixes=tuple(entry["suffixes"]),
+        )
+        for entry in data
+    )
 
 
-COUNTRY_NAMES = {
-    "US": _("United States"),
-    "DE": _("Germany"),
-    "CH": _("Switzerland"),
-    "FR": _("France"),
-    "GB": _("United Kingdom"),
-    "IN": _("India"),
-    "AU": _("Australia"),
-    "RU": _("Russia"),
-    "CN": _("China"),
-    "SE": _("Sweden"),
-    "NL": _("Netherlands"),
-    "CA": _("Canada"),
-    "JP": _("Japan"),
-    "SG": _("Singapore"),
-    "IE": _("Ireland"),
-    "PL": _("Poland"),
-    "ES": _("Spain"),
-    "IT": _("Italy"),
-    "AT": _("Austria"),
-    "BE": _("Belgium"),
-    "DK": _("Denmark"),
-    "FI": _("Finland"),
-    "NO": _("Norway"),
-    "CZ": _("Czechia"),
-    "UA": _("Ukraine"),
-    "TR": _("T\u00fcrkiye"),
-    "IL": _("Israel"),
-    "AE": _("United Arab Emirates"),
-    "HK": _("Hong Kong"),
-    "KR": _("South Korea"),
-    "ZA": _("South Africa"),
-    "BR": _("Brazil"),
-    "MX": _("Mexico"),
-    "AR": _("Argentina"),
-    "NZ": _("New Zealand"),
-    "PT": _("Portugal"),
-    "GR": _("Greece"),
-    "RO": _("Romania"),
-    "HU": _("Hungary"),
-    "SK": _("Slovakia"),
-    "SI": _("Slovenia"),
-    "HR": _("Croatia"),
-    "BG": _("Bulgaria"),
-    "LT": _("Lithuania"),
-    "LV": _("Latvia"),
-    "EE": _("Estonia"),
-    "LU": _("Luxembourg"),
-    "IS": _("Iceland"),
-    "LI": _("Liechtenstein"),
-    "MT": _("Malta"),
-    "CY": _("Cyprus"),
-}
+MAIL_PROVIDERS = load_mail_providers()
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -120,7 +45,11 @@ class JurisdictionFlag:
 
     @property
     def has_flag(self) -> bool:
-        return self.country_code in COUNTRY_NAMES
+        return (
+            len(self.country_code) == 2
+            and self.country_code.isalpha()
+            and self.country_code not in {"AP", "ZZ"}
+        )
 
 
 def match(
@@ -140,5 +69,8 @@ def match(
     return best_provider
 
 
-def get_country_name(country_code: str):
-    return COUNTRY_NAMES.get(country_code, country_code)
+def get_country_name(country_code: str) -> str:
+    for provider in MAIL_PROVIDERS:
+        if provider.country_code == country_code:
+            return provider.country_name
+    return country_code

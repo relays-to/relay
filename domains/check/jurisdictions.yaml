@@ -1,0 +1,185 @@
+- name: Microsoft 365
+  country_code: US
+  country_name: United States
+  suffixes:
+    - mail.protection.outlook.com
+    - outlook.com
+- name: Google Workspace
+  country_code: US
+  country_name: United States
+  suffixes:
+    - smtp.google.com
+    - google.com
+    - googlemail.com
+- name: Amazon
+  country_code: US
+  country_name: United States
+  suffixes:
+    - amazonaws.com
+    - awsapps.com
+- name: Apple iCloud
+  country_code: US
+  country_name: United States
+  suffixes:
+    - mail.icloud.com
+    - icloud.com
+- name: Cloudflare Email Routing
+  country_code: US
+  country_name: United States
+  suffixes:
+    - mx.cloudflare.net
+- name: Proofpoint
+  country_code: US
+  country_name: United States
+  suffixes:
+    - pphosted.com
+- name: Barracuda
+  country_code: US
+  country_name: United States
+  suffixes:
+    - barracudanetworks.com
+- name: Cisco
+  country_code: US
+  country_name: United States
+  suffixes:
+    - iphmx.com
+- name: Mimecast
+  country_code: GB
+  country_name: United Kingdom
+  suffixes:
+    - mimecast.com
+- name: Zoho
+  country_code: IN
+  country_name: India
+  suffixes:
+    - zoho.com
+    - zoho.eu
+    - zohomail.com
+- name: Proton
+  country_code: CH
+  country_name: Switzerland
+  suffixes:
+    - protonmail.ch
+    - protonmail.com
+    - proton.me
+- name: mailbox.org
+  country_code: DE
+  country_name: Germany
+  suffixes:
+    - mailbox.org
+- name: IONOS
+  country_code: DE
+  country_name: Germany
+  suffixes:
+    - ionos.de
+    - ionos.com
+    - 1and1.com
+    - kundenserver.de
+- name: Hetzner
+  country_code: DE
+  country_name: Germany
+  suffixes:
+    - your-server.de
+    - hetzner.com
+- name: OVHcloud
+  country_code: FR
+  country_name: France
+  suffixes:
+    - ovh.net
+    - ovh.com
+    - ovh.fr
+- name: Scaleway
+  country_code: FR
+  country_name: France
+  suffixes:
+    - scaleway.com
+- name: Infomaniak
+  country_code: CH
+  country_name: Switzerland
+  suffixes:
+    - infomaniak.ch
+    - infomaniak.com
+- name: Tuta
+  country_code: DE
+  country_name: Germany
+  suffixes:
+    - tutanota.de
+    - tutanota.com
+    - tuta.com
+- name: Posteo
+  country_code: DE
+  country_name: Germany
+  suffixes:
+    - posteo.de
+- name: Fastmail
+  country_code: AU
+  country_name: Australia
+  suffixes:
+    - messagingengine.com
+    - fastmail.com
+- name: Yandex
+  country_code: RU
+  country_name: Russia
+  suffixes:
+    - yandex.net
+    - yandex.ru
+    - yandex.com
+- name: VK
+  country_code: RU
+  country_name: Russia
+  suffixes:
+    - mail.ru
+    - vk.com
+- name: Alibaba Cloud
+  country_code: CN
+  country_name: China
+  suffixes:
+    - aliyun.com
+    - alibaba.com
+- name: Tencent
+  country_code: CN
+  country_name: China
+  suffixes:
+    - qq.com
+    - tencent.com
+- name: GoDaddy
+  country_code: US
+  country_name: United States
+  suffixes:
+    - secureserver.net
+    - godaddy.com
+- name: Rackspace
+  country_code: US
+  country_name: United States
+  suffixes:
+    - emailsrvr.com
+- name: Gandi
+  country_code: FR
+  country_name: France
+  suffixes:
+    - gandi.net
+- name: Hornetsecurity
+  country_code: DE
+  country_name: Germany
+  suffixes:
+    - hornetsecurity.com
+- name: Retarus
+  country_code: DE
+  country_name: Germany
+  suffixes:
+    - retarus.com
+- name: Mailgun
+  country_code: SE
+  country_name: Sweden
+  suffixes:
+    - mailgun.org
+- name: SendGrid
+  country_code: US
+  country_name: United States
+  suffixes:
+    - sendgrid.net
+- name: Postmark
+  country_code: US
+  country_name: United States
+  suffixes:
+    - postmarkapp.com
