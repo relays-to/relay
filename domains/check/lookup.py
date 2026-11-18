@@ -274,25 +274,24 @@ class Lookup:
                     query = (
                         ".".join(reversed(str(ip).split("."))) + ".origin.asn.cymru.com"
                     )
-                origin = self.fetch_txt_fields(query)
-                if origin:
-                    asns = origin[0].split()
-                    if asns:
-                        asn = asns[0]
-                        prefix_country = origin[2] if len(origin) > 2 else ""
-                        asn_fields = self.fetch_txt_fields(f"AS{asn}.asn.cymru.com")
-                        country_code = (
-                            asn_fields[1] if asn_fields and len(asn_fields) > 1 else ""
-                        ).upper() or prefix_country.upper()
-                        network_name = (
-                            asn_fields[4].split(" - ", 1)[-1].rsplit(",", 1)[0].strip()
-                            if asn_fields and len(asn_fields) > 4
-                            else ""
-                        )
-                        record = AsnRecord(
-                            asn=asn,
-                            country_code=country_code,
-                            network_name=network_name,
-                        )
+                if (origin := self.fetch_txt_fields(query)) and (
+                    asns := origin[0].split()
+                ):
+                    asn = asns[0]
+                    prefix_country = origin[2] if len(origin) > 2 else ""
+                    asn_fields = self.fetch_txt_fields(f"AS{asn}.asn.cymru.com")
+                    country_code = (
+                        asn_fields[1] if asn_fields and len(asn_fields) > 1 else ""
+                    ).upper() or prefix_country.upper()
+                    network_name = (
+                        asn_fields[4].split(" - ", 1)[-1].rsplit(",", 1)[0].strip()
+                        if asn_fields and len(asn_fields) > 4
+                        else ""
+                    )
+                    record = AsnRecord(
+                        asn=asn,
+                        country_code=country_code,
+                        network_name=network_name,
+                    )
             self._asn_memo[address] = record
         return record
