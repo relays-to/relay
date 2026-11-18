@@ -74,13 +74,13 @@ def test_pagination__multiple_pages():
 
 def test_include_md():
     assert (
-        abstract.include_md("_testfixtures/include_md.md")
+        abstract.include_md(Context(), "_testfixtures/include_md.md")
         == "<p>How much is the fish?</p>"
     )
 
 
 def test_include_md_toc():
-    assert abstract.include_md_toc("_testfixtures/toc.md") == (
+    assert abstract.include_md_toc(Context(), "_testfixtures/toc.md") == (
         '<div class="toc">\n'
         "<ul>\n"
         '<li><a href="#level-1">Level 1</a><ul>\n'
@@ -94,7 +94,7 @@ def test_include_md_toc():
 
 
 def test_include_md_toc__depth():
-    assert abstract.include_md_toc("_testfixtures/toc.md", depth=2) == (
+    assert abstract.include_md_toc(Context(), "_testfixtures/toc.md", depth=2) == (
         '<div class="toc">\n'
         "<ul>\n"
         '<li><a href="#level-1">Level 1</a><ul>\n'
