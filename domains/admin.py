@@ -32,7 +32,7 @@ class DomainAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
 
 @admin.register(DomainCheck)
 class DomainCheckAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
-    list_display = ["name", "status", "penalty"]
+    list_display = ["name", "status", "penalty", *TimeStampedAdminMixin.list_display]
     list_filter = ["status"]
     search_fields = ["name"]
     readonly_fields = ["name", "status", "penalty", "checks"]

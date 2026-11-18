@@ -20,19 +20,6 @@ class TestTimeStampedAdminMixin:
         assert "created_at" in MyAdmin.list_filter
         assert "my_filter" in MyAdmin.list_filter
 
-    def test_merges_list_display(self):
-        class MyAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
-            list_display = ["my_field"]
-
-        assert MyAdmin.list_display == ["my_field", "modified_at", "created_at"]
-
-    def test_keeps_first_list_display_field(self):
-        class MyAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
-            list_display = ["my_field", "created_at"]
-
-        assert MyAdmin.list_display[0] == "my_field"
-        assert MyAdmin.list_display.count("created_at") == 1
-
     def test_no_duplicate_fields(self):
         class MyAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
             readonly_fields = ["modified_at", "my_field"]
