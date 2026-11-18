@@ -90,8 +90,8 @@ class OpenGraphImageView(CacheControlMixin, generic.View):
     OG_TTL = dt.timedelta(days=1)
     cache_control = {
         "public": True,
-        "max_age": dt.timedelta(hours=1),
-        "s_maxage": dt.timedelta(days=1),
+        "max_age": OG_TTL,
+        "s_maxage": OG_TTL,
     }
 
     def get(self, request, *args, **kwargs):
