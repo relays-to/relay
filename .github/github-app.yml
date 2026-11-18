@@ -7,6 +7,8 @@ scripts:
     command: |
       just seed
       just serve
+  - name: Worker
+    command: just worker
   - name: Dump test data
     command: just dump-fixtures
     disabled: true
