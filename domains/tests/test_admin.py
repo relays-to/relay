@@ -1,9 +1,22 @@
 import pytest
 from django.contrib import admin
+from django.contrib.auth.models import Permission, User
+from django.tasks import task_backends
 from django.urls import reverse
 
 from domains.admin import DomainAdmin, DomainCheckAdmin
 from domains.models import Domain, DomainCheck
+
+
+@pytest.fixture
+def task_results(settings):
+    settings.TASKS = {
+        "default": {
+            "BACKEND": "root.backends.DummyRetryBackend",
+            "QUEUES": settings.TASK_QUEUES,
+        },
+    }
+    return task_backends["default"].results
 
 
 class TestDomainAdmin:
@@ -46,6 +59,75 @@ class TestDomainCheckAdmin:
     def test_has_add_permission__denied(self, rf):
         model_admin = admin.site._registry[DomainCheck]
         assert model_admin.has_add_permission(rf.get("/admin/")) is False
+
+    def test_recheck__registered(self):
+        assert "recheck" in DomainCheckAdmin.actions
+
+    @pytest.mark.django_db
+    def test_recheck__hidden_without_change_permission(self, rf):
+        user = User.objects.create_user(
+            username="viewer",
+            password="secret",
+            is_staff=True,
+        )
+        user.user_permissions.add(
+            Permission.objects.get(codename="view_domaincheck"),
+        )
+        request = rf.get("/admin/")
+        request.user = user
+
+        actions = admin.site._registry[DomainCheck].get_actions(request)
+
+        assert "recheck" not in actions
+
+    @pytest.mark.django_db
+    def test_recheck__queues_a_fresh_check(self, client, admin_user, task_results):
+        domain_check = DomainCheck.objects.create(
+            name="example.com",
+            status=DomainCheck.Status.COMPLETE,
+            checks=[{"key": "mx"}],
+        )
+        client.force_login(admin_user)
+
+        response = client.post(
+            reverse("admin:domains_domaincheck_changelist"),
+            {"action": "recheck", "_selected_action": [domain_check.pk]},
+        )
+
+        assert response.status_code == 302
+        domain_check.refresh_from_db()
+        assert domain_check.status == DomainCheck.Status.RUNNING
+        assert domain_check.checks == []
+        assert [result.kwargs for result in task_results] == [{"name": "example.com"}]
+
+    @pytest.mark.django_db
+    def test_recheck__skips_domains_already_checking(
+        self, client, admin_user, task_results
+    ):
+        running = DomainCheck.objects.create(
+            name="running.example",
+            status=DomainCheck.Status.RUNNING,
+        )
+        pending = DomainCheck.objects.create(
+            name="pending.example",
+            status=DomainCheck.Status.PENDING,
+        )
+        client.force_login(admin_user)
+
+        response = client.post(
+            reverse("admin:domains_domaincheck_changelist"),
+            {
+                "action": "recheck",
+                "_selected_action": [running.pk, pending.pk],
+            },
+        )
+
+        assert response.status_code == 302
+        running.refresh_from_db()
+        pending.refresh_from_db()
+        assert running.status == DomainCheck.Status.RUNNING
+        assert pending.status == DomainCheck.Status.PENDING
+        assert task_results == []
 
     @pytest.mark.django_db
     def test_delete_selected__deletes_domain_check(self, client, admin_user):
