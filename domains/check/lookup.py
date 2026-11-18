@@ -279,7 +279,7 @@ class Lookup:
                     asns := origin[0].split()
                 ):
                     asn = asns[0]
-                    origin_country = origin[3] if len(origin) > 3 else ""
+                    origin_country = origin[2] if len(origin) > 2 else ""
                     asn_fields = self.fetch_txt_fields(f"AS{asn}.asn.cymru.com")
                     country_code = (
                         asn_fields[1] if asn_fields and len(asn_fields) > 1 else ""

@@ -221,6 +221,36 @@ class TestJurisdictionFlags:
             == ()
         )
 
+    def test_jurisdiction_flags__skips_codes_that_are_not_countries(self):
+        check = DomainCheck(
+            checks=[
+                {
+                    "key": "mx",
+                    "metadata": {
+                        "jurisdiction": {
+                            "networks": [
+                                {
+                                    "asn": "22612",
+                                    "network_name": "",
+                                    "country_code": "ARIN",
+                                    "address": "192.0.2.1",
+                                },
+                                {
+                                    "asn": "22612",
+                                    "network_name": "Namecheap, Inc.",
+                                    "country_code": "US",
+                                    "address": "192.0.2.2",
+                                },
+                            ],
+                            "country_codes": ["ARIN", "US"],
+                        }
+                    },
+                }
+            ],
+        )
+
+        assert [flag["country_code"] for flag in check.jurisdiction_flags] == ["US"]
+
 
 class TestPenalty:
     def test_penalty_for__is_zero_without_failures(self):
