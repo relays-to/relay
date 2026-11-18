@@ -2,6 +2,7 @@
 name: Alternative to Mailjet
 description: A fair 2025 comparison of relay and Mailjet (Sinch) for email sending, receiving, and monitoring
 author: Johannes Maron
+modified_at: 2026-11-03
 ---
 
 {% load abstract %}

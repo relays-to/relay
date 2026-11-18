@@ -1,3 +1,5 @@
+import datetime as dt
+
 import pytest
 from django.http import Http404
 
@@ -54,3 +56,37 @@ class TestGetArticleMetadata:
             slugs = frozenset({"alpha"})
 
         assert TestContent.get_article_metadata("alpha") == {"name": "Alpha"}
+
+
+class TestGetArticleModifiedAt:
+    def test_get_article_modified_at__parses_a_date(self, tmp_path):
+        (tmp_path / "alpha.md").write_text("---\nmodified_at: 2026-10-20\n---\nBody.")
+
+        class TestContent(MarkdownContent):
+            docs_dir = tmp_path
+            slugs = frozenset({"alpha"})
+
+        assert TestContent.get_article_modified_at("alpha") == dt.datetime(
+            2026, 10, 20, tzinfo=dt.UTC
+        )
+
+
+class TestGetLatestModifiedAt:
+    def test_get_latest_modified_at__returns_the_newest_article(self, tmp_path):
+        (tmp_path / "alpha.md").write_text("---\nmodified_at: 2026-10-20\n---\nBody.")
+        (tmp_path / "beta.md").write_text("---\nmodified_at: 2026-11-03\n---\nBody.")
+
+        class TestContent(MarkdownContent):
+            docs_dir = tmp_path
+            slugs = frozenset({"alpha", "beta"})
+
+        assert TestContent.get_latest_modified_at() == dt.datetime(
+            2026, 11, 3, tzinfo=dt.UTC
+        )
+
+    def test_get_latest_modified_at__returns_none_for_an_empty_index(self, tmp_path):
+        class TestContent(MarkdownContent):
+            docs_dir = tmp_path
+            slugs = frozenset()
+
+        assert TestContent.get_latest_modified_at() is None

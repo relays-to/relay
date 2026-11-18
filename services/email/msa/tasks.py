@@ -1,6 +1,6 @@
 import base64
 import dataclasses
-import datetime
+import datetime as dt
 import hmac
 import logging
 import random
@@ -88,7 +88,7 @@ class TemporaryDeliveryError(Exception):
 
 
 DELIVERY_RETRY = ExponentialBackoff(
-    base_delay=datetime.timedelta(minutes=1),
+    base_delay=dt.timedelta(minutes=1),
     # The base delay doubles before the first retry, so the five retries wait
     # 2, 4, 8, 16 and 32 minutes and the six attempts span about an hour.
     max_retries=6,

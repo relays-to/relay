@@ -2,6 +2,7 @@
 name: SMTP
 description: Protocol for sending email between mail servers
 author: Johannes Maron
+modified_at: 2026-09-29
 ---
 
 # SMTP

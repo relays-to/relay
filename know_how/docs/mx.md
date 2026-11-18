@@ -2,6 +2,7 @@
 name: MX
 description: Mail exchange records for domain email routing
 author: Johannes Maron
+modified_at: 2026-09-29
 ---
 
 # MX

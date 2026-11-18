@@ -71,5 +71,4 @@ sender chose, and fall back to a name when it is missing.
 
 ## Further reading
 
-- [Webhooks]({{ request.scheme }}://{{ request.get_host }}{% url 'docs:detail' slug='webhooks' %})
-- [Receiving]({{ request.scheme }}://{{ request.get_host }}{% url 'docs:detail' slug='receiving' %})
+- [Receiving and webhooks]({{ request.scheme }}://{{ request.get_host }}{% url 'docs:detail' slug='receiving' %})

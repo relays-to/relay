@@ -2,6 +2,7 @@
 name: DKIM
 description: Cryptographic signature for outgoing email
 author: Johannes Maron
+modified_at: 2026-09-29
 ---
 
 # DKIM

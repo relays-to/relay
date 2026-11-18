@@ -2,6 +2,7 @@
 name: Mail sovereignty
 description: Which countries control the mail for a domain
 author: Johannes Maron
+modified_at: 2026-11-18
 ---
 
 # Mail sovereignty

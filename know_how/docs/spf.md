@@ -2,6 +2,7 @@
 name: SPF
 description: DNS record listing authorized sending servers
 author: Johannes Maron
+modified_at: 2026-09-29
 ---
 
 # SPF

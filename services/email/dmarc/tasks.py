@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import logging
 
 from django.tasks import task
@@ -98,7 +98,7 @@ def generate_daily_rua_reports():
     from services.email.mta.models import IncomingMessage
 
     end_at = timezone.now()
-    begin_at = end_at - datetime.timedelta(days=1)
+    begin_at = end_at - dt.timedelta(days=1)
 
     for domain in Domain.objects.filter(verified_at__isnull=False):
         if domain.dmarc_reporting_address:

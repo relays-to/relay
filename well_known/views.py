@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 from django.conf import settings
 from django.contrib.sitemaps.views import index, sitemap
@@ -20,7 +20,7 @@ class RobotsTxtView(CacheControlMixin, generic.TemplateView):
 
     template_name = "well_known/robots.txt"
     content_type = "text/plain; charset=utf-8"
-    cache_control = {"public": True, "max_age": datetime.timedelta(minutes=5)}
+    cache_control = {"public": True, "max_age": dt.timedelta(minutes=5)}
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(**kwargs) | {
@@ -35,7 +35,7 @@ class LlmsTxtView(CacheControlMixin, generic.TemplateView):
 
     template_name = "well_known/llms.txt"
     content_type = "text/plain; charset=utf-8"
-    cache_control = {"public": True, "max_age": datetime.timedelta(minutes=5)}
+    cache_control = {"public": True, "max_age": dt.timedelta(minutes=5)}
 
     def get_context_data(self, **kwargs):
         docs_articles = [
@@ -93,7 +93,7 @@ class LlmsFullTxtView(CacheControlMixin, generic.TemplateView):
 
     template_name = "well_known/llms-full.txt"
     content_type = "text/plain; charset=utf-8"
-    cache_control = {"public": True, "max_age": datetime.timedelta(minutes=5)}
+    cache_control = {"public": True, "max_age": dt.timedelta(minutes=5)}
 
     def get_context_data(self, **kwargs):
         docs_articles = [
@@ -141,7 +141,7 @@ class LlmsFullTxtView(CacheControlMixin, generic.TemplateView):
 class SitemapIndexView(CacheControlMixin, generic.View):
     """Serve the sitemap index with a short public cache."""
 
-    cache_control = {"public": True, "max_age": datetime.timedelta(minutes=5)}
+    cache_control = {"public": True, "max_age": dt.timedelta(minutes=5)}
 
     def get(self, request, sitemaps, *args, **kwargs):
         return index(
@@ -154,7 +154,7 @@ class SitemapIndexView(CacheControlMixin, generic.View):
 class SitemapSectionView(CacheControlMixin, generic.View):
     """Serve one sitemap section with a short public cache."""
 
-    cache_control = {"public": True, "max_age": datetime.timedelta(minutes=5)}
+    cache_control = {"public": True, "max_age": dt.timedelta(minutes=5)}
 
     def get(self, request, section, sitemaps, *args, **kwargs):
         return sitemap(request, sitemaps=sitemaps, section=section)
@@ -163,7 +163,7 @@ class SitemapSectionView(CacheControlMixin, generic.View):
 class OAuthProtectedResourceView(CacheControlMixin, generic.View):
     """Serve RFC 9728 metadata for the MCP server."""
 
-    cache_control = {"public": True, "max_age": datetime.timedelta(minutes=5)}
+    cache_control = {"public": True, "max_age": dt.timedelta(minutes=5)}
 
     def get(self, request, *args, **kwargs):
         response = JsonResponse(
@@ -182,7 +182,7 @@ class OAuthProtectedResourceView(CacheControlMixin, generic.View):
 class McpDiscoveryView(CacheControlMixin, generic.View):
     """Advertise the hosted server at `mcp.json`."""
 
-    cache_control = {"public": True, "max_age": datetime.timedelta(minutes=5)}
+    cache_control = {"public": True, "max_age": dt.timedelta(minutes=5)}
 
     def get(self, request, *args, **kwargs):
         response = JsonResponse(

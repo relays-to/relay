@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 from types import SimpleNamespace
 
 from django.http import HttpResponse
@@ -40,9 +40,7 @@ class TestConditionalGetMixin:
         """A view that overrides get_etag still carries the release."""
 
         class TestView(ConditionalGetMixin, generic.View):
-            object = SimpleNamespace(
-                pk=1, modified_at=datetime.datetime.now(datetime.UTC)
-            )
+            object = SimpleNamespace(pk=1, modified_at=dt.datetime.now(dt.UTC))
 
             def get_object(self):
                 return self.object
@@ -66,7 +64,7 @@ class TestConditionalGetMixin:
 class TestCacheControlMixin:
     def test_get_cache_directives__converts_durations_to_seconds(self):
         class TestView(CacheControlMixin):
-            cache_control = {"public": True, "max_age": datetime.timedelta(minutes=5)}
+            cache_control = {"public": True, "max_age": dt.timedelta(minutes=5)}
 
         assert TestView().get_cache_directives() == {"public": True, "max_age": 300}
 

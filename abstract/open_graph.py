@@ -1,5 +1,5 @@
 import dataclasses
-import datetime
+import datetime as dt
 import io
 import pathlib
 import typing
@@ -15,7 +15,7 @@ class OpenGraphImage:
     """Render a share card on relay's brand background."""
 
     cache_key: str
-    cache_ttl: datetime.timedelta
+    cache_ttl: dt.timedelta
 
     WIDTH_PX: typing.ClassVar[int] = 1200
     HEIGHT_PX: typing.ClassVar[int] = 630

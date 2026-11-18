@@ -1,5 +1,5 @@
 import dataclasses
-import datetime
+import datetime as dt
 import ipaddress
 import time
 
@@ -13,7 +13,7 @@ import dns.resolver
 class Answer:
     records: tuple[str, ...] = ()
     failed: bool = False
-    ttl: datetime.timedelta | None = None
+    ttl: dt.timedelta | None = None
     canonical_name: str | None = None
 
 
@@ -49,13 +49,13 @@ class AsnRecord:
 class Lookup:
     """Resolve the DNS records one check needs through a cached resolver."""
 
-    DNS_TIMEOUT = datetime.timedelta(seconds=2)
+    DNS_TIMEOUT = dt.timedelta(seconds=2)
     DNS_RETRIES = 3
-    DNS_RETRY_DELAY = datetime.timedelta(seconds=0.2)
-    AUTHORITATIVE_TIMEOUT = datetime.timedelta(seconds=3)
-    AUTHORITATIVE_TRY_TIMEOUT = datetime.timedelta(seconds=1)
+    DNS_RETRY_DELAY = dt.timedelta(seconds=0.2)
+    AUTHORITATIVE_TIMEOUT = dt.timedelta(seconds=3)
+    AUTHORITATIVE_TRY_TIMEOUT = dt.timedelta(seconds=1)
     AUTHORITATIVE_TRIES = 2
-    ASN_TIMEOUT = datetime.timedelta(seconds=1)
+    ASN_TIMEOUT = dt.timedelta(seconds=1)
     TRANSIENT_ERRORS = (
         dns.exception.Timeout,
         dns.resolver.NoNameservers,
@@ -87,7 +87,7 @@ class Lookup:
         name: str,
         record_type: dns.rdatatype.RdataType,
         tries: int,
-        lifetime: datetime.timedelta | None = None,
+        lifetime: dt.timedelta | None = None,
     ) -> dns.resolver.Answer:
         deadline = (
             None if lifetime is None else time.monotonic() + lifetime.total_seconds()
@@ -110,7 +110,7 @@ class Lookup:
         self,
         name: str,
         record_type: dns.rdatatype.RdataType,
-        lifetime: datetime.timedelta | None = None,
+        lifetime: dt.timedelta | None = None,
     ) -> Answer:
         """Resolve one name and type, retrying transient resolver failures."""
         key = record_type, name.lower().rstrip(".")
@@ -127,7 +127,7 @@ class Lookup:
         else:
             answer = Answer(
                 tuple(self.render_record(record, record_type) for record in answers),
-                ttl=datetime.timedelta(seconds=answers.rrset.ttl),
+                ttl=dt.timedelta(seconds=answers.rrset.ttl),
                 canonical_name=str(answers.canonical_name).rstrip("."),
             )
         if not answer.failed or lifetime is None:
@@ -146,7 +146,7 @@ class Lookup:
 
     def ttl(
         self, name: str, record_type: dns.rdatatype.RdataType
-    ) -> datetime.timedelta | None:
+    ) -> dt.timedelta | None:
         answer = self.query(name, record_type)
         if answer.failed or not answer.records:
             return None
@@ -168,7 +168,7 @@ class Lookup:
                     str(candidate),
                     dns.rdatatype.NS,
                     self.DNS_RETRIES,
-                    datetime.timedelta(seconds=remaining / (len(candidate) - 1)),
+                    dt.timedelta(seconds=remaining / (len(candidate) - 1)),
                 )
             except dns.exception.DNSException:
                 pass
@@ -179,7 +179,7 @@ class Lookup:
 
     def authoritative_ttl(
         self, name: str, record_type: dns.rdatatype.RdataType
-    ) -> datetime.timedelta | None:
+    ) -> dt.timedelta | None:
         """Read the TTL the zone publishes, not the decayed one from a cache."""
         if nameservers := self.authoritative_nameservers(name):
             deadline = time.monotonic() + self.AUTHORITATIVE_TIMEOUT.total_seconds()
@@ -190,7 +190,7 @@ class Lookup:
                 for address in self.query(
                     str(nameserver.target),
                     dns.rdatatype.A,
-                    datetime.timedelta(seconds=remaining),
+                    dt.timedelta(seconds=remaining),
                 ).records
                 if (ip := ipaddress.ip_address(address)).is_global
                 and not ip.is_multicast
@@ -207,12 +207,12 @@ class Lookup:
                         name,
                         record_type,
                         self.AUTHORITATIVE_TRIES,
-                        datetime.timedelta(seconds=remaining),
+                        dt.timedelta(seconds=remaining),
                     )
                 except dns.exception.DNSException:
                     pass
                 else:
-                    return datetime.timedelta(seconds=answer.rrset.ttl)
+                    return dt.timedelta(seconds=answer.rrset.ttl)
         return None
 
     def ptr(self, address: str) -> tuple[str, ...] | None:

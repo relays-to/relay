@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import decimal
 
 import pytest
@@ -60,8 +60,8 @@ def card_containing(content, label):
 def last_month():
     first_of_this_month = timezone.localdate().replace(day=1)
     return timezone.make_aware(
-        datetime.datetime.combine(
-            first_of_this_month - datetime.timedelta(days=1), datetime.time(hour=12)
+        dt.datetime.combine(
+            first_of_this_month - dt.timedelta(days=1), dt.time(hour=12)
         )
     )
 

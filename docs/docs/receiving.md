@@ -1,192 +1,300 @@
 ---
 name: Receiving
-description: How the relay MX server accepts inbound mail and hands it to your webhooks
+description: Point your MX record at relay and receive inbound mail on an HTTPS endpoint
 author: Johannes Maron
+modified_at: 2026-11-18
 ---
 
 # Receiving
 
-relay operates a real MX server. Any internet mail server can deliver a
-message to your delegated or managed domains. relay validates the recipient,
-checks the message's own authentication claims, filters spam, and dispatches
-the result to your webhooks. This page explains each stage.
+An MX record points at the relay MX server. A remote mail server
+delivers a message to relay. relay examines the recipient, filters spam, and
+sends the result to your HTTPS endpoint.
 
-## The one-time receiving-domain setup
+This page explains how to configure inbound mail and how to verify webhook
+deliveries.
 
-Point the MX record of your receiving domain at the relay MX hostnames, for
-example `MX app.acme.com` to `mx1.relays.to` and `mx2.relays.to`. After you
-publish the record, run verification on the domain page.
+## Before you start
 
-Inbound flow:
+You need a domain in your organization. The managed sender domain is active
+without DNS setup. To receive mail on your own address, use your own domain
+or a subdomain, for example `app.acme.com`.
+
+You also need an HTTPS endpoint in your application. relay sends a `POST`
+request to this endpoint for each accepted message.
+
+## Configure inbound mail
+
+### 1. Point the MX record at relay
+
+Open **Domains**. Select your domain. Then click the **Receiving** tab.
+Publish the MX records that the page shows.
+
+| Type | Name                  | Priority | Value           |
+| ---- | --------------------- | -------- | --------------- |
+| `MX` | Your receiving domain | `10`     | `mx1.relays.to` |
+| `MX` | Your receiving domain | `10`     | `mx2.relays.to` |
+
+The page shows the exact names for your domain. If your DNS provider imports
+zone files, use the **Zone file** button.
+
+### 2. Verify the domain
+
+Click **Verify DNS**. relay reads the live DNS records and shows a check for
+each record.
+
+If the MX record is missing, relay cannot accept mail for the domain. A
+sending-only domain can leave the MX record out.
+
+### 3. Create an endpoint
+
+Open **Inbound email**. Then click **New endpoint**. Enter these values:
+
+| Field           | Value                                                               |
+| --------------- | ------------------------------------------------------------------- |
+| URL             | An HTTPS URL in your application.                                   |
+| Name            | The endpoint name.                                                  |
+| Domain          | The receiving domain.                                               |
+| Address pattern | The recipients this endpoint accepts, for example `*@app.acme.com`. |
+
+The pattern is a glob over the full recipient address. Examples:
+
+- `*@app.acme.com` receives every address at the domain.
+- `support@acme.com` receives one address.
+- `bill+*@acme.com` receives every plus-extension of one address.
+
+relay creates a signing secret for each endpoint. Copy the secret from the
+**Inbound email** page. You need it to verify deliveries.
+
+## What relay accepts
+
+relay runs these checks before it stores an inbound message:
 
 ```mermaid
-sequenceDiagram
-    participant Sender as Any mail server
-    participant MX as relay MX (25)
-    participant Store as Storage
-    participant Worker as relay worker
-    participant Scan as Scanner
-    participant Hook as Your webhook
-
-    Sender->>MX: STARTTLS on 25, RCPT TO
-    MX->>MX: recipient-domain lookup
-    MX-->>Sender: 250 / 550 not authorized
-    Sender->>MX: DATA with the message
-    MX->>MX: DMARC evaluation of the sender
-    MX->>MX: ARC seal of the evaluation
-    MX-->>Sender: 250 accepted (or 550 per policy)
-    MX->>Store: store message and metadata
-    MX->>Worker: enqueue spam scan for the stored message
-    Worker->>Scan: scan the stored message
-    Scan-->>Worker: score and action
-    Worker->>Hook: signed webhook per configured endpoint
+flowchart TD
+    A[Remote server delivers a message] --> B{Receiving domain belongs to your organization?}
+    B -- No --> C[550 Relay not authorised for this recipient]
+    B -- Yes --> D{Sender domain DMARC policy}
+    D -- reject --> E[550 Message rejected by DMARC policy]
+    D -- quarantine --> F[Store as quarantined]
+    D -- none --> G[Store as received]
+    F --> H[Scan for spam and malware]
+    G --> H
+    H -- clean --> I[Dispatch to matching webhooks]
+    H -- score 15 or higher, or malware --> J[Quarantine, no webhook]
 ```
 
-## The acceptance gates
+### Recipient check
 
-**Recipient check.** relay accepts only domains registered to your
-organization, resolved through the root domain, including managed domains.
-Anything else answers `550 Relay not authorised for this recipient`.
+relay accepts only recipients on a domain that belongs to your organization,
+including managed domains and subdomains. Any other recipient gets
+`550 Relay not authorised for this recipient`.
 
-**Inbound DMARC.** relay reads the DMARC policy of the message's own sender
-domain. A `p=reject` policy fails the SMTP transaction with
-`550 Message rejected by DMARC policy`. The message never enters the
-platform. Quarantine policies mark the stored message as quarantined. This
-protects senders that publish strict policies from having their name abused,
-and it protects your inbox from spoofing attempts. relay signs outgoing mail
-with RSA-2048 and Ed25519 keys, but inbound DKIM verification still accepts
-signatures from older senders that use RSA-1024 keys.
+### DMARC
 
-**Spam scan.** relay scores every accepted message addressed to a
-mailbox, and you can see the score in the dashboard. Report and
-feedback-loop mail that relay accepts for its own collectors skips the
-spam scan and goes straight to the report parsers. A message whose score
-reaches the reject threshold, or whose action is reject, lands as
-quarantined and never reaches your webhook. The same scan checks for
-malware, so an infected message is quarantined too, and the message detail
-page names the virus it found. Scanning happens after relay has answered
-`250`, so a busy scanner delays the webhook, not acceptance.
+relay reads the DMARC policy of the sender domain. If the policy is
+`p=reject` and the message fails, relay rejects the message during the SMTP
+transaction. The message never enters relay.
 
-**Received header.** relay stamps every accepted message with a
-`Received` header before sealing. It records the sending host's HELO
-name and IP address, the receiving MX host, the transport protocol
-(ESMTP or ESMTPS), and the reception time. The ARC seal covers the
-header, so downstream receivers can trust the recorded hop.
+If the policy is `p=quarantine`, relay stores the message as `quarantined`.
+Quarantined messages do not reach your webhook. You can read them in the
+message log.
 
-## ARC sealing
+### Spam and malware
 
-relay records its SPF, DKIM, and DMARC evaluation of every accepted
-message in the stored raw message, and seals that evaluation with an ARC
-set ([RFC 8617][rfc-8617]). The set consists of an ARC-Authentication-Results header
-that mirrors relay's evaluation, an ARC-Message-Signature over the
-message, and an ARC-Seal over the chain of earlier seals. The seal names
-the receiving MX host as the evaluator. The receiving domain's DKIM key
-signs the set with an RSA-2048 signature, so anyone can verify the seal
-with the public key that relay's nameserver publishes at the selector's
-domain-key address.
+relay scans each accepted message. A message gets the `quarantined` status in
+three cases: the score is 15 or higher, the scan action is reject, or the scan
+finds malware. The message detail page shows the score and the virus name.
 
-Sealing protects the recorded verdict from forgery.
-Authentication-Results headers that claim relay's MX host, and headers
-that cannot be parsed, are removed before sealing, so a spoofed or
-broken verdict cannot survive in relay's name.
+Scanning happens after relay replies with `250`. A slow scan delays the webhook,
+not acceptance.
 
-Forwarded mail often arrives with an ARC chain from earlier hops. relay
-verifies the existing chain and continues it with its own set. A chain
-that validates becomes pass, a broken one becomes fail, and the verdict
-is recorded within relay's own evaluation, so the next receiver can
-judge the full forwarding path. A chain that an earlier hop already
-sealed as failed is not extended; relay records the failure in its own
-evaluation instead.
+### Authentication results and ARC
 
-Sealing happens before the message is stored, so the raw message opened
-in the dashboard or downloaded through a webhook's signed body URL
-contains the complete header set. The message detail page shows relay's
-evaluation as per-method verdicts (ARC, SPF, DKIM, DMARC) and lists the
-seals of the ARC chain, upstream evaluations included, verbatim. See the
-know-how article on
+relay records the SPF, DKIM, and DMARC results of the inbound hop. relay seals
+the results with ARC, so a later receiver can verify that the results came
+from relay. The raw message contains the seal and a `Received` header with
+the sending host, the relay MX host, the protocol, and the time.
+
+See the know-how article on
 <a href="{% url 'know_how:detail' slug='arc' %}">ARC</a> for the protocol
 background.
 
-## Special recipient addresses
+## Webhook payload
 
-Your delegated domain receives report traffic automatically:
+relay sends a flat JSON body. The raw message is not in the body. A signed
+`body_url` points to the raw message.
 
-| Address                             | Purpose                                 | What relay does                                            |
-| ----------------------------------- | --------------------------------------- | ---------------------------------------------------------- |
-| `dmarc@{sender-subdomain}`          | DMARC aggregate reports (RUA)           | Store, parse the XML, show in the dashboard                |
-| `ruf@{sender-subdomain}`            | DMARC failure reports (RUF/ARF)         | Store, parse, show in the dashboard                        |
-| `tls@{sender-subdomain}`            | TLS-RPT reports                         | Store, parse the JSON, show in the dashboard               |
-| `bounce+{token}@{sender-subdomain}` | Bounce reports for one outgoing message | Store, parse, mark that message bounced, or record a delay |
-| `postmaster` (+extensions)          | Human mail to postmaster                | Store, then forward a summary to your team                 |
+```json
+{
+  "type": "email.received",
+  "message_id": "0198b7c2-7c11-7000-8000-3b9bb91234af",
+  "sender": "ann@example.net",
+  "recipient": "kim@app.acme.com",
+  "subject": "Quote request",
+  "rfc822_message_id": "<ab12@example.net>",
+  "received_with_tls": true,
+  "receiving_domain": "app.acme.com",
+  "body_url": "https://storage.relays.to/messages/0199....eml?signature=...",
+  "spam_score": 1.5,
+  "spam_action": "no action",
+  "received_at": "2026-08-29T09:41:18Z"
+}
+```
 
-The DMARC and TLS report addresses exist because your DMARC and DNS
-records must name a collector, and relay is that collector. You see who
-authenticates as your domain, who fails, and which servers have TLS
-trouble.
+| Field               | Meaning                                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| `type`              | `email.received` for real mail, `email.test` for a test delivery.                          |
+| `message_id`        | The relay message ID. Use it to open the message in the dashboard.                         |
+| `sender`            | The envelope sender.                                                                       |
+| `recipient`         | The envelope recipient.                                                                    |
+| `subject`           | The subject header.                                                                        |
+| `rfc822_message_id` | The `Message-ID` header of the message.                                                    |
+| `received_with_tls` | Whether the inbound connection used TLS.                                                   |
+| `receiving_domain`  | The domain that accepted the message.                                                      |
+| `body_url`          | A signed download URL for the raw message. The URL expires, so download the body promptly. |
+| `spam_score`        | The spam score.                                                                            |
+| `spam_action`       | The scan action, for example `no action`.                                                  |
+| `received_at`       | The delivery timestamp, in UTC.                                                            |
 
-The bounce address is minted per message: every outgoing message carries
-it as its Return-Path, so each bounce report maps to one message. relay
-only accepts reports for addresses it minted itself, and only when the
-report names the original recipient. relay stores the report and marks
-the original outgoing message bounced. Bounce reports are relay's own
-traffic, not mail for your application, so relay never dispatches them
-to your webhooks.
+A test delivery has type `email.test`. Most fields are empty and `body_url`
+is `null`. Use the **Test** button on an endpoint to send one.
 
-The MAIL-lifetime of a normal message begins at acceptance. relay stores
-it with its metadata, marks it received (or quarantined), and processes it
-asynchronously.
+## Delivery headers and signatures
 
-## What happens after the spam scan
+relay signs each delivery. The request carries these headers:
 
-A clean message goes to the matching active webhooks of the receiving domain.
-Report traffic for relay's collectors, DMARC, TLS, and bounce reports, never
-dispatches to a webhook. The dispatch rules:
+| Header              | Value                                   |
+| ------------------- | --------------------------------------- |
+| `webhook-id`        | `msg_<uuid>`, unique for each delivery. |
+| `webhook-timestamp` | Unix seconds at signing time.           |
+| `webhook-signature` | `v1,<base64 HMAC-SHA256 signature>`.    |
+| `Content-Type`      | `application/json`.                     |
 
-- the webhook must belong to the receiving domain, and its address pattern,
-  for example `*@app.acme.com` or `support@acme.com`, matches the recipient,
-- relay delivers the message to each matching webhook with the Standard
-  Webhooks
-  signature scheme,
-- without active billing the status becomes dropped, without matching
-  webhooks it becomes dropped as well.
+The signed content is `{id}.{timestamp}.{body}`. The signature is an
+HMAC-SHA256 signature of that byte string with the endpoint signing secret.
 
-If no webhook matches, the message stays stored with the status DROPPED, and
-you can still read it in the dashboard.
+Deliveries follow the [Standard Webhooks](https://standardwebhooks.com)
+specification. Use a Standard Webhooks SDK to verify them.
 
-## Postmaster handling
+## Verify a delivery
 
-relay stores messages to `postmaster@{your-domain}` and forwards each one to
-every organization member with an email address, because [RFC 5321][rfc-5321]
-requires postmaster to remain reachable. Each copy is a real, replyable
-message, sent from the postmaster address of the domain that received it, so
-it leaves relay from your own domain: replies go to the original author, and
-the subject carries a `Fwd:` prefix. The body names the address that received
-the message, lists the original sender, subject, and recipient in a small
-table, and offers a button that opens the stored message in the relay
-dashboard, where the full message stays readable. The copy is an HTML mail
-with a plain-text alternative. A worker sends it, so it is written in the
-platform's default language.
+Before you process the payload, verify the signature. If the signature is not
+valid, do not process the payload.
 
-The copy is an outgoing message like any other, so it is listed with the
-messages your applications send and counts toward your usage.
+```python
+import json
 
-Forwarding happens after the spam scan, so a slow scanner delays the copy, not
-acceptance. A message that arrives under DMARC quarantine, or that the scan
-quarantines, is never forwarded and stays readable in the dashboard only.
+from standardwebhooks import Webhook
 
-## Reading arriving mail
+wh = Webhook("whsec_your_signing_secret")
 
-The dashboard lists all inbound messages with sender, recipient, TLS state,
-spam score, and status. The raw message lives in storage and stays reachable
-from the dashboard view. Retention follows the
-<a href="{% url 'docs:detail' slug='data-privacy' %}">data-privacy</a> page.
+
+def handler(payload: bytes, headers: dict[str, str]) -> None:
+    event = wh.verify(payload, headers)
+    body = json.loads(payload)
+    if body["type"] == "email.received":
+        download(body["body_url"])
+```
+
+SDKs exist for other languages, including Node.js, Go, Ruby, and Rust. The
+SDK verifies the timestamp, so an old delivery fails verification.
+
+## Retry schedule
+
+relay expects a 2xx reply within 30 seconds. Any other reply, a timeout, or
+a connection error is a failure.
+
+| Attempt | Delay before the attempt |
+| ------- | ------------------------ |
+| 1       | Immediate                |
+| 2       | 5 seconds                |
+| 3       | 5 minutes                |
+| 4       | 30 minutes               |
+| 5       | 2 hours                  |
+| 6       | 5 hours                  |
+| 7       | 10 hours                 |
+| 8       | 14 hours                 |
+| 9       | 20 hours                 |
+| 10      | 24 hours                 |
+
+relay adds 0 to 29 seconds of random delay to each attempt. Ten attempts
+cover about three days.
+
+A successful delivery sets the message to `webhook_sent`. If every attempt
+fails, the message gets the `webhook_failed` status.
+
+The endpoint replies with `410 Gone` to tell relay that it no longer exists. relay
+deactivates the endpoint and stops future deliveries to it. If no other
+endpoint accepts the message, it gets the `webhook_failed` status.
+
+Deliveries can arrive more than once. Deduplicate on `webhook-id`.
+
+## Delivery records
+
+Open an inbound message in the message log to see each delivery attempt. The
+page shows the endpoint URL, the response code, and up to 2,000 characters of
+the response body.
+
+Use the record to find a slow endpoint, a wrong signature, or a server error.
+
+## Report addresses
+
+relay accepts report traffic for your domains automatically. These messages
+are not delivered to your webhooks.
+
+| Address                             | Purpose                                              | What relay does                                                            |
+| ----------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| `dmarc@{sender-subdomain}`          | DMARC aggregate reports                              | relay stores and parses the XML report.                                    |
+| `ruf@{sender-subdomain}`            | DMARC failure reports                                | relay stores and parses the report.                                        |
+| `tls@{sender-subdomain}`            | TLS reports                                          | relay stores and parses the JSON report.                                   |
+| `bounce+{token}@{sender-subdomain}` | Bounce reports for one outgoing message              | relay marks that message as bounced.                                       |
+| `postmaster@{your-domain}`          | Mail to postmaster, with or without a plus extension | relay stores the message and forwards a copy to your organization members. |
+
+The DMARC and TLS addresses are collectors. Your DMARC and TLS-RPT records
+point at them. relay handles the reports and shows them in the dashboard.
+
+The bounce address is unique for each outgoing message. relay accepts a
+bounce report only for an address that relay created and only when the report
+names the original recipient. A permanent failure marks the original message
+as `bounced` and suppresses the recipient.
+
+### Postmaster copies
+
+relay forwards mail to `postmaster@` to every organization member with an
+email address. Each copy is a real message from the postmaster address of the
+receiving domain. Replies reach the original sender.
+
+The copy is an outgoing message. It counts toward your monthly volume. A
+quarantined message is never forwarded.
+
+## Reading inbound mail
+
+The **Message log** lists inbound and outbound messages. Use the **Received**
+filter to show inbound mail only.
+
+The list shows the sender, recipient, status, and time. Open a message to
+read the headers, the body, the TLS details, the spam score, and the
+transmissions.
+
+Quarantined messages stay readable, with their score and virus verdict.
+
+## Troubleshooting
+
+| Symptom                                                       | Likely cause                                           | Fix                                                                    |
+| ------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| The sender gets `550 Relay not authorised for this recipient` | The recipient domain is not added or not verified.     | Add the domain. Then verify its MX record.                             |
+| No webhook fires                                              | No endpoint matches the recipient.                     | Make sure that the address pattern and the domain are correct.         |
+| No webhook fires                                              | The message is quarantined.                            | Read the message in the log. Then read the spam score.                 |
+| No webhook fires                                              | Billing is inactive.                                   | Activate billing. relay drops inbound messages without active billing. |
+| Signature verification fails                                  | The signing secret is wrong or the raw body changed.   | Copy the secret again. Then verify the exact request body.             |
+| Deliveries repeat                                             | The endpoint replied with a non-2xx code or timed out. | Reply with 2xx. Then process the message after the response.           |
 
 ## Related pages
 
-- <a href="{% url 'docs:detail' slug='webhooks' %}">Webhooks</a>. Payload,
-  signatures, and retry behavior.
-- <a href="{% url 'docs:detail' slug='domains' %}">Managed domains and
-  DNS</a>. How the MX record gets proper delegation.
-
-[rfc-5321]: https://www.rfc-editor.org/info/rfc5321/
-[rfc-8617]: https://www.rfc-editor.org/info/rfc8617/
+- <a href="{% url 'docs:detail' slug='domains' %}">Domains and DNS</a>. Add a
+  domain. Then verify its MX record.
+- <a href="{% url 'docs:detail' slug='message-statuses' %}">Message
+  statuses</a>. Inbound statuses and delivery records.
+- <a href="{% url 'docs:detail' slug='reputation' %}">Sender reputation</a>.
+  DMARC and TLS reports.

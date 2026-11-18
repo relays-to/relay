@@ -1,3 +1,7 @@
+---
+modified_at: 2026-07-31
+---
+
 # Privacy Policy
 
 Last updated: {{ last_updated }}

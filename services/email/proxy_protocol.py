@@ -1,6 +1,6 @@
 """PROXY protocol support for SMTP servers behind the Caddy L4 balancer."""
 
-import datetime
+import datetime as dt
 
 from aiosmtpd.controller import Controller
 from aiosmtpd.smtp import SMTP, Session
@@ -50,6 +50,6 @@ def get_local_ip(session: Session, transport=None) -> str:
     return local_ip
 
 
-def proxy_protocol_timeout_seconds(timeout: datetime.timedelta | None) -> float | None:
+def proxy_protocol_timeout_seconds(timeout: dt.timedelta | None) -> float | None:
     """Convert the PROXY protocol timeout to the seconds aiosmtpd expects."""
     return timeout.total_seconds() if timeout else None

@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 from types import SimpleNamespace
 
 import dns.exception
@@ -93,7 +93,7 @@ class TestQuery:
 
         assert lookup.query("example.com", dns.rdatatype.TXT) == Answer(
             ("v=spf1 -all",),
-            ttl=datetime.timedelta(minutes=30),
+            ttl=dt.timedelta(minutes=30),
             canonical_name="example.com",
         )
 
@@ -231,9 +231,7 @@ class TestTtl:
         dns_resolver.add("example.com", "NS", "ns1.example.com.")
         dns_resolver.add("ns1.example.com", "A", "8.8.8.8")
 
-        assert lookup.ttl("example.com", dns.rdatatype.TXT) == datetime.timedelta(
-            minutes=30
-        )
+        assert lookup.ttl("example.com", dns.rdatatype.TXT) == dt.timedelta(minutes=30)
 
     def test_ttl__prefers_the_published_ttl(self, monkeypatch):
         recursive = StubResolver()
@@ -248,10 +246,8 @@ class TestTtl:
         monkeypatch.setattr(dns.resolver, "Resolver", factory)
         lookup = Lookup()
 
-        assert lookup.ttl("example.com", dns.rdatatype.TXT) == datetime.timedelta(
-            hours=2
-        )
-        assert lookup.query("example.com", dns.rdatatype.TXT).ttl == datetime.timedelta(
+        assert lookup.ttl("example.com", dns.rdatatype.TXT) == dt.timedelta(hours=2)
+        assert lookup.query("example.com", dns.rdatatype.TXT).ttl == dt.timedelta(
             hours=2
         )
 
@@ -269,9 +265,7 @@ class TestTtl:
         monkeypatch.setattr(dns.resolver, "Resolver", factory)
         lookup = Lookup()
 
-        assert lookup.ttl("example.com", dns.rdatatype.TXT) == datetime.timedelta(
-            hours=2
-        )
+        assert lookup.ttl("example.com", dns.rdatatype.TXT) == dt.timedelta(hours=2)
         assert authority.queries == ["target.example.net"]
 
     def test_authoritative_ttl__returns_none_without_a_zone(self, lookup):

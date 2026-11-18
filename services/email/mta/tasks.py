@@ -1,5 +1,5 @@
 import dataclasses
-import datetime
+import datetime as dt
 import json
 import logging
 import secrets
@@ -52,7 +52,7 @@ def webhook_retry(context):
         mark_failed_if_pending(context.task_result.kwargs.get("message_id"))
         return None
     delay = WEBHOOK_RETRY_DELAYS[context.attempt + 1] + secrets.randbelow(30)
-    return datetime.timedelta(seconds=delay)
+    return dt.timedelta(seconds=delay)
 
 
 @task(queue_name="ingress")

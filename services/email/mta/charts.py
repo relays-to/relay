@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 from django.db.models import Sum
 from django.db.models.functions import TruncDate
@@ -24,7 +24,7 @@ TLS_CHART_COLORS = {
 
 def build_tls_chart(org):
     """Return chart data for TLS failure counts grouped by result type."""
-    start = timezone.localdate() - datetime.timedelta(days=CHART_DAYS - 1)
+    start = timezone.localdate() - dt.timedelta(days=CHART_DAYS - 1)
     rows = (
         TlsFailure.objects.filter(
             report__org=org,

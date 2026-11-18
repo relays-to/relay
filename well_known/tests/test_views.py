@@ -168,7 +168,7 @@ class TestSitemapSection:
         )
         body = response.content.decode()
         assert "/docs/security/" in body
-        assert "/docs/reliability/" in body
+        assert "/docs/deliverability/" in body
 
     @pytest.mark.django_db
     def test_get__contains_domain_checks(self, client):
@@ -190,3 +190,17 @@ class TestSitemapSection:
             reverse("well_known:sitemap-section", kwargs={"section": "unknown"})
         )
         assert response.status_code == 404
+
+    def test_get__includes_lastmod(self, client):
+        response = client.get(
+            reverse("well_known:sitemap-section", kwargs={"section": "docs"})
+        )
+
+        assert "<lastmod>" in response.content.decode()
+
+    def test_get__sets_last_modified_header(self, client):
+        response = client.get(
+            reverse("well_known:sitemap-section", kwargs={"section": "legal"})
+        )
+
+        assert response.headers["Last-Modified"]
