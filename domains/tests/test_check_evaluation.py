@@ -661,6 +661,19 @@ class TestSpfRun:
             "Strict all", "fail", "No all mechanism", severity="weak"
         )
 
+    def test_run__matches_an_include_host_against_the_provider_list(
+        self, lookup, dns_resolver
+    ):
+        dns_resolver.add("example.com", "TXT", '"v=spf1 include:spf.brevo.com -all"')
+        dns_resolver.add("spf.brevo.com", "TXT", '"v=spf1 ip4:51.15.0.0/16 -all"')
+
+        result = SpfCheck.run("example.com", lookup)
+
+        assert result.metadata["jurisdiction"]["providers"] == [
+            {"provider_name": "Brevo", "country_code": "FR", "host": "spf.brevo.com"}
+        ]
+        assert result.metadata["jurisdiction"]["country_codes"] == ["FR"]
+
 
 class TestDmarcCheck:
     def test_run__skips_a_failed_lookup(self, lookup, dns_resolver):
