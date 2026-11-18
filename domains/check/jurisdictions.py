@@ -24,7 +24,7 @@ def load_mail_providers() -> tuple[MailProvider, ...]:
             name=entry["name"],
             country_code=entry["country_code"],
             country_name=entry["country_name"],
-            suffixes=tuple(entry["suffixes"]),
+            suffixes=tuple(suffix.lower().rstrip(".") for suffix in entry["suffixes"]),
         )
         for entry in data
     )
@@ -56,17 +56,13 @@ def match(
     exchange: str, providers: Iterable[MailProvider] = MAIL_PROVIDERS
 ) -> MailProvider | None:
     host = exchange.lower().rstrip(".")
-    best_provider = None
-    best_suffix_length = 0
     for provider in providers:
-        for suffix in provider.suffixes:
-            suffix = suffix.lower().rstrip(".")
-            if host == suffix or host.endswith(f".{suffix}"):
-                length = len(suffix)
-                if length > best_suffix_length:
-                    best_provider = provider
-                    best_suffix_length = length
-    return best_provider
+        if any(
+            host == suffix or host.endswith(f".{suffix}")
+            for suffix in provider.suffixes
+        ):
+            return provider
+    return None
 
 
 def get_country_name(country_code: str) -> str:
