@@ -2,6 +2,7 @@
 name: DMARC
 description: Email authentication policy for SPF and DKIM
 author: Johannes Maron
+modified_at: 2026-09-29
 ---
 
 # DMARC

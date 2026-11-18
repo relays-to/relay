@@ -121,6 +121,7 @@ name: October 2026
 description: One sentence about the month.
 image: captains_log/2026-10/get-started.png
 author: Johannes Maron
+modified_at: 2026-10-21
 date: 2026-10-21
 ---
 
@@ -257,6 +258,8 @@ or a teaser. The top link opens the same log in a browser for readers whose
 client clips the message or blocks images.
 
 Set the `date` field to the publication date. The schedule keys off it.
+Set `modified_at` to the date of the last content change. It drives the
+`Last-Modified` and ETag validators of the station log pages.
 
 ## Validate
 

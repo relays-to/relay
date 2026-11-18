@@ -2,6 +2,7 @@
 name: Sending
 description: The relay SMTP interface, every acceptance rule, and the delivery pipeline
 author: Johannes Maron
+modified_at: 2026-10-20
 ---
 
 # Sending

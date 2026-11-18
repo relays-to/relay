@@ -2,6 +2,7 @@
 name: Message statuses
 description: The complete state machines for outgoing and incoming messages, with every transition
 author: Johannes Maron
+modified_at: 2026-11-05
 ---
 
 # Message statuses

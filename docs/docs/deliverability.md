@@ -2,6 +2,7 @@
 name: Deliverability
 description: How relay gets your messages into the inbox, and what every SMTP reply means
 author: Johannes Maron
+modified_at: 2026-11-07
 ---
 
 # Deliverability

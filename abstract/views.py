@@ -71,6 +71,30 @@ def get_release_etag(etag: str | None) -> str | None:
     return f'"{scope}{validator}"' if validator else None
 
 
+class MarkdownConditionalGetMixin:
+    """Answer conditional GETs with the modification time of the Markdown source."""
+
+    def get_modified_at(self) -> datetime.datetime | None:
+        """Return the modification time of the page source."""
+        return None
+
+    def get_etag(self, request) -> str | None:
+        """Return the validator of the page source."""
+        modified_at = self.get_modified_at()
+        if modified_at is None:
+            return None
+        return f'"{int(modified_at.timestamp() * 1e6):x}"'
+
+    def get_conditional_view(self, view):
+        """Wrap `view` with an ETag and `Last-Modified` from the source."""
+        return condition(
+            etag_func=lambda request, *a, **kw: get_release_etag(
+                self.get_etag(request)
+            ),
+            last_modified_func=lambda request, *a, **kw: self.get_modified_at(),
+        )(view)
+
+
 class ConditionalGetMixin(RevalidationCacheMixin):
     """Answer conditional GETs with an ETag and `Last-Modified` from the object."""
 
@@ -182,7 +206,12 @@ class BreadcrumbViewMixin:
         }
 
 
-class MarkdownView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateView):
+class MarkdownView(
+    MarkdownConditionalGetMixin,
+    CacheControlMixin,
+    BreadcrumbViewMixin,
+    generic.TemplateView,
+):
     """Render Markdown files in a template."""
 
     template_name = "abstract/markdown.html"
@@ -192,11 +221,36 @@ class MarkdownView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateView)
     markdown_template: str = ""
     """Template name of the markdown file to render."""
     toc_levels: str = "2-3"
+    content: type[MarkdownContent] | None = None
     cache_control = PUBLIC_PAGE_CACHE
 
     def get_markdown_template(self):
         """Return the markdown template name for this view."""
         return self.markdown_template
+
+    def get_markdown_slug(self) -> str:
+        """Return the article slug of the Markdown template."""
+        return self.get_markdown_template().removesuffix(".md")
+
+    def get_modified_at(self):
+        if self.content is None:
+            return None
+        return self.content.get_article_modified_at(self.get_markdown_slug())
+
+    def get_etag(self, request):
+        modified_at = self.get_modified_at()
+        if modified_at is None:
+            return None
+        representation = "markdown" if self.is_markdown_request(request) else "html"
+        return f'"{representation}-{int(modified_at.timestamp() * 1e6):x}"'
+
+    @staticmethod
+    def is_markdown_request(request) -> bool:
+        """Return whether the request asks for the raw Markdown source."""
+        return bool(
+            request.GET.get("md")
+            or "text/markdown" in request.headers.get("Accept", "")
+        )
 
     def dispatch(self, request, *args, **kwargs):
         response = super().dispatch(request, *args, **kwargs)
@@ -204,16 +258,18 @@ class MarkdownView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateView)
         return response
 
     def get(self, request, *args, **kwargs):
-        if request.GET.get("md") or "text/markdown" in request.headers.get(
-            "Accept", ""
-        ):
+        return self.get_conditional_view(self.get_page)(request, *args, **kwargs)
+
+    def get_page(self, request, *args, **kwargs):
+        if self.is_markdown_request(request):
             return self.render_markdown(request, **kwargs)
         return super().get(request, *args, **kwargs)
 
     async def aget(self, request, *args, **kwargs):
-        if request.GET.get("md") or "text/markdown" in request.headers.get(
-            "Accept", ""
-        ):
+        return await self.get_conditional_view(self.aget_page)(request, *args, **kwargs)
+
+    async def aget_page(self, request, *args, **kwargs):
+        if self.is_markdown_request(request):
             return self.render_markdown(request, **kwargs)
         return await super().aget(request, *args, **kwargs)
 
@@ -242,12 +298,29 @@ class MarkdownView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateView)
         }
 
 
-class MarkdownListView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateView):
+class MarkdownListView(
+    MarkdownConditionalGetMixin,
+    CacheControlMixin,
+    BreadcrumbViewMixin,
+    generic.TemplateView,
+):
     """Display all Markdown articles in a docs directory."""
 
     cache_control = PUBLIC_PAGE_CACHE
     parent = "home"
     content: type[MarkdownContent]
+
+    def get_modified_at(self):
+        return self.content.get_latest_modified_at()
+
+    def get_etag(self, request):
+        modified_at = self.get_modified_at()
+        if modified_at is None:
+            return None
+        return f'"{len(self.content.slugs):x}-{int(modified_at.timestamp() * 1e6):x}"'
+
+    def get(self, request, *args, **kwargs):
+        return self.get_conditional_view(super().get)(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(**kwargs) | {

@@ -7,6 +7,7 @@ from django.urls import reverse
 from alternative_to.content import AlternativeToContent
 from docs.content import DocsContent
 from know_how.content import KnowHowContent
+from legal.content import LegalContent
 
 
 class HomeSitemap(Sitemap):
@@ -29,10 +30,13 @@ class LegalSitemap(Sitemap):
     priority = 0.3
 
     def items(self):
-        return ["legal:imprint", "legal:terms", "legal:privacy"]
+        return sorted(LegalContent.slugs)
 
-    def location(self, item):
-        return reverse(item)
+    def location(self, slug):
+        return reverse(f"legal:{slug}")
+
+    def lastmod(self, slug):
+        return LegalContent.get_article_modified_at(slug)
 
 
 class DocsSitemap(Sitemap):
@@ -47,6 +51,9 @@ class DocsSitemap(Sitemap):
     def location(self, slug):
         return reverse("docs:detail", args=[slug])
 
+    def lastmod(self, slug):
+        return DocsContent.get_article_modified_at(slug)
+
 
 class KnowHowSitemap(Sitemap):
     """One entry per know-how article."""
@@ -60,6 +67,9 @@ class KnowHowSitemap(Sitemap):
     def location(self, slug):
         return reverse("know_how:detail", args=[slug])
 
+    def lastmod(self, slug):
+        return KnowHowContent.get_article_modified_at(slug)
+
 
 class AlternativeToSitemap(Sitemap):
     """One entry per alternative-to comparison article."""
@@ -72,6 +82,9 @@ class AlternativeToSitemap(Sitemap):
 
     def location(self, slug):
         return reverse("alternative_to:detail", args=[slug])
+
+    def lastmod(self, slug):
+        return AlternativeToContent.get_article_modified_at(slug)
 
 
 class DomainCheckListSitemap(Sitemap):

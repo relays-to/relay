@@ -2,6 +2,7 @@
 name: Encryption
 description: How relay encrypts messages in transit and protects signers key material at rest
 author: Johannes Maron
+modified_at: 2026-11-07
 ---
 
 # Encryption

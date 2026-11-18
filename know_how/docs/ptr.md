@@ -2,6 +2,7 @@
 name: PTR
 description: Reverse DNS lookup for IP verification
 author: Johannes Maron
+modified_at: 2026-09-29
 ---
 
 # PTR
