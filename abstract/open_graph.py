@@ -4,24 +4,10 @@ import io
 import pathlib
 import typing
 
-from django.core import signing
 from django.core.cache import cache
 from PIL import Image, ImageDraw, ImageFont
 
 type RGB = tuple[int, int, int]
-
-SIGNATURE_SALT = "abstract.open_graph"
-SIGNER = signing.Signer(salt=SIGNATURE_SALT)
-
-
-def sign_title(title: str) -> str:
-    """Return a signed token that carries the share card title."""
-    return SIGNER.sign(title)
-
-
-def unsign_title(token: str) -> str:
-    """Return the title from a signed share card token."""
-    return SIGNER.unsign(token)
 
 
 @dataclasses.dataclass(kw_only=True)

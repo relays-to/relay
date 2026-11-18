@@ -6,13 +6,7 @@ from django.core import signing
 from django.core.cache import cache
 from PIL import Image
 
-from abstract.open_graph import (
-    BrandImage,
-    OpenGraphImage,
-    TitleImage,
-    sign_title,
-    unsign_title,
-)
+from abstract.open_graph import BrandImage, OpenGraphImage, TitleImage
 
 CACHE_HIT = "render must not draw on a cache hit"
 
@@ -95,12 +89,16 @@ class TestBrandImage:
 
 
 class TestTitleSigning:
-    def test_sign_title__round_trips(self):
-        assert unsign_title(sign_title("Message log")) == "Message log"
+    def test_signer__round_trips(self):
+        signer = signing.Signer(salt="open-graph")
 
-    def test_unsign_title__rejects_a_forged_token(self):
+        assert signer.unsign(signer.sign("Message log")) == "Message log"
+
+    def test_signer__rejects_a_forged_token(self):
+        signer = signing.Signer(salt="open-graph")
+
         with pytest.raises(signing.BadSignature):
-            unsign_title("Message log")
+            signer.unsign("Message log")
 
 
 class TestTitleImage:

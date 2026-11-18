@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 
 from django.contrib.admin.templatetags.admin_urls import admin_urlname
 from django.contrib.humanize.templatetags import humanize
+from django.core import signing
 from django.template import defaultfilters, loader
 from django.template.defaulttags import register
 from django.urls import NoReverseMatch, reverse
@@ -17,7 +18,6 @@ from pygments.lexers import get_lexer_by_name
 from pygments.util import ClassNotFound
 
 from .. import utils
-from ..open_graph import sign_title
 
 register.filter(is_safe=True)(humanize.ordinal)
 register.filter(is_safe=True)(humanize.intcomma)
@@ -95,7 +95,8 @@ def admin_url(context):
 def og_image_url(context, title):
     """Return the absolute URL of the signed share card for `title`."""
     url = context.request.build_absolute_uri(reverse("og-image"))
-    return f"{url}?{urlencode({'signature': sign_title(str(title))})}"
+    signature = signing.Signer(salt="open-graph").sign(str(title))
+    return f"{url}?{urlencode({'signature': signature})}"
 
 
 @register.inclusion_tag("abstract/timestamp.html")
