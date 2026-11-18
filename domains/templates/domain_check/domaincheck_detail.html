@@ -96,13 +96,13 @@
         {% endif %}
       </p>
       {% if domain_check.issue_count %}
-        <section class="card mt-6">
+        <section class="card my-6">
           <header>
             <h2>{% translate "We can help fix these" %}</h2>
             <p class="text-muted-foreground">
               {% blocktranslate trimmed %}
-                Relay can help fix some of these issues. We also host DMARC reporting, MTA-STS, and TLS-RPT for your
-                domain, for free.
+                Some issues come from DNS records we can manage for you. We also host DMARC reporting, MTA-STS, and
+                TLS-RPT for your domain, for free.
               {% endblocktranslate %}
             </p>
           </header>
