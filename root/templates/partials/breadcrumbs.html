@@ -5,9 +5,9 @@
       {% for item in breadcrumbs %}
         <li>
           {% if item.url %}
-            <a href="{{ item.url }}">{{ item.title }}</a>
+            <a href="{{ item.url }}">{{ item.title|capfirst }}</a>
           {% else %}
-            <span aria-current="page">{{ item.title }}</span>
+            <span aria-current="page">{{ item.title|capfirst }}</span>
           {% endif %}
         </li>
         {% if not forloop.last %}

@@ -98,7 +98,7 @@ class LoginView(NoStoreCacheMixin, generic.TemplateView):
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(**kwargs) | {
-            "page_title": _("Login"),
+            "page_title": _("login"),
         }
 
 
@@ -118,7 +118,7 @@ class OrganizationListView(LoginRequiredMixin, NoStoreCacheMixin, generic.ListVi
     def get_context_data(self, **kwargs):
         return super().get_context_data(**kwargs) | {
             "form": OrganizationForm(),
-            "page_title": _("Organizations"),
+            "page_title": _("organizations"),
         }
 
     def post(self, request, *args, **kwargs):
@@ -197,7 +197,6 @@ class OrganizationDetailView(
             "memberships": self.org.memberships.select_related("user"),
             "is_admin": self.is_admin,
             "member_form": MembershipForm(),
-            "page_title": str(self.org),
         }
 
 
@@ -237,7 +236,7 @@ class MembershipCreateView(
     generic.DetailView,
 ):
     context_object_name = "organization"
-    title = _("Edit member")
+    title = _("edit member")
     parent = "accounts:org-home"
 
     def post(self, request, org_slug, *args, **kwargs):
@@ -276,7 +275,7 @@ class MembershipDeleteView(
     OrganizationScopedView, RequireAdminMixin, NoStoreCacheMixin, generic.DeleteView
 ):
     model = Membership
-    title = _("Remove member")
+    title = _("remove member")
     parent = "accounts:org-detail"
 
     def get_object(self, queryset=None):
@@ -299,7 +298,7 @@ class MembershipUpdateView(
 ):
     model = Membership
     form_class = MembershipForm
-    title = _("Edit member")
+    title = _("edit member")
     parent = "accounts:org-detail"
 
     def get_object(self, queryset=None):
@@ -370,5 +369,5 @@ class UserPreferenceUpdateView(LoginRequiredMixin, NoStoreCacheMixin, generic.Fo
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(**kwargs) | {
-            "page_title": _("Localization"),
+            "page_title": _("localization"),
         }

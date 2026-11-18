@@ -33,7 +33,7 @@
       >
       {% block social_image %}
         {% if page_title %}
-          {% include "partials/social_image.html" with title=page_title %}
+          {% include "partials/social_image.html" with title=page_title|capfirst %}
         {% else %}
           <meta
             property="og:image"
