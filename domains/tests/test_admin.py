@@ -1,5 +1,6 @@
 import pytest
 from django.contrib import admin
+from django.contrib.auth.models import Permission, User
 from django.tasks import task_backends
 from django.urls import reverse
 
@@ -10,7 +11,10 @@ from domains.models import Domain, DomainCheck
 @pytest.fixture
 def task_results(settings):
     settings.TASKS = {
-        "default": {"BACKEND": "django.tasks.backends.dummy.DummyBackend"},
+        "default": {
+            "BACKEND": "root.backends.DummyRetryBackend",
+            "QUEUES": settings.TASK_QUEUES,
+        },
     }
     return task_backends["default"].results
 
@@ -58,6 +62,23 @@ class TestDomainCheckAdmin:
 
     def test_recheck__registered(self):
         assert "recheck" in DomainCheckAdmin.actions
+
+    @pytest.mark.django_db
+    def test_recheck__hidden_without_change_permission(self, rf):
+        user = User.objects.create_user(
+            username="viewer",
+            password="secret",
+            is_staff=True,
+        )
+        user.user_permissions.add(
+            Permission.objects.get(codename="view_domaincheck"),
+        )
+        request = rf.get("/admin/")
+        request.user = user
+
+        actions = admin.site._registry[DomainCheck].get_actions(request)
+
+        assert "recheck" not in actions
 
     @pytest.mark.django_db
     def test_recheck__queues_a_fresh_check(self, client, admin_user, task_results):

@@ -52,7 +52,10 @@ class DomainCheckAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
         """Rows come from the public checker, which also queues the check."""
         return False
 
-    @admin.action(description=_("Recheck selected domains"))
+    @admin.action(
+        description=_("Recheck selected domains"),
+        permissions=["change"],
+    )
     def recheck(self, request, queryset):
         """Force a fresh check, even for results that are still recent."""
         to_check = queryset.exclude(
