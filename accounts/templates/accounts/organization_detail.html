@@ -6,9 +6,6 @@
     <h2 class="m-0">{{ organization }}</h2>
     {% if is_admin %}
       <div role="group" class="button-group">
-        <a href="{% url 'accounts:org-update' organization.slug %}" class="btn" data-variant="secondary">
-          {% translate "edit"|capfirst context "verb" %}
-        </a>
         <a href="{% url 'accounts:org-delete' organization.slug %}" class="btn" data-variant="destructive">
           {% translate "delete"|capfirst context "verb" %}
         </a>
