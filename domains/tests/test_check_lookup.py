@@ -210,7 +210,7 @@ class TestAccessors:
         assert lookup.mx("example.com") == MxLookup()
 
 
-class TestAsn:
+class TestFetchAsn:
     def test_fetch_asn__reads_the_asn_and_network(self, lookup, dns_resolver):
         dns_resolver.add(
             "1.2.0.192.origin.asn.cymru.com",
