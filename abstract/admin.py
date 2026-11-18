@@ -1,5 +1,6 @@
 class TimeStampedAdminMixin:
     readonly_fields = ["modified_at", "created_at"]
+    list_display = ["modified_at", "created_at"]
     list_filter = ["modified_at", "created_at"]
 
     def __init_subclass__(cls, **kwargs):
@@ -9,3 +10,9 @@ class TimeStampedAdminMixin:
             mixin_attr = TimeStampedAdminMixin.__dict__.get(attr, [])
             merged = [*mixin_attr, *(f for f in cls_attr if f not in mixin_attr)]
             setattr(cls, attr, merged)
+
+        # Append the timestamps so the subclass keeps the first column, which
+        # Django links to the change form.
+        columns = list(getattr(cls, "list_display", []))
+        columns += [f for f in TimeStampedAdminMixin.list_display if f not in columns]
+        cls.list_display = columns
