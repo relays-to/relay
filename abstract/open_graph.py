@@ -4,10 +4,24 @@ import io
 import pathlib
 import typing
 
+from django.core import signing
 from django.core.cache import cache
 from PIL import Image, ImageDraw, ImageFont
 
 type RGB = tuple[int, int, int]
+
+SIGNATURE_SALT = "abstract.open_graph"
+SIGNER = signing.Signer(salt=SIGNATURE_SALT)
+
+
+def sign_title(title: str) -> str:
+    """Return a signed token that carries the share card title."""
+    return SIGNER.sign(title)
+
+
+def unsign_title(token: str) -> str:
+    """Return the title from a signed share card token."""
+    return SIGNER.unsign(token)
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -93,17 +107,50 @@ class OpenGraphImage:
     def draw(self, image: Image.Image) -> None:
         raise NotImplementedError
 
+    def compose(self) -> Image.Image:
+        """Draw the overlay on the background and return the finished card."""
+        image = self.background()
+        overlay = Image.new("RGBA", (self.WIDTH_PX, self.HEIGHT_PX), (0, 0, 0, 0))
+        self.draw(overlay)
+        return Image.alpha_composite(image, overlay)
+
     def render(self) -> bytes:
         if not (payload := cache.get(self.cache_key)):
-            image = self.background()
-            overlay = Image.new("RGBA", (self.WIDTH_PX, self.HEIGHT_PX), (0, 0, 0, 0))
-            self.draw(overlay)
-            image = Image.alpha_composite(image, overlay)
             buffer = io.BytesIO()
-            image.convert("RGB").save(buffer, format="PNG", optimize=True)
+            self.compose().convert("RGB").save(buffer, format="PNG", optimize=True)
             payload = buffer.getvalue()
             cache.set(self.cache_key, payload, timeout=self.cache_ttl.total_seconds())
         return payload
+
+
+@dataclasses.dataclass(kw_only=True)
+class BrandImage(OpenGraphImage):
+    """Render the relay wordmark and tagline as the default share card."""
+
+    WORDMARK: typing.ClassVar[str] = "relay"
+    WORDMARK_SIZE_PX: typing.ClassVar[int] = 170
+    WORDMARK_BASELINE_PX: typing.ClassVar[int] = 345
+    TAGLINE: typing.ClassVar[str] = "Communication as a Service"
+    TAGLINE_SIZE_PX: typing.ClassVar[int] = 52
+    TAGLINE_BASELINE_PX: typing.ClassVar[int] = 455
+
+    def draw(self, image: Image.Image) -> None:
+        draw = ImageDraw.Draw(image)
+        center_x = self.WIDTH_PX / 2
+        draw.text(
+            (center_x, self.WORDMARK_BASELINE_PX),
+            self.WORDMARK,
+            font=self.font("space-mono-700-italic.ttf", self.WORDMARK_SIZE_PX),
+            fill=self.INK,
+            anchor="ms",
+        )
+        draw.text(
+            (center_x, self.TAGLINE_BASELINE_PX),
+            self.TAGLINE,
+            font=self.font("fira-sans-700.ttf", self.TAGLINE_SIZE_PX),
+            fill=self.INK,
+            anchor="ms",
+        )
 
 
 @dataclasses.dataclass(kw_only=True)

@@ -2,13 +2,14 @@ import datetime as dt
 import hashlib
 
 from django.conf import settings
+from django.core import signing
 from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponse
 from django.utils.translation import gettext_lazy as _
 from django.views import defaults, generic
 from django.views.csrf import csrf_failure
 
-from abstract.open_graph import TitleImage
+from abstract.open_graph import TitleImage, unsign_title
 from abstract.views import (
     PUBLIC_PAGE_CACHE,
     BreadcrumbViewMixin,
@@ -62,7 +63,8 @@ class HomeView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateView):
     def get_context_data(self, **kwargs):
         platform = self.request.get_host().split(":")[0]
         return super().get_context_data(**kwargs) | {
-            "page_title": _("relay: communication as a service"),
+            # The landing page keeps the brand card instead of a title card.
+            "page_title": "",
             "nameservers": [f"ns1.{platform}", f"ns2.{platform}"],
             "brands": BRANDS,
             "testimonials": TESTIMONIALS,
@@ -81,7 +83,7 @@ class OpenSourceView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateVie
 
 
 class OpenGraphImageView(CacheControlMixin, generic.View):
-    """Render a share card for a page title as a PNG."""
+    """Render a share card for a signed page title as a PNG."""
 
     CACHE_VERSION = "v1"
     MAX_TITLE_LENGTH = 120
@@ -93,10 +95,13 @@ class OpenGraphImageView(CacheControlMixin, generic.View):
     }
 
     def get(self, request, *args, **kwargs):
-        title = " ".join((request.GET.get("title") or "").split())
-        title = title[: self.MAX_TITLE_LENGTH]
+        try:
+            title = unsign_title(request.GET.get("signature", ""))
+        except signing.BadSignature as error:
+            raise Http404 from error
+        title = " ".join(title.split())[: self.MAX_TITLE_LENGTH]
         if not title:
-            title = str(_("relay: communication as a service"))
+            raise Http404
         image = TitleImage(
             title=title,
             cache_key=(

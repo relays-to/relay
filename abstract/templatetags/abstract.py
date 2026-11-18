@@ -17,6 +17,7 @@ from pygments.lexers import get_lexer_by_name
 from pygments.util import ClassNotFound
 
 from .. import utils
+from ..open_graph import sign_title
 
 register.filter(is_safe=True)(humanize.ordinal)
 register.filter(is_safe=True)(humanize.intcomma)
@@ -92,9 +93,9 @@ def admin_url(context):
 
 @register.simple_tag(takes_context=True)
 def og_image_url(context, title):
-    """Return the absolute URL of the generated share card for `title`."""
+    """Return the absolute URL of the signed share card for `title`."""
     url = context.request.build_absolute_uri(reverse("og-image"))
-    return f"{url}?{urlencode({'title': title})}"
+    return f"{url}?{urlencode({'signature': sign_title(str(title))})}"
 
 
 @register.inclusion_tag("abstract/timestamp.html")

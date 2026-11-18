@@ -2,10 +2,17 @@ import datetime as dt
 import io
 
 import pytest
+from django.core import signing
 from django.core.cache import cache
 from PIL import Image
 
-from abstract.open_graph import OpenGraphImage, TitleImage
+from abstract.open_graph import (
+    BrandImage,
+    OpenGraphImage,
+    TitleImage,
+    sign_title,
+    unsign_title,
+)
 
 CACHE_HIT = "render must not draw on a cache hit"
 
@@ -71,6 +78,29 @@ class TestOpenGraphImage:
         image = Undrawable(cache_key="cached", cache_ttl=dt.timedelta(minutes=1))
 
         assert image.render() == b"payload"
+
+
+class TestBrandImage:
+    def test_render__returns_the_default_card(self):
+        cache.clear()
+        image = BrandImage(cache_key="brand", cache_ttl=dt.timedelta(minutes=1))
+
+        payload = image.render()
+
+        assert payload.startswith(b"\x89PNG\r\n\x1a\n")
+        assert Image.open(io.BytesIO(payload)).size == (
+            BrandImage.WIDTH_PX,
+            BrandImage.HEIGHT_PX,
+        )
+
+
+class TestTitleSigning:
+    def test_sign_title__round_trips(self):
+        assert unsign_title(sign_title("Message log")) == "Message log"
+
+    def test_unsign_title__rejects_a_forged_token(self):
+        with pytest.raises(signing.BadSignature):
+            unsign_title("Message log")
 
 
 class TestTitleImage:

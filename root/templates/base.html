@@ -32,7 +32,25 @@
         content="{% block og_description %}Email sending, receiving, monitoring, and sandboxes for developers. relay handles the DNS and email plumbing.{% endblock %}"
       >
       {% block social_image %}
-        {% include "partials/social_image.html" with title=page_title|default:"relay: communication as a service" %}
+        {% if page_title %}
+          {% include "partials/social_image.html" with title=page_title %}
+        {% else %}
+          <meta
+            property="og:image"
+            content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.png' %}"
+          >
+          <meta property="og:image:width" content="1200">
+          <meta property="og:image:height" content="630">
+          <meta
+            property="og:image:alt"
+            content="relay logo and the tagline communication as a service"
+          >
+          <meta name="twitter:card" content="summary_large_image">
+          <meta
+            name="twitter:image"
+            content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.png' %}"
+          >
+        {% endif %}
       {% endblock %}
     {% endblock meta_tags %}
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
