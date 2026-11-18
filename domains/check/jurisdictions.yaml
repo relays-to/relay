@@ -414,7 +414,7 @@
   suffixes:
     - mailfence.com
 - name: Runbox
-  country_code: NO
+  country_code: "NO"
   country_name: Norway
   suffixes:
     - runbox.com
