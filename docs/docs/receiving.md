@@ -2,6 +2,7 @@
 name: Receiving
 description: How the relay MX server accepts inbound mail and hands it to your webhooks
 author: Johannes Maron
+modified_at: 2026-10-20
 ---
 
 # Receiving

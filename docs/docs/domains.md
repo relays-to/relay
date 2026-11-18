@@ -2,6 +2,7 @@
 name: Managed domains and DNS
 description: The built-in nameserver, managed sender domains, and verifying delegated domains
 author: Johannes Maron
+modified_at: 2026-11-15
 ---
 
 # Managed domains and DNS

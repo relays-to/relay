@@ -6,7 +6,7 @@ import struct
 import sys
 from pathlib import Path
 
-REQUIRED_KEYS = ("name", "description", "image", "author", "date")
+REQUIRED_KEYS = ("name", "description", "image", "author", "date", "modified_at")
 EXPECTED_SIZE = (1280, 640)
 IMAGE_RE = re.compile(
     r'<img src="\{%\s*static\s+[\'"]([^\'"]+)[\'"]\s*%\}" alt="([^"]*)"'
@@ -115,6 +115,9 @@ def check_frontmatter(
     date = metadata.get("date", "")
     if date and not DATE_RE.fullmatch(date):
         problems.append("frontmatter date must be YYYY-MM-DD")
+    modified_at = metadata.get("modified_at", "")
+    if modified_at and not DATE_RE.fullmatch(modified_at):
+        problems.append("frontmatter modified_at must be YYYY-MM-DD")
     image = metadata.get("image", "")
     if image and not image.startswith("captains_log/"):
         problems.append("frontmatter image must start with captains_log/")

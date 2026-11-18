@@ -129,3 +129,35 @@ class TestDocsDetailView:
         body = response.content.decode()
         assert not body.startswith("---\n")
         assert "name:" not in body
+
+
+class TestMarkdownConditionalGetMixin:
+    def test_get__sets_last_modified_and_etag(self, client):
+        response = client.get(reverse("docs:detail", args=["security"]))
+        assert response.headers["Last-Modified"]
+        assert response.headers["ETag"]
+
+    def test_get__answers_matching_etag_with_304(self, client):
+        url = reverse("docs:detail", args=["security"])
+        etag = client.get(url).headers["ETag"]
+
+        response = client.get(url, HTTP_IF_NONE_MATCH=etag)
+
+        assert response.status_code == 304
+
+    def test_get__gives_markdown_its_own_etag(self, client):
+        url = reverse("docs:detail", args=["security"])
+        html_etag = client.get(url).headers["ETag"]
+        markdown_etag = client.get(url, HTTP_ACCEPT="text/markdown").headers["ETag"]
+
+        assert html_etag != markdown_etag
+
+    def test_list__sets_last_modified(self, client):
+        response = client.get(reverse("docs:list"))
+
+        assert response.headers["Last-Modified"]
+
+    def test_legal__sets_last_modified(self, client):
+        response = client.get(reverse("legal:terms"))
+
+        assert response.headers["Last-Modified"]

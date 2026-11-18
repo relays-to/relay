@@ -2,6 +2,7 @@
 name: Webhooks
 description: Standard Webhooks deliveries with HMAC-SHA256 signatures, verification code, and the retry schedule
 author: Johannes Maron
+modified_at: 2026-11-03
 ---
 
 # Webhooks

@@ -2,6 +2,7 @@
 name: Alternative to Mailchimp
 description: A fair 2025 comparison of relay and Mailchimp (Intuit) for email sending, receiving, and monitoring
 author: Johannes Maron
+modified_at: 2026-11-03
 ---
 
 {% load abstract %}

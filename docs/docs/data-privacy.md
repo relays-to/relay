@@ -2,6 +2,7 @@
 name: Data privacy
 description: Where relay runs, what relays stores and for how long, and what never happens to your data
 author: Johannes Maron
+modified_at: 2026-11-03
 ---
 
 # Data privacy

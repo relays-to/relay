@@ -2,6 +2,7 @@
 name: Sender reputation
 description: How relay builds per-domain reputation and turns mailbox-provider reports into action
 author: Johannes Maron
+modified_at: 2026-11-03
 ---
 
 # Sender reputation

@@ -2,6 +2,7 @@
 name: Reliability
 description: Queued delivery, transmission records, retry schedules, and the maintenance window
 author: Johannes Maron
+modified_at: 2026-11-01
 ---
 
 # Reliability

@@ -2,6 +2,7 @@
 name: Security
 description: How relay protects your account, credentials, signing keys, and webhook deliveries
 author: Johannes Maron
+modified_at: 2026-11-03
 ---
 
 # Security

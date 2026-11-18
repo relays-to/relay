@@ -2,6 +2,7 @@
 name: MTA-STS
 description: Enforce TLS for incoming mail connections
 author: Johannes Maron
+modified_at: 2026-11-07
 ---
 
 # MTA-STS
