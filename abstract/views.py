@@ -74,7 +74,7 @@ def get_release_etag(etag: str | None) -> str | None:
 class MarkdownConditionalGetMixin:
     """Answer conditional GETs with the modification time of the Markdown source."""
 
-    def get_modified_at(self) -> datetime.datetime | None:
+    def get_modified_at(self) -> dt.datetime | None:
         """Return the modification time of the page source."""
         return None
 

@@ -1,118 +1,99 @@
 ---
 name: Data privacy
-description: Where relay runs, what relays stores and for how long, and what never happens to your data
+description: Where relay runs, what it stores, for how long, and what it never does with your data
 author: Johannes Maron
-modified_at: 2026-11-03
+modified_at: 2026-11-18
 ---
 
 # Data privacy
 
-relay processes your message data only to deliver email and to show you
-reports. The defaults follow one line: keep the data, keep it short, keep it
-in Europe, and never build something on top of it. This page states what
-relay runs, what relay stores, and what relay will not do.
+relay processes message data to deliver email and to show you reports. relay
+keeps the data in Germany, keeps it for a short time, and does not build
+profiles from it.
+
+This page explains what relay stores. It also explains what relay never does
+with your data.
 
 ## Hosting
 
-All relay services run on Hetzner, in the Falkenstein data center (fsn1) in
-Germany:
+relay runs on Hetzner in Falkenstein, Germany. relay makes no third-country
+data transfers.
 
-| Component                | Role                                   | Processes                                                     |
-| ------------------------ | -------------------------------------- | ------------------------------------------------------------- |
-| Web dashboard and API    | Your browser and your OAuth sign-in    | Django web application behind a TLS-terminating reverse proxy |
-| MCP server               | Message access for AI assistants       | FastMCP ASGI application behind the same reverse proxy        |
-| Authoritative nameserver | DNS for your sender domains            | DNS proxy (dnsdist) and dnslib nameserver                     |
-| SMTP submission          | Your message submissions               | aiosmtpd on 587 and 465                                       |
-| MX                       | Inbound delivery on 25                 | aiosmtpd, STARTTLS                                            |
-| Task worker              | Asynchronous delivery, scans, webhooks | Threadmill task runner                                        |
-| PostgreSQL               | Message metadata, org and domain state | Postgres 18+                                                  |
-| Redis                    | Caching and rate limiting              | Redis                                                         |
-| Object storage           | Raw message bodies                     | S3-compatible bucket, behind a proxy that serves signed links |
-| Spam and virus scanning  | Content filter                         | rspamd with ClamAV, cluster-internal                          |
+Location lookups for IP addresses run in your browser, not on relay servers.
+See [Data flows](#data-flows).
 
-No component of this stack belongs to a provider in a third country. relay's
-servers make no third-country data transfers. Location lookups run in your
-browser, not on relay's servers, and are described under Data flows.
+## What relay stores
 
-The node's first-boot configuration is stored with Hetzner as the server's user
-data, because that is how the node's operating system receives it. That document
-holds the cluster's private keys, and Hetzner serves it back to anything running
-on the node. relay treats the node as inside the trust boundary for its own
-cluster credentials, and it accepts the risk deliberately: the alternative is a
-hand-rolled install that gives up repeatable provisioning. See
-<a href="{% url 'docs:detail' slug='security' %}">Security</a> for the full
-limitation.
+| Data                                                            | Where                              | How long                                              |
+| --------------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------- |
+| Raw message bodies                                              | Object storage in Germany          | Until delivery succeeds. Then relay deletes the body. |
+| Message metadata                                                | Database in Germany                | 30 days                                               |
+| Message headers, SMTP transcripts, and webhook delivery records | Database in Germany                | 30 days, with the message                             |
+| DMARC, TLS, and FBL reports                                     | Database in Germany                | 30 days, with the message                             |
+| Suppression list                                                | Database, as salted SHA-256 hashes | Until you remove the entry                            |
+| Account and organization data                                   | Database in Germany                | While your account exists                             |
 
-## What relay stores, and for how long
+relay also keeps a salted hash of an address that bounced for another
+organization for 30 days. This shared block protects all senders from a dead
+mailbox. The hash does not reveal the address.
 
-| Data                                          | Where                             | How long                                              |
-| --------------------------------------------- | --------------------------------- | ----------------------------------------------------- |
-| Raw message bodies                            | Object storage                    | Only for delivery, deletion after successful delivery |
-| Message metadata                              | PostgreSQL                        | 30 days                                               |
-| Message headers (DKIM signatures, sender IPs) | PostgreSQL                        | With the retention of the message metadata            |
-| SMTP and webhook transcripts                  | PostgreSQL, with the message      | With the message retention                            |
-| DMARC, TLS-RPT, webhook-delivery records      | PostgreSQL                        | With the retention of the message metadata            |
-| Suppression list                              | PostgreSQL, salted SHA-256 hashes | Until you remove the entry                            |
+The <a href="{% url 'legal:privacy' %}">privacy policy</a> is the binding
+legal text. This table describes what the product does.
 
-The binding legal text is the <a href="{% url 'legal:privacy' %}">privacy
-policy</a>. This table describes how the platform implements it.
+## What relay does not store
 
-## What relay never stores
+- **Plaintext suppression addresses.** relay stores a salted SHA-256 hash. It
+  can compare an address with the list but cannot read the address back.
+- **Message bodies in webhook payloads.** A webhook delivery carries a signed
+  URL to the raw message. The body does not travel in the payload.
+- **Passwords.** GitHub OAuth handles sign-in. relay stores no password.
+- **Plaintext API keys.** relay stores a key prefix and a one-way hash. The
+  plaintext key appears once at creation.
+- **Feedback-ID headers that you supply.** relay replaces the header with its
+  own value at submission.
 
-- **Plain suppressed addresses.** A suppression entry is a salted SHA-256
-  hash of the lowercased address. relay can compare, but not read back.
-- **The message body inside webhook payloads.** A delivery carries the event
-  and a signed, expiring storage URL. The link grants read access to that one
-  message for an hour. The body never travels inline.
-- **Passwords.** GitHub OAuth signs in, and relay stores no password at all.
-- **API keys in plain form.** The database holds prefixes and hashes. The
-  plain key is visible once at creation.
-- **Customer-supplied Feedback-IDs.** relay replaces them with its own header
-  at submission. The message does not carry your campaign identifiers.
+## What relay does not do
 
-## Monitoring with boundaries
+- No profiling of your senders or recipients.
+- No data mining.
+- No model training on your message content.
+- No sale or resale of message data.
 
-Sentry is off by default. When operators enable it, error reports contain no
-message bodies, tokens, or credentials.
-
-## What relay does not do with your data
-
-- no profiling of your senders or recipients,
-- no data mining, no model training on your content,
-- no sale and no resale of message data.
-
-Processing exists for delivery, for bounces, for reports, and for the
-dashboards you use. Anything else requires an explicit product
-decision, not a hidden default.
+relay processes message data only for delivery, bounces, provider reports, and
+the dashboard.
 
 ## Data flows
 
-- **GitHub OAuth** provides your identity at sign-in. relay stores your
-  GitHub identity and your email address, and requests the email addresses
-  scope only.
-- **Sending requires the platform** to talk to receiving mail servers and to
-  DNS resolvers. Delivery is the product.
-- **IP location lookups happen in your browser.** relay runs them when you
-  open a transmission drawer that carries an IP address and when a DMARC
-  report lists source IPs. Your browser sends those addresses to ipwho.is
-  for an approximate location. Transmission drawers also load map tiles
-  from OpenFreeMap. relay does not proxy these requests, does not store the
-  result, and does not send message data to either service.
-- **Reports come in** from mailbox providers to the addresses your DMARC
-  and TLS-RPT records name. relay parses them for your dashboards.
+| Service                | Data                                               | Purpose                                            |
+| ---------------------- | -------------------------------------------------- | -------------------------------------------------- |
+| GitHub OAuth           | Your GitHub identity and email address             | Sign-in and account creation                       |
+| Receiving mail servers | Message content and SMTP metadata                  | Email delivery                                     |
+| Public DNS resolvers   | Domain names                                       | MX, SPF, DKIM, DMARC, MTA-STS, and TLS-RPT lookups |
+| ipwho.is               | IP addresses from a transmission or a DMARC report | Approximate location in the dashboard              |
+| OpenFreeMap            | Map tile requests                                  | Map display in the dashboard                       |
+| Mailbox providers      | DMARC, TLS, and FBL reports                        | Sender reputation                                  |
 
-## GDPR
+The location and map requests run in your browser. relay does not proxy them
+and does not store the result. relay sends no message content to ipwho.is or
+OpenFreeMap.
 
-relay operates under GDPR rules, and the platform design supports them:
-EU-only processing, short storage, data minimization, and encryptions at
-rest for secrets. For legal binding commitments, read the
+relay requests only the email scope from GitHub. It does not read your
+repositories.
+
+## Your rights
+
+relay operates under the GDPR. The design supports these rights through
+EU-only processing, short storage, data minimization, and encryption of
+secrets at rest.
+
+For the binding commitments, read the
 <a href="{% url 'legal:terms' %}">terms of service</a> and the
-<a href="{% url 'legal:privacy' %}">privacy policy</a>, which also cover
-your rights as a data subject.
+<a href="{% url 'legal:privacy' %}">privacy policy</a>. The privacy policy
+also explains your rights as a data subject.
 
 ## Related pages
 
-- <a href="{% url 'docs:detail' slug='security' %}">Security</a>. Access
-  control and key protection.
-- <a href="{% url 'docs:detail' slug='encryption' %}">Encryption</a>. TLS and
-  key material at rest.
+- <a href="{% url 'docs:detail' slug='security' %}">Security</a>. Account
+  access, credentials, and transport encryption.
+- <a href="{% url 'docs:detail' slug='deliverability' %}">Deliverability</a>.
+  The suppression list.

@@ -1,174 +1,166 @@
 ---
 name: Security
-description: How relay protects your account, credentials, signing keys, and webhook deliveries
+description: Protect your account, credentials, signing keys, and message transport
 author: Johannes Maron
-modified_at: 2026-11-03
+modified_at: 2026-11-18
 ---
 
 # Security
 
-relay is communication infrastructure. Your application trusts relay with
-message content and DNS authority for your domains. This page explains the
-mechanisms that make that trust safe. Every claim here describes behavior
-that relay implements today.
+relay stores your message content and controls the DNS for your sender
+domains. This page explains how relay protects that access and what you must
+do on your side.
 
-## Account security
+## Account access
 
-relay authenticates you through GitHub OAuth. relay stores your GitHub
-identity and your email address, but never a password. GitHub proves who you
-are on every sign-in. A password leak from the relay database is impossible
-by design, because relay holds no passwords.
+relay uses GitHub OAuth for sign-in. relay stores your GitHub identity and
+your email address, but no password. GitHub proves your identity at each
+sign-in.
 
-Sign-in creates your personal organization on the first use. An organization
-owns domains, SMTP credentials, webhooks, and messages. relay isolates
-organization data at the database level. Every query of org-owned data filters on the
-organization, so one organization cannot read the messages of another
-organization.
+An organization owns its domains, credentials, endpoints, and messages. One
+organization cannot read the data of another organization.
 
-The dashboard answers over HTTPS only, and its HSTS policy keeps browsers from
+Only members of an organization can open its pages. Members with the `admin`
+role can manage other members. Members with the `write` role can use the
+email features.
+
+The dashboard accepts HTTPS only. The HSTS policy stops a browser from
 falling back to plain HTTP.
 
-relay also blocks domain hijacking between organizations: a domain that
-overlaps a domain of another organization cannot be registered. relay reserves subdomains
-of the managed sender domain for the platform. relay enforces
-both rules before it saves the domain.
+## Domain ownership
 
-## SMTP credential security
+A domain belongs to one organization. relay rejects a domain that overlaps a
+domain of another organization.
 
-Your application submits email over the relay submission host with an
-SMTP credential. A credential belongs to exactly one organization. Each
-credential carries a visible key prefix, so you can tell credentials apart in
-the dashboard and in support conversations.
+You cannot add a subdomain of the relay platform domain or of the managed
+sender zone. relay manages those names.
 
-relay does not store API keys in plain form. relay stores a key prefix and a
-key hash, and only the hash can answer an authentication attempt. The plain
-API-key value is visible once at creation and never again. Authentication
-looks up credentials by organization and prefix and verifies the key hash.
+## SMTP credentials
 
-A sandbox credential exists for testing, and relay never transmits its
-messages to the recipient's mail server.
+Create one credential for each application. Give it a name, so you can tell
+credentials apart in the dashboard and in support messages.
 
-Any credential can carry a `hold` flag. A held credential fails
-authentication immediately without deletion. This buys you a pause button for
-suspicious activity.
+relay stores these values for a credential:
 
-Create one credential per application, and give each one a name. The stored
-message records the credential that submitted it, so every send is
-attributable. If a key leaks, delete it in the dashboard, then create a
-replacement. Rotating credentials changes no message content.
+- A visible key prefix.
+- A one-way hash of the key.
+- The name, type, creation time, and last use.
 
-## Accountability for every message
+relay does not store the plaintext key. The key appears once at creation.
+Copy it then. If you lose it, delete the credential. Then create a new one.
 
-Each stored message records:
+A credential belongs to one organization. Every stored message records the
+credential that submitted it. This record helps the support team trace a
+send.
 
-- the credential that submitted it,
-- whether the submission arrived over TLS,
-- sender, recipient, and subject,
-- the full SMTP transcript of every delivery attempt.
+### Rotate a credential
 
-Support conversations therefore start from facts: which key sent what, and
-how the remote server answered.
+1. Create a new credential.
+2. Deploy the new key to your application.
+3. Make sure that the application sends with the new credential.
+4. Delete the old credential.
 
-## Signing key protection
+A new credential changes no message content and no DNS record.
 
-A private signer key and a webhook signing secret must stay secret. relay
-generates each one at creation, encrypts it with Fernet under the platform
-KMS key, and stores only the ciphertext. The database never contains either
-in plain form.
+### Sandbox credentials
 
-DKIM public keys are public by design and appear in DNS. Webhook signing
-secrets appear in the dashboard in `whsec_` format for you to verify
-deliveries. See
-<a href="{% url 'docs:detail' slug='webhooks' %}">Webhooks</a> for the
-verification procedure.
+A sandbox credential accepts and scans messages but never delivers them. Use
+it in development and test environments. See
+<a href="{% url 'docs:detail' slug='sending' %}">Sending</a>.
 
-## Transport security
+## Webhook signing secrets
 
-relay accepts submissions only over TLS, on port 465 (implicit TLS) or 587
-(STARTTLS enforced before any other exchange). relay delivers through
-STARTTLS and enforces MTA-STS for recipient domains that publish a policy.
-The dashboard records whether each message traveled over TLS, so silent
-downgrades do not exist.
+Each inbound endpoint has its own signing secret in `whsec_` form. relay
+stores the secret encrypted. The secret appears in the dashboard for you to
+copy.
+
+relay signs every delivery with the secret. Before you process a payload,
+verify the signature. See
+<a href="{% url 'docs:detail' slug='receiving' %}">Receiving</a> for the
+verification code.
+
+To rotate a webhook secret, create a new endpoint. Then deploy its secret.
+Then delete the old endpoint.
+
+## Encryption in transit
+
+Email is a store-and-forward system. Every mail server on the path reads the
+message. relay encrypts every hop it controls.
+
+### Submission
+
+Your application submits over TLS only:
+
+- Port 465 uses TLS from the first byte.
+- Port 587 needs STARTTLS before AUTH.
+
+relay rejects plaintext submission on both ports.
+
+### Delivery
+
+relay delivers with STARTTLS on port 25. If the recipient domain publishes an
+MTA-STS policy, relay applies the policy before delivery. In `enforce` mode,
+the policy blocks hosts outside the list and needs a valid certificate.
+
+### Inbound
+
+Remote servers deliver to the relay MX on port 25 with STARTTLS. The MX
+certificate matches the MX hostname in your DNS record. relay records the TLS
+version, the cipher, and the certificate of the sender.
+
+The dashboard shows MTA-STS and TLS-RPT records for your domains. These
+records ask senders to use TLS and to report failures.
+
+Each message records whether it traveled over TLS. Open a transmission to see
+the TLS details.
+
+### What relay cannot encrypt
+
+relay cannot encrypt a message end to end. Every server that handles the
+message can read it.
+
+If your content needs end-to-end protection, encrypt it in your application
+before submission, for example with S/MIME or PGP. relay then carries the
+encrypted content.
+
+## Signing keys at rest
+
+Each domain has an RSA-2048 key and an Ed25519 key for DKIM. relay generates
+the keys when you add the domain. relay encrypts the private keys before
+storage. The database never holds a plaintext private key.
+
+Only the public keys appear in DNS. A receiver can verify a signature but
+cannot create one.
 
 ## Inbound protections
 
-The MX server runs a sequence of gates before a message reaches your
-webhook:
+relay runs these checks before an inbound message reaches your endpoint:
 
-```mermaid
-flowchart TD
-    A[Message arrives over STARTTLS] --> B{Recipient domain registered here?}
-    B -- No --> C[Reject with 550]
-    B -- Yes --> D{Inbound DMARC disposition}
-    D -- reject --> C
-    D -- quarantine --> E[Store as quarantined]
-    D -- none --> F[Store as received]
-    E --> G[Spam and malware scan]
-    F --> G
-    G -- score 15 or higher, or malware found --> H[Quarantine, no webhook]
-    G -- clean and not already quarantined --> I[Dispatch webhooks]
-    I --> J{Recipient is postmaster?}
-    J -- Yes --> K[Submit a copy from the receiving domain]
-```
+- The recipient domain must belong to your organization.
+- relay rejects a message that fails a sender `p=reject` DMARC policy at SMTP.
+- A `p=quarantine` result stores the message as quarantined.
+- The spam and malware scan quarantines a message that fails.
+- A quarantined message never reaches a webhook.
 
-A reject disposition returns an SMTP failure to the sending server inside the
-SMTP transaction. The message never enters the platform. A high spam score
-quarantines the message instead of delivering it, and no webhook fires. The
-same applies to malware and to any other message the scan rejects, and a
-quarantined message is never forwarded. relay also forwards mail addressed to
-postmaster, with or without a `+` extension, to every member of the
-organization. Those copies are outgoing messages relay signs for the receiving
-domain, so they are billed and listed like any other message the organization
-sends. The dashboard shows every quarantined message with its score. The message
-detail page renders an HTML body in a sandboxed frame that runs no scripts
-and sends no referrer, so a body from the outside cannot act inside your
-session. Remote images stay allowed by default, so the body looks as the
-sender wrote it. A client preview shows the message the way that client
-shows it. Outlook holds the remote images back, Gmail and Apple Mail show
-them, and the preview loads them from the reader's browser rather than
-through a client's image proxy. An image that travels inside the message is
-no fetch at all.
+The message detail page shows an HTML body in a sandboxed frame. The frame
+runs no scripts and blocks forms and objects. Remote images load by default,
+so the message looks as the sender wrote it.
 
-## Content Security Policy
+## Protect your secrets
 
-Every web response carries an enforced Content Security Policy and a strict
-integrity policy. Pages load scripts from relay alone, and every module is
-pinned to a hash, so a browser refuses a script it cannot verify.
-
-## Node configuration and cluster keys
-
-Talos, the node's operating system, takes its first-boot configuration from the
-Hetzner instance metadata service, which stores it as the server's user data and
-serves it back to anything running on the node at `169.254.169.254`. That
-document carries the cluster's private keys: the machine and cluster bootstrap
-tokens, the machine, etcd, API-server and aggregator CA keys, the etcd secretbox
-key, and the service-account key. Caddy terminates untrusted TLS, dnsdist
-answers DNS, and rspamd and the application parse mail, all on that node, and the
-cluster network enforces no policy between pods. Code execution in a relay pod
-therefore reads the cluster's permanent PKI and can use it to reach the cluster
-itself.
-
-This is an accepted risk, not a control. The alternative is a hand-rolled ISO
-install that keeps the configuration off the metadata service, which gives up the
-declared, repeatable provisioning the platform is built on. The keys are per
-cluster; replacing them means generating a new secrets bundle and rebuilding the
-node.
-
-## Monitoring and secrets
-
-All relay processes report errors and logs to Sentry, and reporting is off by
-default. Error reports carry no message bodies, no tokens, and no credentials.
-Logs are the same operational messages the services write to stdout, so they
-can contain sender and recipient addresses and IP addresses. Message bodies do
-not travel to Sentry. relay reads secrets from its environment and never writes
-them to the database. Never send secrets inside email messages. Use the
-dashboard's credential management instead.
+- Never send a credential, a webhook secret, or a private key in an email
+  message.
+- Store credentials in your application secret manager, not in source code.
+- Use one credential per application.
+- Delete a credential as soon as you suspect a leak.
+- Keep the dashboard account of each member protected with GitHub two-factor
+  authentication.
 
 ## Related pages
 
-- <a href="{% url 'docs:detail' slug='encryption' %}">Encryption</a>. TLS on
-  every hop and key material at rest.
+- <a href="{% url 'docs:detail' slug='sending' %}">Sending</a>. SMTP setup and
+  authentication.
+- <a href="{% url 'docs:detail' slug='receiving' %}">Receiving</a>. Webhook
+  signatures and inbound checks.
 - <a href="{% url 'docs:detail' slug='data-privacy' %}">Data privacy</a>.
-  Hosting, retention, and data minimization.
-- <a href="{% url 'docs:detail' slug='webhooks' %}">Webhooks</a>. Delivery
-  verification code examples.
+  Hosting, retention, and data flows.

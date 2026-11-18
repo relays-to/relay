@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 import pytest
 from django.http import Http404
@@ -66,8 +66,8 @@ class TestGetArticleModifiedAt:
             docs_dir = tmp_path
             slugs = frozenset({"alpha"})
 
-        assert TestContent.get_article_modified_at("alpha") == datetime.datetime(
-            2026, 10, 20, tzinfo=datetime.UTC
+        assert TestContent.get_article_modified_at("alpha") == dt.datetime(
+            2026, 10, 20, tzinfo=dt.UTC
         )
 
 
@@ -80,8 +80,8 @@ class TestGetLatestModifiedAt:
             docs_dir = tmp_path
             slugs = frozenset({"alpha", "beta"})
 
-        assert TestContent.get_latest_modified_at() == datetime.datetime(
-            2026, 11, 3, tzinfo=datetime.UTC
+        assert TestContent.get_latest_modified_at() == dt.datetime(
+            2026, 11, 3, tzinfo=dt.UTC
         )
 
     def test_get_latest_modified_at__returns_none_for_an_empty_index(self, tmp_path):
