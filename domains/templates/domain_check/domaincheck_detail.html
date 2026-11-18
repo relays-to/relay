@@ -95,24 +95,6 @@
           <span>{% translate "All checks pass." %}</span>
         {% endif %}
       </p>
-      {% if domain_check.issue_count %}
-        <section class="card my-6">
-          <header>
-            <h2>{% translate "We can help fix these" %}</h2>
-            <p class="text-muted-foreground">
-              {% blocktranslate trimmed %}
-                Some issues come from DNS records we can manage for you. We also host DMARC reporting, MTA-STS, and
-                TLS-RPT for your domain, for free.
-              {% endblocktranslate %}
-            </p>
-          </header>
-          <section>
-            <a class="btn" href="{% url 'accounts:org-start' %}" rel="nofollow">
-              {% translate "get started free"|capfirst %}
-            </a>
-          </section>
-        </section>
-      {% endif %}
       <section class="accordion" data-multiple>
         {% for check in domain_check.check_rows %}
           <details {% if check.status != "pass" %}open{% endif %}>
@@ -190,6 +172,14 @@
                   target="_blank"
                   rel="noopener noreferrer"
                 >{% translate "Learn more" %}</a>
+              {% endif %}
+              {% if check.status == "fail" %}
+                <p class="m-0 text-sm text-muted-foreground">
+                  {% translate "We can help fix this, and we host DMARC reporting, MTA-STS, and TLS-RPT for free." %}
+                  <a class="link" href="{% url 'accounts:org-start' %}" rel="nofollow">
+                    {% translate "get started free"|capfirst %}
+                  </a>
+                </p>
               {% endif %}
             </section>
           </details>
