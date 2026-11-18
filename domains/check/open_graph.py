@@ -38,26 +38,27 @@ class DomainCheckImage(OpenGraphImage):
         return self.check.tier.accent
 
     def draw(self, image: Image.Image) -> None:
+        self.draw_header(image)
+        self.draw_domain(image)
+        self.draw_status(image)
+        self.draw_tier(image, ImageDraw.Draw(image))
+
+    def draw_header(self, image) -> None:
+        self.draw_wordmark(image, "email domain check")
+
+    def draw_domain(self, image) -> None:
         draw = ImageDraw.Draw(image)
-        self.draw_header(draw)
-        self.draw_domain(draw)
-        self.draw_status(draw)
-        self.draw_tier(image, draw)
-
-    def draw_header(self, draw) -> None:
-        self.draw_wordmark(draw, "email domain check")
-
-    def draw_domain(self, draw) -> None:
         name = self.check.name
         for size in range(116, 42, -2):
             candidate = self.font("fira-sans-700.ttf", size)
             if draw.textlength(name, font=candidate) <= self.TEXT_WIDTH_PX:
-                draw.text(
-                    (self.PADDING_PX - 4, self.DOMAIN_BASELINE_PX),
+                self.draw_ink_left(
+                    image,
+                    self.PADDING_PX,
+                    self.DOMAIN_BASELINE_PX,
                     name,
-                    font=candidate,
-                    fill=self.INK,
-                    anchor="ls",
+                    candidate,
+                    self.INK,
                 )
                 return
         head, _, tail = name.rpartition(".")
@@ -68,19 +69,21 @@ class DomainCheckImage(OpenGraphImage):
                     draw.textlength(f"{head}.", font=candidate) <= self.TEXT_WIDTH_PX
                     and draw.textlength(tail, font=candidate) <= self.TEXT_WIDTH_PX
                 ):
-                    draw.text(
-                        (self.PADDING_PX - 4, self.DOMAIN_BASELINE_PX - size - 12),
+                    self.draw_ink_left(
+                        image,
+                        self.PADDING_PX,
+                        self.DOMAIN_BASELINE_PX - size - 12,
                         f"{head}.",
-                        font=candidate,
-                        fill=self.INK,
-                        anchor="ls",
+                        candidate,
+                        self.INK,
                     )
-                    draw.text(
-                        (self.PADDING_PX - 4, self.DOMAIN_BASELINE_PX),
+                    self.draw_ink_left(
+                        image,
+                        self.PADDING_PX,
+                        self.DOMAIN_BASELINE_PX,
                         tail,
-                        font=candidate,
-                        fill=self.INK,
-                        anchor="ls",
+                        candidate,
+                        self.INK,
                     )
                     return
         candidate = self.font("fira-sans-700.ttf", 42)
@@ -90,21 +93,23 @@ class DomainCheckImage(OpenGraphImage):
             and draw.textlength(f"{trimmed}…", font=candidate) > self.TEXT_WIDTH_PX
         ):
             trimmed = trimmed[:-1]
-        draw.text(
-            (self.PADDING_PX - 4, self.DOMAIN_BASELINE_PX),
+        self.draw_ink_left(
+            image,
+            self.PADDING_PX,
+            self.DOMAIN_BASELINE_PX,
             f"{trimmed}…",
-            font=candidate,
-            fill=self.INK,
-            anchor="ls",
+            candidate,
+            self.INK,
         )
 
-    def draw_status(self, draw) -> None:
-        draw.text(
-            (self.PADDING_PX, self.STATUS_BASELINE_PX),
+    def draw_status(self, image) -> None:
+        self.draw_ink_left(
+            image,
+            self.PADDING_PX,
+            self.STATUS_BASELINE_PX,
             self.check.status_line,
-            font=self.font("fira-sans-500.ttf", 36),
-            fill=(*self.INK, 225),
-            anchor="ls",
+            self.font("fira-sans-500.ttf", 36),
+            (*self.INK, 225),
         )
 
     def tier_ring(self, color: RGB) -> Image.Image:

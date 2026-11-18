@@ -36,33 +36,58 @@ class OpenGraphImage:
     def font(self, name: str, size: int) -> ImageFont.FreeTypeFont:
         return ImageFont.truetype(str(self.FONTS_DIR / name), size)
 
-    def draw_wordmark(self, draw: ImageDraw.ImageDraw, label: str) -> None:
-        """Draw the relay wordmark and a label on the same baseline."""
-        left = self.PADDING_PX - 4
-        wordmark = self.font("space-mono-700-italic.ttf", 58)
-        draw.text(
-            (left, self.HEADER_BASELINE_PX),
-            "relay",
-            font=wordmark,
-            fill=self.INK,
-            anchor="ls",
+    def draw_ink_left(
+        self,
+        image: Image.Image,
+        x: float,
+        baseline: float,
+        text: str,
+        font: ImageFont.FreeTypeFont,
+        fill: tuple[int, ...],
+    ) -> float:
+        """Composite text with its leftmost ink on `x` and return its right edge."""
+        layer = Image.new("RGBA", (self.WIDTH_PX, self.HEIGHT_PX), (0, 0, 0, 0))
+        ImageDraw.Draw(layer).text(
+            (0, baseline), text, font=font, fill=fill, anchor="ls"
         )
+        left, _top, right, _bottom = layer.getbbox()
+        image.alpha_composite(layer, (round(x - left), 0))
+        return x + right - left
+
+    def draw_wordmark(self, image: Image.Image, label: str) -> None:
+        """Draw the relay wordmark with a descriptor beside it."""
+        baseline = self.HEADER_BASELINE_PX
+        wordmark_font = self.font("space-mono-700-italic.ttf", 58)
         label_font = self.font("fira-sans-500.ttf", 28)
-        left += draw.textlength("relay", font=wordmark) + 18
-        draw.text(
-            (left, self.HEADER_BASELINE_PX),
-            "|",
-            font=label_font,
-            fill=(*self.INK, 110),
-            anchor="ls",
+        right = self.draw_ink_left(
+            image, self.PADDING_PX, baseline, "relay", wordmark_font, self.INK
         )
-        left += draw.textlength("|", font=label_font) + 18
-        draw.text(
-            (left, self.HEADER_BASELINE_PX),
+        draw = ImageDraw.Draw(image)
+        divider = right + 20
+        label_box = draw.textbbox((0, baseline), label, font=label_font, anchor="ls")
+        x_height = draw.textbbox((0, baseline), "rea", font=wordmark_font, anchor="ls")
+        # Center the descriptor on the wordmark's lowercase body instead of its
+        # baseline, so the pair reads as one lockup.
+        label_baseline = (
+            baseline
+            + (x_height[1] + x_height[3]) / 2
+            - (label_box[1] + label_box[3]) / 2
+        )
+        label_box = draw.textbbox(
+            (0, label_baseline), label, font=label_font, anchor="ls"
+        )
+        draw.rounded_rectangle(
+            (divider, label_box[1], divider + 3, label_box[3]),
+            radius=1.5,
+            fill=(*self.INK, 110),
+        )
+        self.draw_ink_left(
+            image,
+            divider + 20 + 3,
+            label_baseline,
             label,
-            font=label_font,
-            fill=(*self.INK, 200),
-            anchor="ls",
+            label_font,
+            (*self.INK, 200),
         )
 
     def background(self) -> Image.Image:
@@ -121,21 +146,34 @@ class BrandImage(OpenGraphImage):
     TAGLINE_BASELINE_PX: typing.ClassVar[int] = 455
 
     def draw(self, image: Image.Image) -> None:
-        draw = ImageDraw.Draw(image)
-        center_x = self.WIDTH_PX / 2
-        draw.text(
-            (center_x, self.WORDMARK_BASELINE_PX),
+        self.draw_centered(
+            image,
             self.WORDMARK,
-            font=self.font("space-mono-700-italic.ttf", self.WORDMARK_SIZE_PX),
-            fill=self.INK,
-            anchor="ms",
+            self.font("space-mono-700-italic.ttf", self.WORDMARK_SIZE_PX),
+            self.WORDMARK_BASELINE_PX,
         )
-        draw.text(
-            (center_x, self.TAGLINE_BASELINE_PX),
+        self.draw_centered(
+            image,
             self.TAGLINE,
-            font=self.font("fira-sans-700.ttf", self.TAGLINE_SIZE_PX),
-            fill=self.INK,
-            anchor="ms",
+            self.font("fira-sans-700.ttf", self.TAGLINE_SIZE_PX),
+            self.TAGLINE_BASELINE_PX,
+        )
+
+    def draw_centered(
+        self,
+        image: Image.Image,
+        text: str,
+        font: ImageFont.FreeTypeFont,
+        baseline: float,
+    ) -> None:
+        """Center a line on the card by its ink, not its advance width."""
+        layer = Image.new("RGBA", (self.WIDTH_PX, self.HEIGHT_PX), (0, 0, 0, 0))
+        ImageDraw.Draw(layer).text(
+            (0, baseline), text, font=font, fill=self.INK, anchor="ls"
+        )
+        left, _top, right, _bottom = layer.getbbox()
+        image.alpha_composite(
+            layer, (round((self.WIDTH_PX - (right - left)) / 2 - left), 0)
         )
 
 
@@ -156,27 +194,26 @@ class TitleImage(OpenGraphImage):
     TITLE_FONT: typing.ClassVar[str] = "fira-sans-700.ttf"
 
     def draw(self, image: Image.Image) -> None:
-        draw = ImageDraw.Draw(image)
-        self.draw_wordmark(draw, "communication as a service")
-        self.draw_title(draw)
+        self.draw_wordmark(image, "communication as a service")
+        self.draw_title(image)
 
-    def draw_title(self, draw: ImageDraw.ImageDraw) -> None:
+    def draw_title(self, image: Image.Image) -> None:
+        draw = ImageDraw.Draw(image)
         font, lines = self.fit_title(draw)
         spacing = round(font.size * self.TITLE_SPACING_RATIO)
         text = "\n".join(lines)
-        box = draw.multiline_textbbox((0, 0), text, font=font, spacing=spacing)
-        top = (
-            (self.TITLE_TOP_PX + self.TITLE_BOTTOM_PX) / 2
-            - (box[3] - box[1]) / 2
-            - box[1]
+        # Measure the painted ink, not the em box, so wrapping and descenders
+        # cannot shift the block off center.
+        layer = Image.new("RGBA", (self.WIDTH_PX, self.HEIGHT_PX), (0, 0, 0, 0))
+        ImageDraw.Draw(layer).multiline_text(
+            (0, 0), text, font=font, fill=self.INK, spacing=spacing
         )
-        draw.multiline_text(
-            (self.PADDING_PX - 4, top),
-            text,
-            font=font,
-            fill=self.INK,
-            spacing=spacing,
+        left, top, _right, bottom = layer.getbbox()
+        x = round(self.PADDING_PX - left)
+        y = round(
+            (self.TITLE_TOP_PX + self.TITLE_BOTTOM_PX) / 2 - (bottom - top) / 2 - top
         )
+        image.alpha_composite(layer, (x, y))
 
     def fit_title(
         self, draw: ImageDraw.ImageDraw
