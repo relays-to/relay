@@ -193,14 +193,6 @@
             </header>
             <section class="flex flex-col gap-3 md:col-start-1 md:row-start-2">
               {% include "domain_check/partials/jurisdiction_flags.html" with flags=flags %}
-              <p class="m-0 text-sm">
-                <a
-                  class="link"
-                  href="{% url 'know_how:detail' slug='sovereignty' %}"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >{% translate "How we choose the flags" %}</a>
-              </p>
             </section>
             <figure class="m-0 mx-auto w-full max-w-56 md:col-start-2 md:row-span-2 md:mx-0 md:w-56 md:self-center md:pe-6">
               {% include "partials/illustration.html" with name="gdpr" %}
