@@ -174,7 +174,7 @@
                 >{% translate "Learn more" %}</a>
               {% endif %}
               {% if check.status == "fail" %}
-                <p class="m-0 text-sm text-muted-foreground">
+                <p class="m-0 mt-2 text-sm text-muted-foreground">
                   {% translate "We can help fix this, and we host DMARC reporting, MTA-STS, and TLS-RPT for free." %}
                   <a class="link" href="{% url 'accounts:org-start' %}" rel="nofollow">
                     {% translate "get started free"|capfirst %}
