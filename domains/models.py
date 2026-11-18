@@ -20,7 +20,7 @@ from abstract.models import TimeStamped
 from kms.models import SigningKey
 
 from .check.evaluation import Check, CheckResult
-from .check.jurisdictions import JurisdictionFlag, get_country_name
+from .check.jurisdictions import get_country_name
 from .check.tiers import Tier
 
 
@@ -585,7 +585,7 @@ class DomainCheck(TimeStamped):
         return sum(row["issue_count"] for row in self.check_rows)
 
     @property
-    def jurisdiction_flags(self) -> tuple[JurisdictionFlag, ...]:
+    def jurisdiction_flags(self) -> tuple[dict[str, str | tuple[str, ...]], ...]:
         jurisdictions = [
             check.get("metadata", {}).get("jurisdiction")
             for check in self.checks
@@ -621,11 +621,12 @@ class DomainCheck(TimeStamped):
                 if country_code not in country_codes:
                     country_codes.append(country_code)
         return tuple(
-            JurisdictionFlag(
-                country_code=country_code,
-                country_name=str(get_country_name(country_code)),
-                sources=tuple(dict.fromkeys(sources[country_code])),
-            )
+            {
+                "country_code": country_code,
+                "country_name": str(get_country_name(country_code)),
+                "sources": tuple(dict.fromkeys(sources[country_code])),
+                "flag_url": f"https://flagcdn.com/{country_code.lower()}.svg",
+            }
             for country_code in country_codes
             if country_code in sources
         )

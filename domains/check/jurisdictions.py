@@ -1,4 +1,3 @@
-import dataclasses
 import typing
 from collections.abc import Iterable
 from importlib import resources
@@ -18,17 +17,6 @@ MAIL_PROVIDERS: list[MailProvider] = yaml.safe_load(
     .joinpath("jurisdictions.yaml")
     .read_text(encoding="utf-8")
 )
-
-
-@dataclasses.dataclass(frozen=True, slots=True)
-class JurisdictionFlag:
-    country_code: str
-    country_name: str
-    sources: tuple[str, ...]
-
-    @property
-    def flag_url(self) -> str:
-        return f"https://flagcdn.com/{self.country_code.lower()}.svg"
 
 
 def match(
