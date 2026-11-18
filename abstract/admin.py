@@ -1,6 +1,5 @@
 class TimeStampedAdminMixin:
     readonly_fields = ["modified_at", "created_at"]
-    list_display = ["modified_at", "created_at"]
     list_filter = ["modified_at", "created_at"]
 
     def __init_subclass__(cls, **kwargs):
