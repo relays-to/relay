@@ -247,17 +247,18 @@ class Lookup:
                 self.ASN_TIMEOUT,
             )
         except dns.exception.DNSException:
-            answer = ()
-        fields = None
-        for record in answer:
-            candidate = [
-                field.strip()
-                for field in self.render_record(record, dns.rdatatype.TXT).split("|")
-            ]
-            if len(candidate) >= 2:
-                fields = candidate
-                break
-        return fields
+            pass
+        else:
+            for record in answer:
+                candidate = [
+                    field.strip()
+                    for field in self.render_record(record, dns.rdatatype.TXT).split(
+                        "|"
+                    )
+                ]
+                if len(candidate) >= 2:
+                    return candidate
+        return None
 
     def fetch_asn(self, address: str) -> AsnRecord | None:
         record = self._asn_memo.get(address)
