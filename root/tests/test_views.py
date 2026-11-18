@@ -55,8 +55,8 @@ class TestHomeViewBrandCard:
     def test_get__uses_the_static_brand_card(self, client):
         content = client.get(reverse("home")).content.decode()
 
-        assert '"og:image"' in content
-        assert "og-image.png" in content
+        assert 'property="og:image"' in content
+        assert "img/og-image" in content
 
 
 class TestPageCard:
@@ -64,7 +64,7 @@ class TestPageCard:
         content = client.get(reverse("docs:list")).content.decode()
 
         assert "/og.png?signature=" in content
-        assert "og-image.png" not in content
+        assert "img/og-image" not in content
 
 
 class TestHomeViewRender:
