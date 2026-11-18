@@ -15,14 +15,14 @@ class TestSaveUser:
         request = RequestFactory().post("/social/github/login/callback/")
         request.session = SessionStore()
         sociallogin = SocialLogin(
-            user=User(username="newbie", email="n@example.com"),
+            user=User(username="New-Bie", email="n@example.com"),
             account=SocialAccount(provider="github", uid="4242"),
             email_addresses=[
                 EmailAddress(email="n@example.com", verified=True, primary=True)
             ],
         )
         RelaySocialAccountAdapter().save_user(request, sociallogin)
-        org = Organization.objects.get(slug="newbie")
+        org = Organization.objects.get(slug="new-bie")
         assert Membership.objects.filter(
             org=org, user=sociallogin.user, role=Membership.Role.ADMIN
         ).exists()

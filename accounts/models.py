@@ -1,11 +1,13 @@
 import secrets
 
 from django.conf import settings
+from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.validators import RegexValidator
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from django_letter.fields import EmailHash
 from django_letter.notifications import Notification
@@ -18,6 +20,21 @@ organization_slug_validator = RegexValidator(
     message=_("Enter lowercase letters, digits, and single hyphens."),
     code="invalid",
 )
+
+
+class OrganizationQuerySet(models.QuerySet):
+    def create_personal(self, user: AbstractBaseUser) -> Organization:
+        """Create the personal organization for a user."""
+        slug = slugify(user.get_username())
+        counter = 0
+        while True:
+            try:
+                with transaction.atomic():
+                    return self.create(
+                        slug=slug if counter == 0 else f"{slug}-{counter}"
+                    )
+            except IntegrityError:
+                counter += 1
 
 
 class Organization(TimeStamped):
@@ -54,6 +71,8 @@ class Organization(TimeStamped):
             "Free organizations pay nothing but count as billed, for example open-source projects and non-profits."
         ),
     )
+
+    objects = OrganizationQuerySet.as_manager()
 
     def __str__(self):
         return self.slug

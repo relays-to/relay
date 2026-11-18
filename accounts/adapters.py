@@ -24,7 +24,7 @@ class RelaySocialAccountAdapter(DefaultSocialAccountAdapter):
         """Create the account with its personal organization and admin membership."""
         user = super().save_user(request, sociallogin, form)
         Membership.objects.create(
-            org=Organization.objects.create(slug=user.username),
+            org=Organization.objects.create_personal(user),
             user=user,
             role=Membership.Role.ADMIN,
         )
