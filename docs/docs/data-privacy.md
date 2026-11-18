@@ -97,6 +97,14 @@ decision, not a hidden default.
   for an approximate location. Transmission drawers also load map tiles
   from OpenFreeMap. relay does not proxy these requests, does not store the
   result, and does not send message data to either service.
+- **Country flags load from a content delivery network.** The domain check loads country flag
+  images from flagcdn.com. The request carries the country code, not the
+  domain you checked. relay does not proxy the request or store the
+  result.
+- **Domain icons load from a content delivery network.** The domain check loads
+  each domain icon from favicon.vemetric.com. The request carries the domain
+  name, not the page you came from. relay does not proxy the request or store
+  the result.
 - **Reports come in** from mailbox providers to the addresses your DMARC
   and TLS-RPT records name. relay parses them for your dashboards.
 

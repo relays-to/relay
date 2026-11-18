@@ -261,7 +261,7 @@ class TestTier:
         ).tier_letter == ("\u2013")
 
     def test_tier_variant__follows_the_tier(self):
-        assert DomainCheck(penalty=0).tier_variant == "default"
+        assert DomainCheck(penalty=0).tier_variant == "primary"
 
 
 @pytest.mark.django_db

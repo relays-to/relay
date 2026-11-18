@@ -52,10 +52,14 @@
 
 .item {
   &[data-tier] {
-    box-shadow: inset 4px 0 0 var(--status-color, transparent);
+    box-shadow: inset -4px 0 0 var(--status-color, transparent);
   }
 
   &[data-tier="default"] {
+    --status-color: var(--color-primary);
+  }
+
+  &[data-tier="primary"] {
     --status-color: var(--color-primary);
   }
 
