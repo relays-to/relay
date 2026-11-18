@@ -156,6 +156,72 @@ class TestCheckRows:
         assert check.issue_count == 2
 
 
+class TestJurisdictionFlags:
+    def test_jurisdiction_flags__merges_mx_and_spf_sources(self):
+        check = DomainCheck(
+            name="example.com",
+            checks=[
+                {
+                    "key": "mx",
+                    "metadata": {
+                        "jurisdiction": {
+                            "providers": [
+                                {
+                                    "provider_name": "Microsoft 365",
+                                    "country_code": "US",
+                                    "exchange": "example.mail.protection.outlook.com",
+                                }
+                            ],
+                            "networks": [
+                                {
+                                    "asn": "8075",
+                                    "network_name": "MICROSOFT-CORP-MSN-AS-BLOCK",
+                                    "country_code": "US",
+                                    "address": "192.0.2.1",
+                                }
+                            ],
+                            "country_codes": ["US"],
+                        }
+                    },
+                },
+                {
+                    "key": "spf",
+                    "metadata": {
+                        "jurisdiction": {
+                            "providers": [],
+                            "networks": [
+                                {
+                                    "asn": "64500",
+                                    "network_name": "EXAMPLE-NET",
+                                    "country_code": "DE",
+                                    "address": "198.51.100.1",
+                                }
+                            ],
+                            "country_codes": ["DE"],
+                        }
+                    },
+                },
+            ],
+        )
+
+        flags = check.jurisdiction_flags
+
+        assert [flag["country_code"] for flag in flags] == ["US", "DE"]
+        assert flags[0]["country_name"] == "United States"
+        assert flags[0]["sources"] == (
+            "Microsoft 365",
+            "MICROSOFT-CORP-MSN-AS-BLOCK (AS8075)",
+        )
+        assert flags[1]["sources"] == ("EXAMPLE-NET (AS64500)",)
+        assert flags[0]["flag_url"] == "https://flagcdn.com/us.svg"
+
+    def test_jurisdiction_flags__ignores_checks_without_a_jurisdiction(self):
+        assert (
+            DomainCheck(name="example.com", checks=[{"key": "mx"}]).jurisdiction_flags
+            == ()
+        )
+
+
 class TestPenalty:
     def test_penalty_for__is_zero_without_failures(self):
         assert DomainCheck.penalty_for([make_row()]) == 0

@@ -9,7 +9,7 @@ import dns.resolver
 import pytest
 
 from conftest import StubResolver
-from domains.check.lookup import Answer, Lookup, MxLookup, MxRecord
+from domains.check.lookup import Answer, AsnRecord, Lookup, MxLookup, MxRecord
 
 
 def record(text, record_type):
@@ -208,6 +208,34 @@ class TestAccessors:
 
     def test_mx__returns_an_empty_answer_without_records(self, lookup, dns_resolver):
         assert lookup.mx("example.com") == MxLookup()
+
+
+class TestAsn:
+    def test_fetch_asn__reads_the_asn_and_network(self, lookup, dns_resolver):
+        dns_resolver.add(
+            "1.2.0.192.origin.asn.cymru.com",
+            "TXT",
+            '"15169 | 192.0.2.1 | 192.0.2.0/24 | US | arin | 2000-03-30"',
+        )
+        dns_resolver.add(
+            "AS15169.asn.cymru.com",
+            "TXT",
+            '"15169 | US | arin | 2000-03-30 | GOOGLE - Google LLC, US"',
+        )
+
+        assert lookup.fetch_asn("192.0.2.1") == AsnRecord(
+            asn="15169", country_code="US", network_name="Google LLC"
+        )
+
+    def test_fetch_asn__falls_back_to_the_origin_country(self, lookup, dns_resolver):
+        dns_resolver.add(
+            "1.2.0.192.origin.asn.cymru.com",
+            "TXT",
+            '"64500 | 192.0.2.1 | 192.0.2.0/24 | NL | ripencc | 2010-01-01"',
+        )
+        dns_resolver.fail("AS64500.asn.cymru.com", "TXT", dns.resolver.NXDOMAIN())
+
+        assert lookup.fetch_asn("192.0.2.1").country_code == "NL"
 
 
 class TestTtl:
