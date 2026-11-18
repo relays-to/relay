@@ -52,11 +52,6 @@ urlpatterns = [
                                 name="org-detail",
                             ),
                             path(
-                                "edit",
-                                views.OrganizationUpdateView.as_view(),
-                                name="org-update",
-                            ),
-                            path(
                                 "delete",
                                 views.OrganizationDeleteView.as_view(),
                                 name="org-delete",

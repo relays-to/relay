@@ -154,31 +154,6 @@ class TestOrganizationDetailView:
 
 
 @pytest.mark.django_db
-class TestOrganizationUpdateView:
-    def test_get__requires_admin(self, client, org, other_user):
-        Membership.objects.create(org=org, user=other_user, role=Membership.Role.WRITE)
-        client.force_login(other_user)
-        response = client.get(f"/org/{org.slug}/settings/edit")
-        assert response.status_code == 403
-
-    def test_get__admin_can_access(self, admin_client, org):
-        response = admin_client.get(f"/org/{org.slug}/settings/edit")
-        assert response.status_code == 200
-
-    def test_post__changes_slug(self, admin_client, org):
-        response = admin_client.post(
-            f"/org/{org.slug}/settings/edit", {"slug": "renamed"}
-        )
-        assert response.status_code == 302
-        org.refresh_from_db()
-        assert org.slug == "renamed"
-
-    def test_get__not_found_for_non_member(self, admin_client, write_org):
-        response = admin_client.get(f"/org/{write_org.slug}/settings/edit")
-        assert response.status_code == 404
-
-
-@pytest.mark.django_db
 class TestOrganizationDeleteView:
     def test_get__requires_admin(self, client, org, other_user):
         Membership.objects.create(org=org, user=other_user, role=Membership.Role.WRITE)

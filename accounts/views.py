@@ -192,29 +192,6 @@ class OrganizationDetailView(
         }
 
 
-class OrganizationUpdateView(
-    OrganizationScopedView,
-    OrganizationObjectMixin,
-    RequireAdminMixin,
-    NoStoreCacheMixin,
-    generic.UpdateView,
-):
-    model = Organization
-    form_class = OrganizationForm
-    title = _("Edit")
-    parent = "accounts:org-detail"
-
-    def form_valid(self, form):
-        messages.success(
-            self.request,
-            _("Updated organization “%(org)s”.") % {"org": self.org},
-        )
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        return self.org.get_absolute_url()
-
-
 class OrganizationDeleteView(
     OrganizationScopedView,
     OrganizationObjectMixin,
