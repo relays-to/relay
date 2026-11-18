@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import typing
 
 from django.db import models
@@ -46,7 +46,7 @@ DMARC_SERIES = (
 
 def build_report_chart(org, report_types):
     """Return chart data per day, grouped by report series."""
-    start = timezone.localdate() - datetime.timedelta(days=CHART_DAYS - 1)
+    start = timezone.localdate() - dt.timedelta(days=CHART_DAYS - 1)
     rows = []
     series = []
     colors = {}

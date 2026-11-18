@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import gzip
 from email.message import EmailMessage
 
@@ -145,9 +145,7 @@ class TestParseArf:
             subtype="feedback-report",
         )
         result = parse_arf(msg.as_bytes())
-        assert result["arrival_at"] == datetime.datetime(
-            2026, 1, 15, 10, 30, tzinfo=datetime.UTC
-        )
+        assert result["arrival_at"] == dt.datetime(2026, 1, 15, 10, 30, tzinfo=dt.UTC)
 
     def test_parse_arf__ignores_invalid_arrival_date(self):
         msg = EmailMessage()

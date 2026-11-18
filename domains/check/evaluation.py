@@ -1,6 +1,6 @@
 import concurrent.futures
 import dataclasses
-import datetime
+import datetime as dt
 import functools
 import hashlib
 import ipaddress
@@ -64,10 +64,10 @@ class Check:
     LABEL: typing.ClassVar[str]
     SLUG: typing.ClassVar[str | None] = None
     HINTS: typing.ClassVar[Mapping[str, str]] = {}
-    TTL_MIN = datetime.timedelta(minutes=30)
+    TTL_MIN = dt.timedelta(minutes=30)
     # Resolvers return the remaining TTL, so a record can answer with minutes
     # left. Absorb that countdown before calling a record too short-lived.
-    TTL_TOLERANCE = datetime.timedelta(minutes=5)
+    TTL_TOLERANCE = dt.timedelta(minutes=5)
     TTL_HINT = f"Raise the record's TTL to at least {human_duration(TTL_MIN)}."
     MAX_LISTED_ADDRESSES = 5
     TRANSITION_NETWORKS = (
@@ -139,9 +139,9 @@ class Check:
         ttl = lookup.ttl(name, record_type)
         if ttl is None:
             return SubCheck(label, "skip", "No TTL reported")
-        if ttl % datetime.timedelta(minutes=1) == datetime.timedelta(seconds=59):
+        if ttl % dt.timedelta(minutes=1) == dt.timedelta(seconds=59):
             # Some providers answer one second short of the published value.
-            ttl += datetime.timedelta(seconds=1)
+            ttl += dt.timedelta(seconds=1)
         detail = human_duration(ttl)
         if ttl + cls.TTL_TOLERANCE >= cls.TTL_MIN:
             return SubCheck(label, "pass", detail)
@@ -614,8 +614,8 @@ class MtaStsCheck(Check):
         "Enforced mode": "Set mode: enforce in the MTA-STS policy.",
         "MX match": "List every MX host in the policy's mx: lines.",
     }
-    FETCH_TIMEOUT = datetime.timedelta(seconds=5)
-    FETCH_CACHE = datetime.timedelta(minutes=5)
+    FETCH_TIMEOUT = dt.timedelta(seconds=5)
+    FETCH_CACHE = dt.timedelta(minutes=5)
     POLICY_LIMIT_BYTES = 64 * 1024
 
     @classmethod

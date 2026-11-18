@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -106,7 +106,7 @@ class TestIsSuppressed:
         entry, _ = SuppressionEntry.objects.create_or_update(
             org=org1, email="bob@example.com", reason=SuppressionEntry.Reason.BOUNCE
         )
-        entry.created_at = timezone.now() - datetime.timedelta(days=31)
+        entry.created_at = timezone.now() - dt.timedelta(days=31)
         entry.save(update_fields=["created_at"])
         assert not SuppressionEntry.objects.is_suppressed(org2, "bob@example.com")
 

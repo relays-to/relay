@@ -1,6 +1,6 @@
 """MX receiving server with STARTTLS support."""
 
-import datetime
+import datetime as dt
 import logging
 import signal
 import sys
@@ -24,7 +24,7 @@ class MXServer:
         ports=(25,),
         tls_cert_path="",
         tls_key_path="",
-        proxy_protocol_timeout: datetime.timedelta | None = None,
+        proxy_protocol_timeout: dt.timedelta | None = None,
     ):
         self.host = host
         self.ports = ports
@@ -66,7 +66,7 @@ def run_mx_server(
     ports=(25,),
     tls_cert_path="",
     tls_key_path="",
-    proxy_protocol_timeout: datetime.timedelta | None = None,
+    proxy_protocol_timeout: dt.timedelta | None = None,
 ):
     server = MXServer(
         host=host,

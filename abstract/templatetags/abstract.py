@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import decimal
 from html import escape
 
@@ -37,7 +37,7 @@ def naturalday(value):
 
 
 @register.filter(expects_localtime=True)
-def naturaltime(value: datetime.datetime):
+def naturaltime(value: dt.datetime):
     """
     Format a datetime as a human-readable relative time.
 
@@ -52,7 +52,7 @@ def naturaltime(value: datetime.datetime):
         a datetime.
 
     """
-    if not isinstance(value, datetime.datetime):
+    if not isinstance(value, dt.datetime):
         return value
     now = timezone.now()
     delta = value - now
@@ -94,7 +94,7 @@ def timestamp(value):
     """Render a `<time>` element with naturaltime and ISO 8601 tooltip."""
     if value is None:
         return {"value": None, "iso": "", "natural": ""}
-    if isinstance(value, datetime.datetime) and timezone.is_aware(value):
+    if isinstance(value, dt.datetime) and timezone.is_aware(value):
         value = timezone.localtime(value)
     return {
         "value": value,
@@ -189,7 +189,7 @@ def percent(text, arg=-1):
 
 
 @register.filter
-def human_duration(value: datetime.timedelta) -> str:
+def human_duration(value: dt.timedelta) -> str:
     """Render a duration in words, so a card reads at a glance."""
     return naturaldelta(value, minimum_unit="milliseconds")
 

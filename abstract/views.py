@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 from django.conf import settings
 from django.db.models import Count, Max
@@ -21,8 +21,8 @@ from .content import MarkdownContent
 # cache, and an ETag page carries the release in its validator.
 PUBLIC_PAGE_CACHE = {
     "public": True,
-    "max_age": datetime.timedelta(seconds=5),
-    "s_maxage": datetime.timedelta(minutes=1),
+    "max_age": dt.timedelta(seconds=5),
+    "s_maxage": dt.timedelta(minutes=1),
     "must_revalidate": True,
 }
 
@@ -30,13 +30,13 @@ PUBLIC_PAGE_CACHE = {
 class CacheControlMixin:
     """Set cache control headers and flag `public` responses for the static chrome."""
 
-    cache_control: dict[str, bool | int | datetime.timedelta] = {}
+    cache_control: dict[str, bool | int | dt.timedelta] = {}
 
     def get_cache_directives(self) -> dict[str, bool | int]:
         """Return the cache control directives with durations in whole seconds."""
         return {
             directive: int(value.total_seconds())
-            if isinstance(value, datetime.timedelta)
+            if isinstance(value, dt.timedelta)
             else value
             for directive, value in self.cache_control.items()
         }
@@ -59,7 +59,7 @@ class RevalidationCacheMixin(CacheControlMixin):
 
     cache_control = {
         "private": True,
-        "max_age": datetime.timedelta(seconds=5),
+        "max_age": dt.timedelta(seconds=5),
         "must_revalidate": True,
     }
 
@@ -95,7 +95,7 @@ class ConditionalGetMixin(RevalidationCacheMixin):
 class ConditionalGetListMixin(RevalidationCacheMixin):
     """Answer conditional GETs for a list with an ETag and `Last-Modified` from its newest row."""
 
-    def get_list_summary(self, queryset) -> tuple[int, datetime.datetime | None]:
+    def get_list_summary(self, queryset) -> tuple[int, dt.datetime | None]:
         """Return the number of rows and the newest modification time of the list."""
         summary = queryset.aggregate(
             count=Count("pk"),
@@ -103,7 +103,7 @@ class ConditionalGetListMixin(RevalidationCacheMixin):
         )
         return summary["count"], summary["modified_at"]
 
-    def get_list_etag(self, count: int, modified_at: datetime.datetime | None) -> str:
+    def get_list_etag(self, count: int, modified_at: dt.datetime | None) -> str:
         """Return the ETag of the list summary."""
         if modified_at is None:
             return f'"{count:x}"'

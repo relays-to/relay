@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 import pytest
 from cryptography import x509
@@ -113,7 +113,7 @@ def make_certificate(common_name):
     """Return a self-signed TLS certificate for the given DNS name."""
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     name = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, common_name)])
-    now = datetime.datetime.now(datetime.UTC)
+    now = dt.datetime.now(dt.UTC)
     return (
         x509.CertificateBuilder()
         .subject_name(name)
@@ -121,7 +121,7 @@ def make_certificate(common_name):
         .public_key(key.public_key())
         .serial_number(x509.random_serial_number())
         .not_valid_before(now)
-        .not_valid_after(now + datetime.timedelta(days=90))
+        .not_valid_after(now + dt.timedelta(days=90))
         .add_extension(
             x509.SubjectAlternativeName([x509.DNSName(common_name)]),
             critical=False,

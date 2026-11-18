@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import io
 
 import pytest
@@ -22,12 +22,12 @@ class Undrawable(OpenGraphImage):
 
 class TestOpenGraphImage:
     def test_font__returns_the_requested_size(self):
-        image = Card(cache_key="font", cache_ttl=datetime.timedelta(minutes=1))
+        image = Card(cache_key="font", cache_ttl=dt.timedelta(minutes=1))
 
         assert image.font("fira-sans-500.ttf", 32).size == 32
 
     def test_background__blends_the_four_brand_points(self):
-        image = Card(cache_key="bg", cache_ttl=datetime.timedelta(minutes=1))
+        image = Card(cache_key="bg", cache_ttl=dt.timedelta(minutes=1))
 
         background = image.background()
 
@@ -47,16 +47,14 @@ class TestOpenGraphImage:
         )
 
     def test_draw__is_abstract(self):
-        image = OpenGraphImage(
-            cache_key="draw", cache_ttl=datetime.timedelta(minutes=1)
-        )
+        image = OpenGraphImage(cache_key="draw", cache_ttl=dt.timedelta(minutes=1))
 
         with pytest.raises(NotImplementedError):
             image.draw(Image.new("RGBA", (1, 1)))
 
     def test_render__returns_a_png_and_caches_it(self):
         cache.clear()
-        image = Card(cache_key="render", cache_ttl=datetime.timedelta(minutes=1))
+        image = Card(cache_key="render", cache_ttl=dt.timedelta(minutes=1))
 
         payload = image.render()
 
@@ -70,6 +68,6 @@ class TestOpenGraphImage:
     def test_render__serves_the_cached_bytes_without_drawing(self):
         cache.clear()
         cache.set("cached", b"payload", 60)
-        image = Undrawable(cache_key="cached", cache_ttl=datetime.timedelta(minutes=1))
+        image = Undrawable(cache_key="cached", cache_ttl=dt.timedelta(minutes=1))
 
         assert image.render() == b"payload"

@@ -1,6 +1,6 @@
 """Shared TLS helpers for the mail servers."""
 
-import datetime
+import datetime as dt
 import logging
 import ssl
 import time
@@ -87,7 +87,7 @@ def certificate_hostnames(cert_path: str) -> Iterator[str]:
 def wait_for_certificate_and_key(
     cert_path: str | list[str],
     key_path: str | list[str],
-    timeout: datetime.timedelta = datetime.timedelta(minutes=5),
+    timeout: dt.timedelta = dt.timedelta(minutes=5),
 ) -> None:
     """
     Block until the certificate and key files load successfully.

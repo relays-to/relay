@@ -89,8 +89,8 @@ test = [
 "**/tasks.py" = [ "PLC0415" ]
 "conftest.py" = [ "S106" ]
 [tool.ruff.lint.flake8-import-conventions]
-# The project bans import aliases, so keep the built-in conventions off.
-aliases = {}
+# The project bans import aliases, except for datetime, which is always `dt`.
+aliases = { datetime = "dt" }
 banned-from = [
   "argparse",
   "collections",

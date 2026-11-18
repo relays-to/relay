@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import ipaddress
 
 import dns.exception
@@ -176,7 +176,7 @@ class TestTtlSubcheck:
             "MX TTL",
             "example.com",
             dns.rdatatype.MX,
-            TtlLookup(datetime.timedelta(seconds=1799)),
+            TtlLookup(dt.timedelta(seconds=1799)),
         )
 
         assert subcheck.status == "pass"
@@ -186,7 +186,7 @@ class TestTtlSubcheck:
             "MX TTL",
             "example.com",
             dns.rdatatype.MX,
-            TtlLookup(datetime.timedelta(minutes=25)),
+            TtlLookup(dt.timedelta(minutes=25)),
         )
 
         assert subcheck.status == "pass"
@@ -196,7 +196,7 @@ class TestTtlSubcheck:
             "MX TTL",
             "example.com",
             dns.rdatatype.MX,
-            TtlLookup(datetime.timedelta(minutes=24)),
+            TtlLookup(dt.timedelta(minutes=24)),
         )
 
         assert subcheck.status == "fail"

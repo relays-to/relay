@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 from django.db import models
 from django.utils import timezone
@@ -11,9 +11,7 @@ from services.email.msa.models import MsaCredential, OutgoingMessage
 SEND_HOUR = 9
 
 
-def send_time(
-    start: datetime.datetime, offset: datetime.timedelta
-) -> datetime.datetime:
+def send_time(start: dt.datetime, offset: dt.timedelta) -> dt.datetime:
     """Return the 09:00 weekday that is `offset` after `start`."""
     if not offset:
         return start
@@ -24,7 +22,7 @@ def send_time(
         microsecond=0,
     )
     while moment.weekday() >= 5:
-        moment += datetime.timedelta(days=1)
+        moment += dt.timedelta(days=1)
     return moment
 
 
@@ -37,10 +35,10 @@ class OnboardingStage(models.TextChoices):
 
 # Delay after sign-up; each mail is due on its own day.
 SEND_OFFSETS = {
-    OnboardingStage.WELCOME: datetime.timedelta(0),
-    OnboardingStage.FIRST_REMINDER: datetime.timedelta(days=2),
-    OnboardingStage.SECOND_REMINDER: datetime.timedelta(days=6),
-    OnboardingStage.LAST_REMINDER: datetime.timedelta(days=13),
+    OnboardingStage.WELCOME: dt.timedelta(0),
+    OnboardingStage.FIRST_REMINDER: dt.timedelta(days=2),
+    OnboardingStage.SECOND_REMINDER: dt.timedelta(days=6),
+    OnboardingStage.LAST_REMINDER: dt.timedelta(days=13),
 }
 
 

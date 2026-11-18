@@ -1,5 +1,5 @@
 import contextlib
-import datetime
+import datetime as dt
 from email import message_from_bytes
 
 from defusedxml import ElementTree
@@ -71,9 +71,7 @@ def text(parent, path):
 def parse_timestamp(parent, path):
     """Convert a Unix timestamp from an XML element into an aware datetime."""
     value = text(parent, path)
-    return (
-        datetime.datetime.fromtimestamp(int(value), tz=datetime.UTC) if value else None
-    )
+    return dt.datetime.fromtimestamp(int(value), tz=dt.UTC) if value else None
 
 
 def parse_arf(raw_bytes):
@@ -115,9 +113,7 @@ def update_arf_report(report_data, body):
                     report_data[ARF_FIELD_MAP[key_lower]] = value
                 case "arrival-date":
                     with contextlib.suppress(ValueError):
-                        report_data["arrival_at"] = datetime.datetime.fromisoformat(
-                            value
-                        )
+                        report_data["arrival_at"] = dt.datetime.fromisoformat(value)
                 case "delivery-result":
                     result = value.lower().replace(" ", "-")
                     if result in VALID_DELIVERY_RESULTS:

@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import itertools
 import json
 import time
@@ -67,8 +67,8 @@ class TestWebhookEventFromTest:
         event = WebhookEvent.from_message(None, is_test=True)
         after = int(time.time())
         ts = (
-            datetime.datetime.strptime(event.received_at, "%Y-%m-%dT%H:%M:%SZ")
-            .replace(tzinfo=datetime.UTC)
+            dt.datetime.strptime(event.received_at, "%Y-%m-%dT%H:%M:%SZ")
+            .replace(tzinfo=dt.UTC)
             .timestamp()
         )
         assert before <= ts <= after
@@ -853,8 +853,8 @@ class TestParseTlsReport:
         assert report.reporting_org == "Acme Corp"
         assert report.reporting_email == "mailto:tlsreports@acme.com"
         assert report.report_id == "2026-01-15T00:00:00Z_acme"
-        assert report.begin_at == datetime.datetime(2026, 1, 14, tzinfo=datetime.UTC)
-        assert report.end_at == datetime.datetime(2026, 1, 15, tzinfo=datetime.UTC)
+        assert report.begin_at == dt.datetime(2026, 1, 14, tzinfo=dt.UTC)
+        assert report.end_at == dt.datetime(2026, 1, 15, tzinfo=dt.UTC)
         assert report.successful_session_count == 5
         assert report.failed_session_count == 2
         failure = TlsFailure.objects.get(report=report)

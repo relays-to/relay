@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 from django.db.models import Count
 from django.db.models.functions import TruncDate
@@ -54,7 +54,7 @@ def build_kind_charts(messages, model_names) -> list:
     Counts the queryset the list shows, so the chart follows the filters, and
     colors each status like its badge, so it reads the same in both places.
     """
-    start = timezone.localdate() - datetime.timedelta(days=CHART_DAYS - 1)
+    start = timezone.localdate() - dt.timedelta(days=CHART_DAYS - 1)
     messages = messages.filter(created_at__date__gte=start)
     incoming_model_name = MESSAGE_KINDS["incoming"]
     charts = []

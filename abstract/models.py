@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import uuid
 
 import sentry_sdk
@@ -102,7 +102,7 @@ class Timing(TimeStamped):
         self._span.__exit__(exc_type, exc_value, traceback)
 
     @property
-    def duration(self) -> datetime.timedelta:
+    def duration(self) -> dt.timedelta:
         """Return the elapsed time the timing recorded."""
         return self.finished_at - self.started_at
 
