@@ -59,6 +59,24 @@ class TestOrganization:
 
 
 @pytest.mark.django_db
+class TestOrganizationQuerySet:
+    def test_create_personal__slugifies_a_github_login(self):
+        user = User.objects.create_user(username="New-Bie")
+
+        org = Organization.objects.create_personal(user)
+
+        assert org.slug == "new-bie"
+
+    def test_create_personal__suffixes_a_taken_slug(self):
+        user = User.objects.create_user(username="New-Bie")
+        Organization.objects.create(slug="new-bie")
+
+        org = Organization.objects.create_personal(user)
+
+        assert org.slug == "new-bie-1"
+
+
+@pytest.mark.django_db
 class TestMembership:
     def test_str__includes_user_org_and_role(self):
         user = User.objects.create_user(username="alice", email="a@example.com")
