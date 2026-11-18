@@ -39,6 +39,13 @@ class MxLookup:
         )
 
 
+@dataclasses.dataclass(frozen=True, slots=True)
+class AsnRecord:
+    asn: str
+    country_code: str
+    network_name: str = ""
+
+
 class Lookup:
     """Resolve the DNS records one check needs through a cached resolver."""
 
@@ -48,6 +55,7 @@ class Lookup:
     AUTHORITATIVE_TIMEOUT = dt.timedelta(seconds=3)
     AUTHORITATIVE_TRY_TIMEOUT = dt.timedelta(seconds=1)
     AUTHORITATIVE_TRIES = 2
+    ASN_TIMEOUT = dt.timedelta(seconds=1)
     TRANSIENT_ERRORS = (
         dns.exception.Timeout,
         dns.resolver.NoNameservers,
@@ -55,6 +63,7 @@ class Lookup:
 
     def __init__(self) -> None:
         self._memo: dict[tuple[dns.rdatatype.RdataType, str], Answer] = {}
+        self._asn_memo: dict[str, AsnRecord | None] = {}
         self._resolver = dns.resolver.Resolver()
         self._resolver.lifetime = self.DNS_TIMEOUT.total_seconds()
         self._resolver.cache = dns.resolver.Cache()
@@ -227,3 +236,63 @@ class Lookup:
         return MxLookup(
             records=tuple(sorted(records, key=lambda record: record.preference))
         )
+
+    def fetch_txt_fields(self, query: str) -> list[str] | None:
+        try:
+            answer = self.resolve(
+                self._resolver,
+                query,
+                dns.rdatatype.TXT,
+                1,
+                self.ASN_TIMEOUT,
+            )
+        except dns.exception.DNSException:
+            pass
+        else:
+            for record in answer:
+                candidate = [
+                    field.strip()
+                    for field in self.render_record(record, dns.rdatatype.TXT).split(
+                        "|"
+                    )
+                ]
+                if len(candidate) >= 2:
+                    return candidate
+        return None
+
+    def fetch_asn(self, address: str) -> AsnRecord | None:
+        record = self._asn_memo.get(address)
+        if address not in self._asn_memo:
+            try:
+                ip = ipaddress.ip_address(address)
+            except ValueError:
+                pass
+            else:
+                if isinstance(ip, ipaddress.IPv6Address):
+                    nibbles = ip.exploded.replace(":", "")
+                    query = ".".join(reversed(nibbles)) + ".origin6.asn.cymru.com"
+                else:
+                    query = (
+                        ".".join(reversed(str(ip).split("."))) + ".origin.asn.cymru.com"
+                    )
+                if (origin := self.fetch_txt_fields(query)) and (
+                    asns := origin[0].split()
+                ):
+                    asn = asns[0]
+                    origin_country = origin[3] if len(origin) > 3 else ""
+                    asn_fields = self.fetch_txt_fields(f"AS{asn}.asn.cymru.com")
+                    country_code = (
+                        asn_fields[1] if asn_fields and len(asn_fields) > 1 else ""
+                    ).upper() or origin_country.upper()
+                    network_name = (
+                        asn_fields[4].split(" - ", 1)[-1].rsplit(",", 1)[0].strip()
+                        if asn_fields and len(asn_fields) > 4
+                        else ""
+                    )
+                    record = AsnRecord(
+                        asn=asn,
+                        country_code=country_code,
+                        network_name=network_name,
+                    )
+            self._asn_memo[address] = record
+        return record

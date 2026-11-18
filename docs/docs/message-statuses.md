@@ -1,219 +1,173 @@
 ---
 name: Message statuses
-description: The complete state machines for outgoing and incoming messages, with every transition
+description: Read the status of an outgoing or incoming message and its delivery attempts
 author: Johannes Maron
-modified_at: 2026-11-05
+modified_at: 2026-11-18
 ---
 
 # Message statuses
 
-Every message in the dashboard carries exactly one status. The status tells
-you where the message stands, what relay will still do with it, and which steps need a
-human decision. This page shows both state machines as diagrams and
-explains each transition. Every transition in the diagrams maps to real code
-paths.
+Every message in the dashboard has one status. The status tells you what
+relay did with the message and what it will do next. Each delivery attempt has
+its own record below the message.
 
-Two state machines exist: one for outbound messages, and one for inbound
-messages. A per-attempt record (a Transmission for deliveries, a Webhook
-Delivery for webhook POSTs) sits next to each message with its own outcome,
-so a final status never erases the history of the attempts behind it.
+Use this page to read a status. Then decide what to do.
 
-## The life of an outbound message
+## Outgoing messages
 
 ```mermaid
 stateDiagram-v2
-    [*] --> pending : submission accepted over TLS
+    [*] --> pending : submission accepted
     [*] --> suppressed : recipient on the suppression list
 
-    pending --> held : the spam score reaches the hold threshold or malware is found
-    pending --> sent : delivery completed
-    pending --> bounced : permanent rejection (5xx)
-    pending --> failed : the retry schedule ended without an accepted attempt
+    pending --> sandboxed : sandbox credential, clean scan
+    pending --> held : scan holds the message
+    pending --> sent : a recipient host accepts the message
+    pending --> bounced : permanent rejection
+    pending --> failed : retries exhausted
+    pending --> dropped : organization suspended
 
-    sent --> bounced : permanent failure in a late bounce report
-    failed --> bounced : permanent failure in a late bounce report
-
-    held --> [*]
-    sent --> [*]
-    bounced --> [*]
-    failed --> [*]
-    suppressed --> [*]
+    held --> pending : release and send
+    sent --> bounced : late bounce report
+    failed --> bounced : late bounce report
 ```
 
-| Status     | Trigger                                                                                                                                                | What happens next                                                          |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| pending    | Stored after a `250` acceptance, before the spam scan finishes                                                                                         | The worker scans, signs, and delivers, and retries keep the status pending |
-| suppressed | The recipient address is on the suppression list at submission                                                                                         | Terminal state, no delivery attempt, visible in the dashboard              |
-| sent       | At least one recipient MX host accepted the message after STARTTLS                                                                                     | Final state, unless a late bounce report flips it to bounced               |
-| bounced    | A recipient server answered with a permanent 5xx rejection, or a late bounce report proved the remote rejected the message                             | Final state, relay suppresses the address automatically                    |
-| failed     | The retry schedule ended without an acceptance, an MTA-STS policy blocks every MX host, or the sender domain is not a root domain of your organization | Final state unless a late bounce report flips it to bounced                |
-| held       | The scan rejects the action, the score reaches the hold threshold, or malware is found                                                                 | Final state until a human sees the dashboard                               |
+| Status       | Meaning                                                                             | What to do                                                                                         |
+| ------------ | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `pending`    | relay stored the message. The scan or delivery is not finished.                     | Wait. Read the transmissions if the status does not change.                                        |
+| `held`       | The spam or malware scan held the message. relay did not deliver it.                | Read the scan result. If it is a spam hold, click **Release and send**.                            |
+| `sent`       | A recipient mail server accepted the message.                                       | Nothing. A late bounce report can still change the status to `bounced`.                            |
+| `bounced`    | A recipient server rejected the message permanently.                                | The recipient is on the suppression list. Remove the entry only if the mailbox accepts mail again. |
+| `failed`     | relay did not deliver the message after all retries, or MTA-STS blocked every host. | Open the transmissions and read the reply from each host.                                          |
+| `suppressed` | The recipient was on the suppression list at submission.                            | relay did not deliver the message. Remove the address from the list to send again.                 |
+| `sandboxed`  | The message came from a sandbox credential. relay did not deliver it.               | Nothing. The message is a test message.                                                            |
+| `dropped`    | relay suspended the organization, so it dropped the queued message.                 | Contact support.                                                                                   |
 
-Notes on reading the diagram:
+### What the statuses do not tell you
 
-- A submission puts a message into `pending`, and only a suppressed
-  recipient short-circuits that path at submission time. A suppressed
-  message is a successful SMTP conversation with no delivery, on purpose.
-- `pending` is the only state with an open movement, so every other state
-  comes from the pipeline after acceptance. A temporary delivery failure
-  does not leave `pending` on its own: relay waits 2, 4, 8, 16 and 32
-  minutes between attempts, and the message ends failed only after the
-  sixth attempt.
-- `bounced` and `failed` differ by who is responsible: a remote rejection
-  ends as `bounced`, and relay-side transport problems end as `failed`.
-- `sent` is the strongest final state relay can know: the recipient MX
-  accepted the message. Confirmed recipient delivery is not tracked, and
-  the enum has no such state. A recipient server can still find a
-  permanent failure after acceptance, for example a full mailbox or its
-  own content filter. Its bounce report travels to the per-message bounce
-  address, so the bounce maps to one message.
+`sent` means that a recipient mail server accepted the message. It does not
+mean that the message reached the inbox.
 
-## The life of an inbound message
+A recipient server can accept a message and reject it later. It then sends a
+bounce report to the per-message return path. relay changes the message to
+`bounced` and suppresses the recipient.
+
+A temporary failure does not change the status. The message stays `pending`
+while relay retries. A permanent rejection changes the status to `bounced`. A
+relay-side transport failure can end as `failed`.
+
+## Incoming messages
 
 ```mermaid
 stateDiagram-v2
-    [*] --> received : accepted without a DMARC disposition
-    [*] --> quarantined : accepted with a DMARC quarantine disposition
+    [*] --> received : accepted
+    [*] --> quarantined : DMARC quarantine
 
-    received --> quarantined : the spam score reaches the reject threshold or malware is found
-    received --> dropped : billing inactive or no matching webhook
-    received --> webhook_sent : a matching webhook answered 2xx
-    received --> webhook_failed : webhook retries exhausted without success
-
-    quarantined --> [*]
-    dropped --> [*]
-    webhook_sent --> [*]
-    webhook_failed --> [*]
+    received --> quarantined : spam or malware
+    received --> dropped : billing inactive or no matching endpoint
+    received --> webhook_sent : an endpoint replies with 2xx
+    received --> webhook_failed : all endpoint attempts fail
 ```
 
-| Status         | Trigger                                                                                                                    | What happens next                                                 |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| received       | Stored after acceptance, before the inbound spam check finishes                                                            | The scan runs, then webhooks fire                                 |
-| quarantined    | A DMARC quarantine disposition at acceptance, a spam score at or above the reject threshold, or a message the scan rejects | Final state, no webhook, readable in the dashboard with its score |
-| dropped        | Billing is inactive, or no active webhook matches the recipient                                                            | Final state, the message stays stored                             |
-| webhook_sent   | A POST to a matching active webhook answered 2xx                                                                           | Final state, the delivery record shows the response               |
-| webhook_failed | The Standard Webhooks retry schedule ended without a 2xx, or the webhook was inactive or answered 410                      | Final state, every attempt is in the delivery record              |
+| Status           | Meaning                                                                             | What to do                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `received`       | relay accepted the message. The scan or webhook delivery is not finished.           | Wait. The message log shows the delivery attempts.                             |
+| `quarantined`    | The message got a quarantine result from DMARC, the spam scan, or the malware scan. | Read the message and its score. A quarantined message never reaches a webhook. |
+| `dropped`        | Billing is inactive, or no active endpoint matches the recipient.                   | Activate billing or add a matching endpoint.                                   |
+| `webhook_sent`   | A matching endpoint replied with 2xx.                                               | Nothing. The delivery record shows the response.                               |
+| `webhook_failed` | No matching endpoint accepted the message.                                          | Read the delivery record. Read the response code and the endpoint state.       |
 
-Two details worth knowing:
+A message that hits a `p=reject` DMARC policy never gets a status. relay
+rejects it during the SMTP transaction, so the message is never stored.
 
-- A message with a `p=reject` DMARC disposition never enters these states.
-  relay rejects it inside the SMTP transaction, and it never becomes a
-  stored message.
-- The 410 answer of a webhook is special: 410 tells a caller that the
-  endpoint is gone. It deactivates the webhook for future traffic, and the
-  message ends as `webhook_failed`.
+## Delivery attempts
 
-## The attempt records under the status
+A transmission is one step of one message. An outgoing message starts with a
+submission record. Each delivery attempt adds a record. An incoming message
+starts with a reception record. Each webhook `POST` adds a delivery record.
 
-The transmission list per message shows each attempt with its own outcome.
-A late bounce report adds a row of its own:
+| Transmission status | Meaning                                                                   |
+| ------------------- | ------------------------------------------------------------------------- |
+| `received`          | relay accepted the message on inbound SMTP.                               |
+| `submitted`         | relay accepted the message for delivery.                                  |
+| `sandboxed`         | A sandbox credential submitted the message. No delivery attempt followed. |
+| `sent`              | This attempt reached a recipient host that accepted the message.          |
+| `bounced`           | This attempt got a permanent rejection, now or in a later bounce report.  |
+| `failed`            | This attempt failed. The record names the host and the reason.            |
+| `retry`             | A bounce report announced a delay. The remote server keeps trying.        |
 
-| Transmission status | Meaning                                                                                           |
-| ------------------- | ------------------------------------------------------------------------------------------------- |
-| received            | relay accepted the message over inbound SMTP                                                      |
-| submitted           | relay accepted the message for delivery                                                           |
-| sent                | This attempt reached a recipient MX host that answered success                                    |
-| bounced             | A permanent rejection, during this attempt or in a later bounce report                            |
-| failed              | This attempt failed, and the row names the MX host and the reason                                 |
-| retry               | A bounce report announced a delay; the remote keeps trying and the message status stays unchanged |
+One delivery walk adds one record for each host that relay reached. A failed
+walk keeps the reply from every host, including hosts that MTA-STS rejected.
 
-One delivery walk produces one row per MX host it reached. A failed
-delivery therefore keeps the answer of every host it tried, including the
-hosts MTA-STS rejected and the lookup that found no host at all. An attempt
-that dials a host also keeps the sending IP it used, so a receiver that
-blocked one address of the pool is visible on the attempt. A reception keeps
-both ends of the inbound connection: the local IP that accepted the message,
-and the remote IP with its reverse-DNS hostname. Every retry
-walks the list again and files its own rows, so the timeline shows each
-attempt with the wait that came before it.
+An attempt that opens a connection records the sending IP and the recipient
+host IP. A reception records both ends of the inbound connection. Every retry
+adds its own records, so the timeline shows every attempt and the wait before
+it.
 
-The message detail page also draws these records on a timeline. Each bar
-spans the time relay measured for that attempt: a reception bar covers the
-inbound SMTP transaction, a submission bar covers the outbound SMTP
-transaction, and a delivery bar covers one attempt at an MX host, including
-the MTA-STS check and the SMTP session with that host. The attempt that
-found no host to try covers the MX lookup instead. The gaps between bars
-show how long the message waited in the queue or between retries. Green bars mark successful attempts, red bars mark failures, and
-yellow bars mark retries. Blue bars mark the reception and submission legs.
-The spam check bar takes the color of its verdict: green when the message
-is clean, yellow when the scan holds or rewrites it, red when it rejects it,
-and gray when the check failed. When the scanner measured the malware scan,
-the check bar also carries a shaded segment for it. The width of that
-segment is the share of the check the scan took, never a place inside the
-check, because the scanner reports how long the scan ran and not when it
-started. Hover a bar to see its duration in milliseconds, its exact start
-and end times, the IP path, and the negotiated TLS settings. The spam check
-bar adds the spam score and the share the malware scan took. Click a bar to
-open the full SMTP transcript. When the drawer shows a remote peer address,
-it resolves that address to an approximate location and draws a small map.
-The lookup runs in your browser against ipwho.is and the map tiles come from
-OpenFreeMap, so the address never passes through relay's servers.
+## Read the message detail page
 
-The same applies for inbound messages: one delivery record per webhook POST
-with the URL, response code, and a response excerpt.
+Open a message from the **Message log**. The detail page shows:
 
-## Where you see the statuses
+- The status badge and the scan result.
+- The sender, recipient, and subject.
+- The transmissions with their status and time.
+- The message body and the headers.
 
-- The message list of the dashboard colors each status badge with the
-  same traffic-light tones as the charts: success for sent, received,
-  and webhook_sent, warning for held and quarantined, destructive for
-  bounced, failed, dropped, and webhook_failed, blue for sandboxed, and
-  outline for everything still open or neutral.
-- A message submitted with a sandbox credential gets a blue sandbox
-  badge in the list and on its detail page. The badge sits beside the
-  status while the message is pending or held, and the sandboxed status
-  uses the same blue. relay stores and scans the message but never
-  transmits it.
-- The message list graphs the last 30 days of messages by status. The sent
-  view graphs outgoing messages. The received view graphs incoming
-  messages, including report messages. The unfiltered view graphs both in
-  one chart: outgoing bars above the axis and incoming bars below it. The
-  graph counts the same messages the filters select.
-- The message detail page leads with a delivery card: the status in the
-  traffic-light colors of its badge, how long the delivery took, when the
-  last transmission finished, the sender and recipient, and what the scan
-  found. Tabs below it open on the HTML body when the message carries one,
-  then the plain text body, and the headers last. A message without an HTML
-  part opens on its plain text body. The preview controls beside the tabs
-  render the message the way a common email client does, and open on Gmail,
-  the client most messages are read in. The command picks the client, the
-  theme toggle switches the light and dark preview. A client preview drops the
-  CSS that client never applies, following the support data published on
-  [caniemail.com](https://www.caniemail.com/), and holds remote images back
-  where the client does, which is Outlook. An image the message carries as a
-  part, and the body points to by `cid:` address, is no remote fetch, so every
-  client preview shows it. An image the body embeds as base64 shows only in
-  Apple Mail; Gmail and Outlook drop it. The dark preview applies the dark
-  styles the message carries, and inverts it the way Gmail does.
-- Filters let you watch only failed or quarantined traffic.
+Click a bar in the timeline to open its SMTP transcript. The transcript
+shows the conversation with the remote server, the TLS details, and the
+reply code.
 
-## The antivirus badge
+The timeline colors each attempt:
 
-The message detail page carries a second badge for the malware scan that
-runs on every message alongside the spam score:
+| Color  | Meaning                                           |
+| ------ | ------------------------------------------------- |
+| Green  | The attempt succeeded.                            |
+| Red    | The attempt failed.                               |
+| Yellow | The remote server asked relay to retry.           |
+| Blue   | The inbound reception or the outbound submission. |
 
-| Badge          | Meaning                                                                      |
-| -------------- | ---------------------------------------------------------------------------- |
-| no virus       | The scan ran and found nothing                                               |
-| virus: name    | The scan found a virus, and the badge names it                               |
-| encrypted part | The scan could not read a password-protected attachment                      |
-| macro          | The scan could not inspect an attachment that carries Office macros          |
-| scan limits    | The attachment exceeded what the scanner inspects, so part of it went unseen |
-| not scanned    | No scan has completed for the message yet, or the scan is still retrying     |
+The scan bar uses green for a clean result, yellow for a hold or rewrite, and
+red for a rejection. A gray scan bar means the check failed.
 
-An encrypted part, macros, and exceeded limits all hide content from the
-scanner, so relay treats them as a detection and holds or quarantines the
-message. The badge stays on not scanned until a scan completes, so a message
-that is still queued and a message whose scan keeps failing both show that
-state. The scanner reports only what it finds, so no virus means the scan
-finished without a finding, and it does not promise that every attachment
-was readable.
+## Antivirus badge
+
+relay scans every message for malware. The detail page shows the result:
+
+| Badge            | Meaning                                                    |
+| ---------------- | ---------------------------------------------------------- |
+| `no virus`       | The scan found nothing.                                    |
+| `virus: name`    | The scan found a virus. The badge names it.                |
+| `encrypted part` | The scan did not read a password-protected attachment.     |
+| `macro`          | The scan did not inspect an attachment with Office macros. |
+| `scan limits`    | The attachment was larger than the scan limit.             |
+
+Until a scan completes, the message shows no antivirus badge. relay retries
+the scan.
+
+An encrypted part, a macro, or a size limit hides content from the scanner.
+relay treats these results as a detection and holds or quarantines the
+message.
+
+## Find messages
+
+The **Message log** has these filters:
+
+- **All**, **Sent**, or **Received**.
+- A status.
+- An email address in the search field.
+
+The 30-day chart counts the messages that the current filter selects. The
+unfiltered chart shows outgoing messages above the axis and incoming messages
+below it.
+
+A sandbox message carries a blue **sandbox** badge beside its status while it
+is pending or held. The `sandboxed` status uses the same blue.
 
 ## Related pages
 
-- <a href="{% url 'docs:detail' slug='sending' %}">Sending</a>. The SMTP
-  interface that starts the outbound state machine.
-- <a href="{% url 'docs:detail' slug='reliability' %}">Reliability</a>.
-  What relay does on each failure path.
-- <a href="{% url 'docs:detail' slug='receiving' %}">Receiving</a>. The gates
-  that produce the inbound states.
+- <a href="{% url 'docs:detail' slug='sending' %}">Sending</a>. The submission
+  checks and SMTP replies.
+- <a href="{% url 'docs:detail' slug='receiving' %}">Receiving</a>. The
+  inbound checks and webhook retries.
+- <a href="{% url 'docs:detail' slug='deliverability' %}">Deliverability</a>.
+  Retries, bounces, and the suppression list.

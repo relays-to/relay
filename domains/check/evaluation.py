@@ -24,6 +24,7 @@ from abstract.templatetags.abstract import human_duration
 from domains.mailauth import DmarcPolicy
 from domains.mta_sts import MtaStsRecord
 
+from .jurisdictions import match
 from .lookup import Lookup, MxLookup
 
 
@@ -42,6 +43,7 @@ class CheckResult:
     label: str
     detail: str
     subchecks: tuple[SubCheck, ...] = ()
+    metadata: Mapping[str, typing.Any] = dataclasses.field(default_factory=dict)
 
     @property
     def status(self) -> str:
@@ -114,7 +116,10 @@ class Check:
 
     @classmethod
     def result(
-        cls, subchecks: Iterable[SubCheck], detail: str | None = None
+        cls,
+        subchecks: Iterable[SubCheck],
+        detail: str | None = None,
+        metadata: Mapping[str, typing.Any] | None = None,
     ) -> CheckResult:
         """Collect the subchecks into a result that summarizes them by default."""
         subchecks = tuple(subchecks)
@@ -125,7 +130,7 @@ class Check:
                 )
                 + "."
             )
-        return CheckResult(cls.KEY, cls.LABEL, detail, subchecks)
+        return CheckResult(cls.KEY, cls.LABEL, detail, subchecks, metadata or {})
 
     @classmethod
     def ttl_subcheck(
@@ -224,6 +229,51 @@ class MxCheck(Check):
         return None
 
     @classmethod
+    def calculate_jurisdiction(cls, mx: MxLookup, lookup: Lookup) -> dict:
+        providers = []
+        networks = []
+        country_codes = []
+        seen = set()
+        for exchange in mx.exchanges[: cls.MAX_MX_EXCHANGES]:
+            if exchange not in seen:
+                seen.add(exchange)
+                if provider := match(exchange):
+                    providers.append(
+                        {
+                            "provider_name": provider["name"],
+                            "country_code": provider["country_code"],
+                            "exchange": exchange,
+                        }
+                    )
+                    if provider["country_code"] not in country_codes:
+                        country_codes.append(provider["country_code"])
+                addresses = list(
+                    dict.fromkeys(
+                        address
+                        for address in lookup.addresses(exchange)
+                        if cls.is_global_address(address)
+                    )
+                )
+                if addresses:
+                    asn = lookup.fetch_asn(addresses[0])
+                    if asn is not None:
+                        networks.append(
+                            {
+                                "asn": asn.asn,
+                                "network_name": asn.network_name,
+                                "country_code": asn.country_code,
+                                "address": addresses[0],
+                            }
+                        )
+                        if asn.country_code and asn.country_code not in country_codes:
+                            country_codes.append(asn.country_code)
+        return {
+            "providers": providers,
+            "networks": networks,
+            "country_codes": country_codes,
+        }
+
+    @classmethod
     def run(cls, name: str, lookup: Lookup) -> CheckResult:
         mx = lookup.mx(name)
         if mx.failed:
@@ -243,7 +293,13 @@ class MxCheck(Check):
             subchecks.append(cls.ttl_subcheck("MX TTL", name, dns.rdatatype.MX, lookup))
             if google := cls.google_subcheck(mx):
                 subchecks.append(google)
-        return cls.result(subchecks)
+        result = cls.result(subchecks)
+        if mx.failed or mx.null or not mx.exchanges:
+            return result
+        return dataclasses.replace(
+            result,
+            metadata={"jurisdiction": cls.calculate_jurisdiction(mx, lookup)},
+        )
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -378,6 +434,7 @@ class SpfCheck(Check):
     SPF_MAX_LOOKUPS = 10
     SPF_LOOKUP_TERMS = frozenset({"include", "a", "mx", "ptr", "exists", "redirect"})
     REVERSE_DNS_WORKERS = 16
+    MAX_JURISDICTION_ADDRESSES = 5
 
     @classmethod
     def resolve(cls, name: str, lookup: Lookup) -> SpfLookup:
@@ -520,7 +577,38 @@ class SpfCheck(Check):
             cls.reverse_dns(spf, lookup),
             cls.ttl_subcheck("SPF TTL", name, dns.rdatatype.TXT, lookup),
         )
-        return cls.result(subchecks)
+        result = cls.result(subchecks)
+        if not spf.addresses:
+            return result
+        return dataclasses.replace(
+            result,
+            metadata={"jurisdiction": cls.calculate_jurisdiction(spf, lookup)},
+        )
+
+    @classmethod
+    def calculate_jurisdiction(cls, spf: SpfLookup, lookup: Lookup) -> dict:
+        networks = []
+        country_codes = []
+        seen = set()
+        for address in spf.addresses[: cls.MAX_JURISDICTION_ADDRESSES]:
+            asn = lookup.fetch_asn(address)
+            if asn is not None and asn.asn not in seen:
+                seen.add(asn.asn)
+                networks.append(
+                    {
+                        "asn": asn.asn,
+                        "network_name": asn.network_name,
+                        "country_code": asn.country_code,
+                        "address": address,
+                    }
+                )
+                if asn.country_code and asn.country_code not in country_codes:
+                    country_codes.append(asn.country_code)
+        return {
+            "providers": [],
+            "networks": networks,
+            "country_codes": country_codes,
+        }
 
 
 class DmarcCheck(Check):

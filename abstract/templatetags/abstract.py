@@ -156,10 +156,12 @@ def highlight_code(value: str, language: str = "text") -> str:
     return mark_safe(highlight(value, lexer, code_formatter))  # noqa: S308
 
 
-@register.simple_tag
-def include_md(template_name, **context):
+@register.simple_tag(takes_context=True)
+def include_md(context, template_name, **kwargs):
     """Render a Markdown template to HTML, stripping any YAML frontmatter."""
-    rendered = loader.get_template(template_name).render(context=context)
+    rendered = loader.get_template(template_name).render(
+        context=context.flatten() | kwargs
+    )
     return utils.md_2_html(utils.strip_frontmatter(rendered))
 
 
@@ -169,10 +171,12 @@ def markdown(value: str) -> str:
     return utils.md_2_html(escape(value, quote=False), line_breaks=False)
 
 
-@register.simple_tag
-def include_md_toc(template_name, depth=None, **context):
+@register.simple_tag(takes_context=True)
+def include_md_toc(context, template_name, depth=None, **kwargs):
     """Render a table of contents for a Markdown template, stripping frontmatter."""
-    rendered = loader.get_template(template_name).render(context=context)
+    rendered = loader.get_template(template_name).render(
+        context=context.flatten() | kwargs
+    )
     return utils.md_toc(utils.strip_frontmatter(rendered), depth=depth)
 
 

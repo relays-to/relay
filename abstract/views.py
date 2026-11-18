@@ -9,6 +9,7 @@ from django.utils.cache import (
     patch_cache_control,
     patch_vary_headers,
 )
+from django.utils.formats import date_format
 from django.views import generic
 from django.views.decorators.http import condition
 
@@ -74,7 +75,7 @@ def get_release_etag(etag: str | None) -> str | None:
 class MarkdownConditionalGetMixin:
     """Answer conditional GETs with the modification time of the Markdown source."""
 
-    def get_modified_at(self) -> datetime.datetime | None:
+    def get_modified_at(self) -> dt.datetime | None:
         """Return the modification time of the page source."""
         return None
 
@@ -290,11 +291,14 @@ class MarkdownView(
         )
 
     def get_context_data(self, **kwargs):
+        modified_at = self.get_modified_at()
+        last_updated = date_format(modified_at, "F j, Y") if modified_at else None
         return super().get_context_data(**kwargs) | {
             "title": self.title,
             "meta_description": "",
             "markdown_template": self.get_markdown_template(),
             "toc_levels": self.toc_levels,
+            "last_updated": last_updated,
         }
 
 

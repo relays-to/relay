@@ -20,6 +20,7 @@ from abstract.models import TimeStamped
 from kms.models import SigningKey
 
 from .check.evaluation import Check, CheckResult
+from .check.jurisdictions import get_country_name
 from .check.tiers import Tier
 
 
@@ -583,6 +584,60 @@ class DomainCheck(TimeStamped):
     def issue_count(self) -> int:
         return sum(row["issue_count"] for row in self.check_rows)
 
+    @property
+    def jurisdiction_flags(self) -> tuple[dict[str, str | tuple[str, ...]], ...]:
+        jurisdictions = [
+            check.get("metadata", {}).get("jurisdiction")
+            for check in self.checks
+            if check.get("key") in {"mx", "spf"}
+        ]
+        jurisdictions = [
+            jurisdiction
+            for jurisdiction in jurisdictions
+            if jurisdiction and jurisdiction.get("country_codes")
+        ]
+        if not jurisdictions:
+            return ()
+        sources: dict[str, list[str]] = {}
+        country_codes: list[str] = []
+        for jurisdiction in jurisdictions:
+            for provider in jurisdiction.get("providers", []):
+                country_code = provider.get("country_code")
+                if country_code and provider.get("provider_name"):
+                    sources.setdefault(country_code, []).append(
+                        provider["provider_name"]
+                    )
+            for network in jurisdiction.get("networks", []):
+                country_code = network.get("country_code")
+                if country_code and network.get("asn"):
+                    network_name = network.get("network_name")
+                    label = (
+                        f"{network_name} (AS{network['asn']})"
+                        if network_name
+                        else f"AS{network['asn']}"
+                    )
+                    sources.setdefault(country_code, []).append(label)
+            for country_code in jurisdiction.get("country_codes", []):
+                if country_code not in country_codes:
+                    country_codes.append(country_code)
+        return tuple(
+            {
+                "country_code": country_code,
+                "country_name": str(get_country_name(country_code)),
+                "sources": tuple(dict.fromkeys(sources[country_code])),
+                "flag_url": f"https://flagcdn.com/{country_code.lower()}.svg",
+            }
+            for country_code in country_codes
+            if country_code in sources
+        )
+
+    @staticmethod
+    def serialize_result(result: CheckResult) -> dict:
+        data = dataclasses.asdict(result)
+        if not data.get("metadata"):
+            data.pop("metadata", None)
+        return data | {"status": result.status}
+
     @classmethod
     def store(cls, name: str, results: Iterable[CheckResult]) -> None:
         with transaction.atomic():
@@ -590,11 +645,7 @@ class DomainCheck(TimeStamped):
             if domain_check.status == cls.Status.RUNNING:
                 merged = {check["key"]: check for check in domain_check.checks}
                 merged.update(
-                    {
-                        result.key: dataclasses.asdict(result)
-                        | {"status": result.status}
-                        for result in results
-                    }
+                    {result.key: cls.serialize_result(result) for result in results}
                 )
                 checks = [merged[key] for key in Check.order() if key in merged]
                 update_fields = ["checks"]
