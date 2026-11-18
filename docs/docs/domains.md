@@ -1,173 +1,173 @@
 ---
 name: Managed domains and DNS
-description: The built-in nameserver, managed sender domains, and verifying delegated domains
+description: Use the managed sender domain, add your own domain, and verify the DNS records
 author: Johannes Maron
 ---
 
 # Managed domains and DNS
 
-Most email providers hand you a list of DNS records and hope you type them
-correctly. relay ships its own authoritative nameserver. You prove ownership
-of your domain once, and the nameserver serves the rest: MX, SPF, DKIM, DMARC
-reporting addresses, MTA-STS, TLS-RPT, and the Return-Path zone. This page
-explains the domain model, what relay serves in what name, and how
-verification works.
+relay runs its own authoritative nameserver. You publish one delegation for
+the sender subdomain and a small record set at your root domain. relay
+serves the DNS values under the sender subdomain, so a key or policy change
+needs no edit at your root domain.
 
-## The domain model
+## Domain types
 
-| Kind                  | Example               | Who creates it   | Purpose                                                   |
-| --------------------- | --------------------- | ---------------- | --------------------------------------------------------- |
-| Platform domain       | `relays.to`           | The operator     | The relay infrastructure zone: MX, SMTP, and policy hosts |
-| Managed sender domain | `acme.open.relays.to` | relay, at signup | Delegate with zero setup, pre-verified                    |
-| Your root domain      | `acme.com`            | You              | Your own domain for From, envelope, and reporting         |
-| Sending subdomain     | `mail.relay.acme.com` | relay, derived   | The envelope and DKIM zone. NS delegation points here     |
-| Receiving domain      | `app.acme.com`        | You, as domain   | MX record points at the relay MX hostnames                |
+| Type | Example | Who creates it | What it does |
+| --- | --- | --- | --- |
+| Managed sender domain | `acme.open.relays.to` | relay, at signup | Sends mail immediately with no DNS setup. |
+| Custom domain | `acme.com` | You | Sends and receives mail with your own name. |
+| Receiving domain | `app.acme.com` | You | Receives mail on a subdomain. |
 
-In the examples, `acme.com` is your domain and `relays.to` is the relay
-platform domain.
+Every organization gets a managed sender domain. It is pre-verified and
+cannot be deleted.
 
-Facts to understand about this model:
+## Send from the managed domain
 
-- **The sender subdomain exists once per root domain.** The envelope
-  addresses, the DKIM zone, and the report collectors live under
-  `{prefix}.{root}`. You delegate exactly that subdomain to the relay
-  nameservers, and you add one DMARC record at your root.
-- **Every root domain gets its own signing keys**: RSA-2048 and Ed25519
-  keys, one selector each, at `relay-rsa2048` and `relay-ed25519` under
-  `_domainkey`. Your domain signs with its own keys, so
-  reputation attaches to your domain and not to someone else's.
-- **Managed domains cannot be deleted** in the dashboard, and custom domains can.
-- There can be no overlap: you cannot register a subdomain of the managed
-  domain, and no two organizations can claim overlapping names.
+Open **Credentials**. Then create an SMTP credential. Use the managed domain
+in your From-address, for example `billing@acme.open.relays.to`.
 
-## From signup to first send
+The relay nameserver serves every record for the managed domain. You do not
+edit DNS.
 
-```mermaid
-flowchart TD
-    A[Sign up with GitHub] --> B[Organization created]
-    B --> C[Managed sender domain created and verified]
-    C --> D[DKIM keys generated for the domain]
-    D --> E[Create SMTP credential]
-    E --> F[Send immediately]
-```
+## Add your own domain
 
-Nothing in this path touches DNS configuration. The nameserver serves the
-zone, the platform signs, and you send.
+### 1. Add the domain
 
-The platform signature comes from a platform domain row registered for the
-operator's organization. Relay matches that platform domain by its name.
-Once the platform domain exists, the nameserver serves its DKIM selectors
-through the ordinary record path, and relay cosigns customer mail. Until
-then, relay signs with the sending domain only.
+Open **Domains**. Then click **Add domain**. Enter the root domain, for
+example `acme.com`.
 
-## Adding your own domain
+relay creates the DKIM keys for the domain and shows the records to publish.
 
-The flow for a user domain, for example `acme.com`:
+To send from a subdomain, add the subdomain as a domain. Then verify its
+records. A From-address must match a domain in your organization.
 
-```mermaid
-flowchart TD
-    A[Add domain in dashboard] --> B[Store DKIM keys at creation]
-    B --> C[Dashboard shows the records to publish]
-    C --> D[You publish NS records for the sender subdomain and one DMARC record]
-    D --> E[Run verification]
-    E --> F{Checks ok?}
-    F -- No --> G[Fix shown record, check again]
-    G --> E
-    F -- Yes --> H[Verified for sending, receiving, or reporting]
-    H --> I[Nameserver serves the DNS now]
-```
+### 2. Delegate the sender subdomain
 
-Verification reads the live DNS and groups the result into a prerequisite
-and three tabs:
+Publish NS records for the sender subdomain, for example
+`mail.relay.acme.com`. Use the nameservers from the domain page:
 
-- Delegation: NS delegation on the sender subdomain. The domain page shows
-  the sender subdomain and the nameservers above the tabs.
-  Sending and reporting both depend on it, because the SPF include, the
-  DKIM CNAME targets, and the DMARC and TLS-RPT reporting addresses live in
-  that subdomain.
-- Sending: SPF authorization and the two DKIM CNAMEs. The Ed25519 record is
-  hardening.
-- Receiving: the MX record at the root.
-- Reporting: the DMARC record with relay reporting addresses, the MTA-STS
-  CNAMEs with live MX hosts matching the policy, and the TLS-RPT CNAME
-  pointing at the relay collector.
+| Type | Name | Value |
+| --- | --- | --- |
+| `NS` | `mail.relay.acme.com` | `ns1.relays.to` |
+| `NS` | `mail.relay.acme.com` | `ns2.relays.to` |
 
-The delegation check counts toward both sending and reporting readiness.
-Publish the delegation and the sending records and the domain shows sending
-verified while receiving and reporting still need setup. Checks run per
-record, and the dashboard shows each of them, so a wrong record is
-identifiable. Re-check at any time.
+Sending and reporting are not available until the delegation is live. The
+relay nameserver must serve the sender subdomain.
 
-Each group has a zone file download for providers that import a zone file.
-The file sets `$ORIGIN` and `$TTL`, gives every record an explicit TTL of
-3600, and lists the records relative to your domain. It covers one group:
-delegation, sending, receiving, or reporting.
+### 3. Publish the sending records
 
-## What the nameserver serves
+Open the **Sending** tab. Then publish the records that it shows.
 
-For a delegated domain the authoritative nameserver answers:
+| Type | Name | Value |
+| --- | --- | --- |
+| `TXT` | `acme.com` | `v=spf1 include:mail.relay.acme.com -all` |
+| `CNAME` | `relay-rsa2048._domainkey.acme.com` | `relay-rsa2048._domainkey.mail.relay.acme.com` |
+| `CNAME` | `relay-ed25519._domainkey.acme.com` | `relay-ed25519._domainkey.mail.relay.acme.com` |
 
-| Query name (for acme.com)                 | Type  | Value served                                       |
-| ----------------------------------------- | ----- | -------------------------------------------------- |
-| `acme.com`                                | MX    | `mx1.relays.to` and `mx2.relays.to`, preference 10 |
-| `mail.relay.acme.com`                     | TXT   | SPF record authorizing each relay sending IP       |
-| `a.relay-acme._domainkey...` (both zones) | TXT   | DKIM public keys, one per algorithm                |
-| `acme.com`                                | TXT   | root SPF include of the sender subdomain           |
-| `_dmarc.acme.com`                         | TXT   | DMARC with relay reporting addresses               |
-| `_dmarc.mail.relay.acme.com`              | TXT   | per-subdomain DMARC record                         |
-| `_mta-sts.acme.com`                       | CNAME | `_mta-sts.mail.relay.acme.com`                     |
-| `_mta-sts.mail.relay.acme.com`            | TXT   | `v=STSv1` policy id                                |
-| `mta-sts.acme.com`                        | CNAME | `mta-sts.mail.relay.acme.com`                      |
-| `_smtp._tls.acme.com`                     | CNAME | `_smtp._tls.mail.relay.acme.com`                   |
-| `_smtp._tls.mail.relay.acme.com`          | TXT   | TLS-RPT with the relay collector                   |
-| `mail.relay.acme.com`                     | NS    | the relay nameservers                              |
+The root SPF record includes the sender subdomain. The DKIM CNAMEs point at
+the public keys in the relay zone. relay can send with the RSA key alone.
+relay needs both CNAMEs for the full sending check.
 
-The dashboard always shows the current record set with concrete names and
-the check state per record, so you never hand-edit names here.
+### 4. Publish the reporting records
 
-The MTA-STS CNAME points at `mta-sts.mail.relay.acme.com`. That name sits
-in the sender subdomain `mail.relay.acme.com`, which the relay nameserver
-already serves. relay serves the policy over HTTPS and issues the
-certificate for `mta-sts.acme.com` on the first fetch. You add no record
-and no certificate for that name.
+Open the **Reporting** tab. Then publish the records that it shows.
 
-The `_mta-sts` and `_smtp._tls` CNAMEs delegate the TXT values to relay.
-Their targets sit in the sender subdomain, so relay answers the policy id
-and the TLS-RPT reporting address. A policy change needs no edit at your
-apex. If you previously published either TXT record, delete it before
-adding the CNAME, because a CNAME cannot coexist with other records at the
-same name.
+| Type | Name | Value |
+| --- | --- | --- |
+| `TXT` | `_dmarc.acme.com` | `v=DMARC1; p=reject; sp=reject; adkim=r; aspf=r; rua=mailto:dmarc@mail.relay.acme.com; ruf=mailto:ruf@mail.relay.acme.com;` |
+| `CNAME` | `_mta-sts.acme.com` | `_mta-sts.mail.relay.acme.com` |
+| `CNAME` | `mta-sts.acme.com` | `mta-sts.mail.relay.acme.com` |
+| `CNAME` | `_smtp._tls.acme.com` | `_smtp._tls.mail.relay.acme.com` |
 
-The policy lists the MX record hostnames by default. If the domain receives
-mail through another provider, edit the MTA-STS MX hosts on the domain page.
-Enter one host per line. RFC 8461 wildcard patterns such as `*.example.com`
-are allowed. An empty field follows the MX record hostnames. Verification
-fails when a live MX record does not match one of the listed hosts.
+The DMARC record tells receivers to reject failing mail. It also tells them
+to send reports to relay. The MTA-STS and TLS-RPT CNAMEs delegate their
+values to the sender subdomain, so relay serves them.
 
-## Receiving-domain notes
+The protocol background is in the know-how articles on
+<a href="{% url 'know_how:detail' slug='spf' %}">SPF</a>,
+<a href="{% url 'know_how:detail' slug='dkim' %}">DKIM</a>,
+<a href="{% url 'know_how:detail' slug='dmarc' %}">DMARC</a>,
+<a href="{% url 'know_how:detail' slug='mta-sts' %}">MTA-STS</a>, and
+<a href="{% url 'know_how:detail' slug='tls-rpt' %}">TLS-RPT</a>.
 
-A domain can send and receive independently of each other. `app.acme.com` as
-a receiving domain needs only its MX record to point at your sender
-subdomain. Verification reflects this split: a setup without receiving
-records reads as not set up, not as a failure. Read the
-<a href="{% url 'docs:detail' slug='receiving' %}">receiving</a> page for
-the acceptance flow.
+If a name already has a TXT record, delete it. Then add the CNAME. A CNAME
+cannot share a name with another record.
+
+### 5. Publish the receiving record
+
+To receive mail on the domain, open the **Receiving** tab. Then publish its
+MX records.
+
+| Type | Name | Priority | Value |
+| --- | --- | --- | --- |
+| `MX` | `acme.com` | `10` | `mx1.relays.to` |
+| `MX` | `acme.com` | `10` | `mx2.relays.to` |
+
+A sending-only domain can leave this record out.
+
+### 6. Verify DNS
+
+Click **Verify DNS**. relay reads the live DNS and shows the state of each
+record. The tabs show the sending, receiving, and reporting readiness.
+
+Verification runs per record. Fix a failing record. Then verify again.
+
+Each tab has a **Zone file** download. If your DNS provider imports zone
+files, use it. The file lists the records for that group with an explicit
+TTL.
+
+## MTA-STS
+
+relay serves an MTA-STS policy in `enforce` mode for every domain that
+publishes the MTA-STS records. The policy lists the MX hosts that can receive
+mail for the domain. The policy has a 7-day maximum age.
+
+If your domain receives mail through another provider, list those MX hosts on
+the domain page. Then save the form. Enter one host per line. relay allows
+RFC 8461 wildcard patterns such as `*.example.com`. An empty field uses the
+live MX records.
+
+Verification fails if a live MX record is not in the list. The policy id
+changes when you change the list. Senders then fetch the new policy.
+
+## Receiving-only domain
+
+You can receive mail on a subdomain without sending from it. Add the subdomain
+as a domain, for example `app.acme.com`. Publish only its MX record. Then
+verify it.
+
+The sending and reporting tabs can stay incomplete. A missing record in those
+tabs does not block inbound mail.
+
+Then create a webhook endpoint for the domain in **Inbound email**. See
+<a href="{% url 'docs:detail' slug='receiving' %}">Receiving</a>.
+
+## Domain ownership
+
+A domain belongs to one organization. relay rejects a domain that overlaps a
+domain of another organization.
+
+You cannot add a subdomain of `open.relays.to` or of the relay platform
+domain. relay manages those names.
 
 ## Troubleshooting
 
-| Symptom                                             | Likely cause                                            | Fix                                                          |
-| --------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
-| NS check fails                                      | Delegation missing or typo in the NS records            | Publish the NS records from the dashboard instruction        |
-| DKIM CNAME check fails                              | CNAME not published yet or typo                         | Copy the selector names exactly                              |
-| DMARC check fails                                   | No `v=DMARC1` at the root, or missing relay `rua`/`ruf` | Publish the shown record with both reporting addresses       |
-| MTA-STS check fails                                 | CNAME wrong, or an MX record is outside the policy      | Publish both CNAMEs and list the live MX hosts in the policy |
-| TLS-RPT check fails                                 | CNAME missing or wrong                                  | Publish the `_smtp._tls` CNAME from the dashboard            |
-| TXT merge needed                                    | Multiple TXT entries at the same name                   | One entry per value, quoted as shown                         |
-| Verification stays pending shortly after publishing | DNS caching                                             | Check again after the TTL of your zone                       |
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| The delegation check fails | The NS records are missing or wrong. | Publish the NS records from the domain page. |
+| The SPF check fails | The root TXT record is missing or has a typo. | Publish the exact SPF value from the **Sending** tab. |
+| A DKIM check fails | The CNAME name or target is wrong. | Copy the selector name and target from the page. |
+| The DMARC check fails | The TXT record is missing or has no relay reporting address. | Publish the exact DMARC value from the **Reporting** tab. |
+| The MTA-STS check fails | A CNAME is wrong, or a live MX record is not in the policy. | Publish both CNAMEs. Then add the MX host to the policy. |
+| The TLS-RPT check fails | The `_smtp._tls` CNAME is missing or wrong. | Publish the CNAME from the **Reporting** tab. |
+| A check stays pending after you publish a record | DNS caching. | Wait for the TTL of your zone. Then verify again. |
 
 ## Related pages
 
-- <a href="{% url 'docs:detail' slug='encryption' %}">Encryption</a>. The
-  MTA-STS policy served for your domains.
-- <a href="{% url 'docs:detail' slug='webhooks' %}">Webhooks</a>. Receiving
-  setup from the application side.
+- <a href="{% url 'docs:detail' slug='sending' %}">Sending</a>. Connect your
+  application and submit a message.
+- <a href="{% url 'docs:detail' slug='receiving' %}">Receiving</a>. Accept
+  inbound mail and create webhook endpoints.
+- <a href="{% url 'docs:detail' slug='security' %}">Security</a>. TLS and
+  domain ownership.

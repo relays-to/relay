@@ -1,183 +1,180 @@
 ---
 name: Deliverability
-description: How relay gets your messages into the inbox, and what every SMTP reply means
+description: Keep your mail out of spam, handle bounces, and understand delivery retries
 author: Johannes Maron
 ---
 
 # Deliverability
 
-Deliverability is the sum of every choice a receiving server sees: DNS
-records, authentication, address hygiene, and message quality. relay manages
-the infrastructure of all four. You focus on content and your recipient list.
-This page explains what relay does and why each piece matters for the
-receiver's decision.
+Mailbox providers judge your domain by its authentication, bounce rate,
+complaint rate, and content. relay handles the infrastructure part. You
+handle the content and the recipient list.
 
-## The record set relay manages
+This page explains what relay does for each message. It also explains what
+you can do when delivery fails.
 
-relay runs its own authoritative nameserver. For a delegated domain, for
-example `acme.com`, you deploy the delegation and add DMARC, and relay serves
-the rest. The dashboard lists the exact records, and its checks confirm each
-one:
+## What relay does for every message
 
-| Check         | Where relay looks               | What it wants to see                                 |
-| ------------- | ------------------------------- | ---------------------------------------------------- |
-| NS delegation | `mail.relay.acme.com`           | NS records to the relay nameservers                  |
-| SPF           | root and sender subdomain TXT   | a record that authorizes each relay sending IP       |
-| DKIM          | two CNAME records               | `{selector}._domainkey` pointing into the relay zone |
-| DMARC         | `_dmarc.acme.com` TXT           | `v=DMARC1` with reporting to the relay collector     |
-| MTA-STS       | `_mta-sts` and `mta-sts` CNAMEs | `v=STSv1` policy id and relay policy host            |
-| TLS-RPT       | `_smtp._tls` CNAME              | reporting to the relay TLS collector                 |
+relay manages these parts of deliverability:
 
-Four public-key selectors, two per domain (RSA-2048 and Ed25519),
-sign every message with `h=sha256`. Both algorithms ride on every
-outgoing message, so receivers that cannot read Ed25519 names yet still
-find an RSA signature they accept.
+- It serves the DNS values for SPF, DKIM, DMARC, MTA-STS, and TLS-RPT from
+  one nameserver.
+- It signs every message with the DKIM keys of your sender domain.
+- It scans every message for spam and malware before delivery.
+- It records and suppresses permanent bounces.
+- It retries temporary failures on a fixed schedule.
+- It records every attempt with the remote server reply.
 
-Your message carries one more identity besides your domain keys. relay
-cosigns customers' messages with the keys of the platform domain. The cosign
-carries the platform domain's name, so a receiver can tell the platform
-apart from your domain. Your domain signatures and the cosign cover the same
-headers: From, To, Subject, Date, Message-ID, and `Feedback-ID`.
+See <a href="{% url 'docs:detail' slug='domains' %}">Domains and DNS</a> for
+the records. See <a href="{% url 'docs:detail' slug='reputation' %}">Sender
+reputation</a> for the **Monitoring** page.
 
-relay sets that header for you from the sending domain, your organization,
-the mail type, and the platform's own identifier last. Gmail groups its
-complaint rates by those identifiers. It reports an identifier only when that
-identifier appears in enough mail, so every message of a stream carries the
-same four values. The format is on the
-<a href="{% url 'know_how:detail' slug='feedback-id' %}">Feedback-ID</a>
-page. The complaint path is on the
-<a href="{% url 'docs:detail' slug='reputation' %}">Sender
-reputation</a> page.
+## The suppression list
 
-## A working sender domain from signup
+relay never sends to an address on your suppression list. The list protects
+your bounce rate and your domain reputation.
 
-Every organization gets a managed sender domain at `{org}.open.{platform}`,
-pre-verified and DKIM-signed, with all records served by the internal
-nameserver. Your first message needs no DNS configuration. You can delegate
-your own domains in parallel whenever you want your own domain in the
-equation above.
+### Automatic entries
 
-## The delivery pipeline, step by step
+When a recipient server rejects a message permanently, relay adds the
+recipient to the suppression list. The rejection can arrive in two ways:
+
+- The recipient server replies with a permanent 5xx code during delivery.
+- The recipient server accepts the message and sends a bounce report later.
+
+In both cases, relay sets the message to `bounced` and suppresses the
+address. Later submissions to that address get the `suppressed` status. The
+SMTP transaction still replies with `250`, so your application does not retry.
+
+relay stores each entry as a salted SHA-256 hash. relay can compare an
+address with the list but cannot read the address back.
+
+### Manage the list
+
+Open **Suppression list** to manage entries:
+
+- **Add** suppresses an address by hand. Use it before a large import.
+- **Check** tells you whether relay will suppress the address for your organization.
+- **Remove** allows delivery to the address again.
+- **Clear list** removes every entry.
+
+CAUTION: Remove single entries instead of **Clear list**. **Clear list**
+removes every entry, so relay sends to all of them again. The bounces that
+follow count against your sender reputation.
+
+An address that bounced for another organization stays suppressed for 30
+days. **Clear list** does not remove that shared block.
+
+relay does not remove an entry from your list automatically. If a mailbox
+accepts mail again, remove the entry yourself.
+
+## The outbound scan
+
+relay scans every outgoing message for spam and malware before delivery. A
+message that fails the scan gets the `held` status. It never reaches the
+recipient.
+
+The scan catches a compromised credential, a broken template, or content
+that can hit a spam trap before it damages your domain. The message detail
+page shows the score, the scan action, and the virus verdict.
+
+If the scan holds a message for spam, open the message. Then click **Release
+and send** to deliver it. A message with malware stays held.
+
+## Delivery retries
+
+relay stores a message before it starts delivery. An accepted submission is
+never lost when relay restarts.
 
 ```mermaid
-sequenceDiagram
-    participant App as Your application
-    participant MSA as relay SMTP (587/465)
-    participant Worker as relay worker
-    participant Scan as Scanner
-    participant Sign as DKIM signer
-    participant Remote as Recipient MX
-
-    App->>MSA: STARTTLS, AUTH, message
-    MSA->>MSA: sender-domain, suppression, billing checks
-    MSA-->>App: 250 OK enqueued
-    MSA->>Worker: enqueue spam scan for the stored message
-    Worker->>Scan: scan the stored message
-    Scan-->>Worker: score and action
-    alt score reaches the hold threshold
-        Worker->>Worker: status held, stop
-    else clean
-        Worker->>Sign: sign with RSA-2048, Ed25519
-        Sign-->>Worker: signed message
-        Worker->>Remote: STARTTLS on 25, per-MX attempts
-        Remote-->>Worker: SMTP response, recorded in the dashboard
-    end
+flowchart TD
+    A[Message accepted, signed, and stored] --> B[Spam and malware scan]
+    B -- held --> C[Status held]
+    B -- clean --> E[MX lookup and MTA-STS check]
+    E --> F[Attempt at each MX host]
+    F -- accepted --> G[Status sent]
+    F -- permanent rejection --> H[Status bounced and address suppressed]
+    F -- temporary failure --> I[Status stays pending]
+    I --> F
+    I -- retries exhausted --> J[Status failed]
+    F -- late bounce report --> H
 ```
 
-Each step has a user-visible consequence in the dashboard, listed in the next
-sections.
+### Try each host
 
-## Address hygiene: the suppression list
+A recipient domain can publish several MX hosts. relay tries them in
+preference order. A temporary failure at one host does not stop the walk.
+relay records the reply from each host.
 
-Every message gets a fresh Return-Path of the form
-`bounce+{token}@{sender-subdomain}` with a short signed token that names one
-message, and only relay can mint the address a bounce report must carry. When
-a recipient server rejects a message permanently, relay records
-the bounce, marks the message as bounced, and adds the address to your
-suppression list. The rejection does not have to happen during the SMTP
-conversation. A recipient server can also accept the message first and fail
-it later, for example on a full mailbox or on its own content filter. Its
-bounce report comes back to the per-message bounce address, and relay marks
-the message bounced and suppresses the address the same way. relay then
-refuses further sends to that address. The submission still succeeds, and
-relay stores the message as suppressed, so your application sees no error
-and no retry loop.
+### Retry schedule
 
-You can add entries manually, for example before a large import.
-If the address returns, remove the entry. Clearing the whole list is a
-separate action, and it warns first: every address that bounced starts
-receiving mail again, and those bounces count against your sender
-reputation. Addresses store as salted SHA-256 hashes
-only. See <a href="{% url 'docs:detail' slug='data-privacy' %}">Data
-privacy</a> for what that means.
+If no host accepts the message, relay keeps the message `pending` and retries
+the whole list:
 
-## Content quality: the outbound spam gate
+| Attempt | Wait before the attempt |
+| --- | --- |
+| 1 | Immediate |
+| 2 | 2 minutes |
+| 3 | 4 minutes |
+| 4 | 8 minutes |
+| 5 | 16 minutes |
+| 6 | 32 minutes |
 
-Before delivery, relay scores each outgoing message and scans it for
-malware. A message whose score reaches the hold threshold, or that the scan
-rejects, stays HELD and does not reach the recipient. If the scanner cannot
-run, the message stays pending instead of being held. You see the score,
-the spam action, the malware verdict, and the message content in the
-dashboard, so you can fix the template, not fight the queue. This gate
-catches compromised credentials, broken templates, and spamtraps before
-they hurt your domain.
+The sixth failed attempt ends the message as `failed`. The whole schedule
+takes about one hour.
 
-## When delivery fails
+### Permanent failures
 
-relay tries every MX host of the recipient domain in preference order and
-records one transmission per attempt, with the host and the reason on each
-row. The outcomes:
+A 5xx reply is permanent. relay sets the message to `bounced`. It also
+suppresses the recipient. Do not wait for a retry.
 
-- **5xx answer**. The remote server rejects the message permanently.
-  relay marks the message as bounced and suppresses the address. The
-  dashboard shows the exact SMTP answer.
-- **4xx answer**. The remote server is not accepting the message right now.
-  relay records the answer for that host and tries the next one. When no
-  host accepted the message, relay keeps it pending and retries the whole
-  list on a backoff schedule: 2, 4, 8, 16 and 32 minutes between attempts,
-  about an hour in total. The sixth failed attempt ends the message failed,
-  and every host keeps its own answer from every attempt.
-- **Bounce report after acceptance**. The remote accepted the message and
-  failed it permanently later. relay marks the message as bounced and
-  suppresses the address, and the dashboard shows the remote's answer.
-  A report that only announces a delay records a retry and changes no
-  status.
-- **No MX records or a failed lookup**. relay records why there was nothing
-  to try, and separates a domain without MX records from a lookup that
-  failed, for example a resolver timeout. Both are retried like a temporary
-  answer, because a delegation or a resolver may recover.
-- **MTA-STS rejection**. relay skips the host and records which policy
-  pattern rejected it. A policy that blocks every host is final: relay
-  cannot talk its way past a published policy.
-- **Transport or storage problems**. relay records the failing host and the
-  error, for example a connection timeout or a dropped connection, and
-  retries the message. A fault inside relay, for example a storage error,
-  is recorded and retried the same way.
+A bounce report can also arrive after a successful delivery. relay then
+changes a `sent` or `failed` message to `bounced`.
 
-A 250 acceptance from your submission is not a delivery confirmation. The
-dashboard's transmissions are the confirmation path.
+### Temporary failures
 
-## What your application sees
+A 4xx reply, a connection error, a missing MX record, or a DNS lookup timeout
+is temporary. relay records the reply. Then relay retries.
 
-| SMTP reply you receive                           | Meaning                                        | Your move                                          |
-| ------------------------------------------------ | ---------------------------------------------- | -------------------------------------------------- |
-| 235 after AUTH                                   | Credential accepted                            | Proceed with the message                           |
-| 530 Authentication required                      | Submission without TLS or without AUTH         | Use TLS before AUTH                                |
-| 535 Authentication failed                        | Unknown org, wrong key, or held credential     | Check the key and its state                        |
-| 250                                              | Accepted and queued for delivery               | Nothing, watch the dashboard                       |
-| 550 Sender domain not registered                 | From-domain does not belong to your org        | Register or fix the From address                   |
-| 550 Recipient not allowed without active billing | Trial over, only org-member recipients allowed | Activate billing or use an internal member address |
+relay records a domain without MX records and a failed DNS lookup as
+different failures. A delegation can take time to propagate, so relay retries
+both cases.
 
-## TLS and reputation inputs, briefly
+### MTA-STS
 
-MTA-STS enforcement, TLS-RPT collection, and the SPF/DKIM/DMARC alignment
-above exist because receivers grade those signals. The sender-reputation page
-explains why they are also your reputation story. Read
-<a href="{% url 'docs:detail' slug='reputation' %}">Sender reputation</a>.
+If the recipient domain publishes an MTA-STS policy, relay skips hosts that
+the policy does not list. relay records the policy that blocked the host.
+
+If the policy blocks every host, the message ends as `failed`. relay cannot
+override a published policy.
+
+## What to do with a failed message
+
+1. Open the **Message log**.
+2. Filter by **Sent** and the `failed` status.
+3. Open the message.
+4. Read each transmission. The record names the host and the reply.
+5. Fix the cause. A common cause is a recipient domain with no active MX
+   host.
+
+A `550` reply that names an unknown mailbox is permanent. The suppression
+list already protects you. Do not retry the address.
+
+## Maintenance window
+
+relay runs maintenance on Wednesdays between 01:00 and 03:00 UTC. An upgrade
+can drop open SMTP connections and interrupt a delivery attempt.
+
+relay stores every message before delivery, so an interrupted attempt is
+retried. Expect a delay during the window, not a lost message.
 
 ## Related pages
 
-- <a href="{% url 'docs:detail' slug='sending' %}">Sending</a>. The SMTP
-  interface and all acceptance rules.
-- <a href="{% url 'docs:detail' slug='reliability' %}">Reliability</a>. What
-  happens on each failure path.
+- <a href="{% url 'docs:detail' slug='sending' %}">Sending</a>. Submission
+  checks and SMTP replies.
+- <a href="{% url 'docs:detail' slug='message-statuses' %}">Message
+  statuses</a>. Every status and transmission record.
+- <a href="{% url 'docs:detail' slug='reputation' %}">Sender reputation</a>.
+  Bounce and complaint limits.
+- <a href="{% url 'docs:detail' slug='domains' %}">Domains and DNS</a>.
+  Authentication records.

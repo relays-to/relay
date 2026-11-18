@@ -168,7 +168,7 @@ class TestSitemapSection:
         )
         body = response.content.decode()
         assert "/docs/security/" in body
-        assert "/docs/reliability/" in body
+        assert "/docs/deliverability/" in body
 
     @pytest.mark.django_db
     def test_get__contains_domain_checks(self, client):

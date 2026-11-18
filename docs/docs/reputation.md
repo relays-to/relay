@@ -1,165 +1,139 @@
 ---
 name: Sender reputation
-description: How relay builds per-domain reputation and turns mailbox-provider reports into action
+description: Monitor bounce and complaint rates, read provider reports, and avoid suspension
 author: Johannes Maron
 ---
 
 # Sender reputation
 
-Mailbox providers grade each sending domain on authentication, complaint
-rates, bounce rates, spam rates, and infrastructure hygiene. Those grades
-decide whether your mail lands in the inbox, in a quarantine folder, or in
-the void. relay manages the infrastructure half of that list directly and
-gives you visibility on the rest. This page explains how reputation is built
-and monitored under relay.
+Mailbox providers grade your sender domain. They look at authentication,
+bounce rates, complaint rates, spam rates, and infrastructure. A poor grade
+sends your mail to the spam folder or drops it.
+
+relay manages the infrastructure part and shows you the rates that matter.
+This page explains how to read them. It also explains how to keep them low.
 
 ## Your domain carries your reputation
 
-relay signs each outgoing message with your own domain's DKIM keys. A
-receiving server attributes the message to your DKIM domain, not to the
-platform. The envelope sender lives on your sender subdomain, so SPF
-attribute as well, and DMARC alignment for `p=quarantine` and stricter
-policies is the default case, not an achievement.
+relay signs each message with the DKIM keys of your sender domain. The
+envelope sender uses your sender subdomain. As a result, a receiver attributes
+the message to your domain, not to relay or to another organization.
 
-```mermaid
-graph LR
-    A[relay SMTP hosts] --> B[Your message]
-    B --> C[DKIM d: your domain]
-    C --> D[Receiver grades your domain]
-    A --> E[Relay infra identity]
-    E --> D
-```
+A domain keeps its reputation when it moves to relay. Make sure that the
+domain is in good standing before you migrate.
 
-Two things matter in that graph:
+## Monitor your rates
 
-- **Your domain carries your reputation.** Other relay customers cannot
-  harm your domain's grade, because signatures are not shared and the sending
-  identity differs.
-- **The infrastructure identity stays consistent.** Every relay sending IP
-  carries a hostname that matches its PTR record, so receivers see stable,
-  verified platform identities, which also protects your domain from
-  strangers sending as "you".
+Open **Monitoring** to see these values:
 
-Consequences for migration: a domain that switches to relay does inherit its
-domain reputation, not a platform record, so make sure the domain is in good
-standing first.
+| Card | What it shows | Limit |
+| --- | --- | --- |
+| Hard bounce rate | Permanent rejections divided by sent messages. | 5% |
+| Complaint rate | Complaints and held messages divided by sent messages. | 0.1% |
+| Cost | Your message volume and monthly cost. | Depends on your plan. |
 
-## Keeping bounce rates near zero
+The rates use a rolling 7-day window. The soft bounce rate is display only. A
+temporary 4xx refusal never suspends an organization.
 
-Bounce rates are the fastest reputation killer. The suppression list keeps
-yours low:
+Members can receive a weekly digest with the same numbers. Change the
+notification in **Notifications**.
 
-- every Return-Path is minted per message and only relay can mint it, so
-  bounces map to one message,
-- a permanent 5xx adds the address to the suppression list immediately,
-  and a permanent failure in a late bounce report does the same,
-- all further submissions to that address store as suppressed, with no error
-  back to your application, so retry loops cannot amplify the bounce rate,
+## Suspension
 
-Pre-warm an address list with a suppression import or use org-member
-recipient mode before billing goes live. Suppression import and API removal
-are on the roadmap. The dashboard covers adding and removing entries today.
+relay suspends an organization when either rate is more than its limit and
+the organization sent at least 100 messages in the window.
 
-## Keeping spam from your assets
+A suspended organization has these limits:
 
-relay scans outbound mail before it leaves, and held messages do not reach a
-recipient. This gate exists because a single compromised credential or a
-single broken template can damage a domain for weeks. See the
-<a href="{% url 'docs:detail' slug='deliverability' %}">delivery
-pipeline</a> for where the gate sits.
+- New submissions fail with `550 Account suspended due to sender reputation`.
+- Queued messages get the `dropped` status.
+- relay notifies the organization admins by email.
 
-## Protocol completeness
+relay never removes a suspension automatically. Contact support to resolve
+it.
 
-Receivers grade partially-configured domains harshly. relay removes the
-partial-configuration failure mode:
+## Keep the rates low
 
-- All records get served from one nameserver, so records exist on first send
-  and no stale DNS haunts a domain.
-- MTA-STS ships in enforce mode: receivers that trust the policy reject
-  downgrade paths.
-- TLS-RPT reporting gives receivers a signal channel, and failures show
-  themselves in your dashboard as actionable rows.
-- DMARC publishes reporting to relay's collectors, so the spoofing picture is
-  always visible.
+### Protect your bounce rate
 
-## The reporting loop
+- Keep the suppression list. relay adds permanent bounces automatically.
+- Do not clear the whole suppression list. Remove one address at a time.
+- Send only to addresses that gave you permission.
+- Add known bad addresses to the suppression list before a large send.
 
-Mailbox providers report back to the addresses in your DMARC and TLS-RPT
-records. relay collects and processes them:
+See <a href="{% url 'docs:detail' slug='deliverability' %}">Deliverability</a>
+for the suppression list.
+
+### Protect your complaint rate
+
+- Send mail that the recipient expects.
+- Make the unsubscribe path easy.
+- Remove recipients who complain.
+- Watch the outbound spam scan. A held message counts toward the complaint
+  rate.
+
+### Keep your records complete
+
+A domain with partial records gets a poor grade. Publish the SPF, DKIM, DMARC,
+MTA-STS, and TLS-RPT records for every sender domain. See
+<a href="{% url 'docs:detail' slug='domains' %}">Domains and DNS</a>.
+
+## Read provider reports
+
+Open **Reports** to see the reports that providers send to relay. Use the
+filters to select a report type, a domain, or a source IP.
 
 ```mermaid
 flowchart LR
-    A[Mailbox provider sends reports] --> B[relay MX: dmarc@, ruf@, tls@, fbl@]
-    B --> C[Parser stores the report]
-    C --> D[Dashboard rows: authorized senders, failing sources, TLS failures]
-    D --> E[You decide: policy change, key rotation, host fixes]
+    A[Mailbox providers] --> B[relay report collectors]
+    B --> C[Reports page]
+    B --> D[Monitoring]
 ```
 
-Four report types arrive:
+| Report | What it contains | What to do |
+| --- | --- | --- |
+| DMARC | Aggregate XML with the authentication results for your domain. | Examine the sources that fail. Fix or block a sender you do not know. |
+| DMARC failures | A sample of a message that failed DMARC. | Read the headers. Then find the source. |
+| TLS | Success and failure counts for TLS connections to your MX hosts. | If failures increase, examine your MTA-STS and TLS-RPT records. |
+| FBL (feedback loop) | A complaint report for a message that a recipient marked as spam. | Remove the recipient. Then review the message content. |
 
-- **DMARC aggregate (RUA)**. Daily XML with every check result of a
-  provider's inbound for your domain.
-- **DMARC forensic (RUF/ARF)**. A failing message sample, redacted or not
-  per policy.
-- **TLS-RPT.** JSON with the success and failure counts of sender TLS
-  attempts against your MTA-STS surface.
-- **Feedback loop (FBL).** An abuse report in the ARF format. A provider
-  sends it when a recipient marks one of your messages as spam. Gmail does
-  not send these reports.
+The DMARC and TLS reports arrive because your DNS records name relay as the
+collector. See <a href="{% url 'docs:detail' slug='receiving' %}">Receiving</a>
+for the report addresses.
 
-The dashboard surfaces each report type, per domain, and records whether a
-report arrived over TLS.
+### Complaint matching
 
-FBL complaints need a proof before relay records them. The report carries the
-per-message Return-Path of the reported message, and relay matches that
-address. Only relay can mint the address, so a message id alone names
-nothing. A complaint therefore maps to one message, one domain, and one
-organization, and a message counts one complaint however many reports name
-it. A report that names no message is kept as an inbound email only, and is
-not recorded as a complaint.
+relay matches each complaint to the message that caused it. A message counts
+once, however many reports name it.
 
-Gmail groups its complaint rates by the
+A report that relay cannot match stays in the message log as inbound mail. It
+does not count as a complaint.
+
+### Feedback-ID
+
+relay adds a `Feedback-ID` header to each outgoing message. The header groups
+your mail by sender domain, organization, and mail type. Gmail uses the
+header to group complaint rates.
+
+Verify your domain in Google Postmaster Tools to see the rates there. The
+header format is on the
 <a href="{% url 'know_how:detail' slug='feedback-id' %}">Feedback-ID</a>
-identifiers that relay puts on every message. The rates appear in Google
-Postmaster Tools for a domain that you verified there.
+page.
 
-## Reputation limits
+## A weekly routine
 
-relay computes hard-bounce, soft-bounce, and complaint rates for your
-organization over a rolling window. Two rates drive the decision: the
-hard-bounce rate and the complaint rate. If one of the rates goes above its
-threshold, and the message volume in the window is large enough, relay
-suspends the organization. A suspension rejects new submissions with a 550
-answer, and drops queued messages. The suspension never lifts by itself.
-relay sends mail to the organization admins and to relay staff when it
-suspends an organization.
-
-The monitoring page charts the soft-bounce rate as well. That line is
-display-only: a 4xx refusal is a temporary condition, so it never suspends
-an organization.
-
-## The reputation loop in practice
-
-1. Send under your domain. relay signs, aligns the envelope, and scores
-   content.
-2. Suppression keeps the bounce rate low, and the spam gate keeps the content
-   clean.
-3. A recipient marks a message as spam, and the provider sends a complaint to
-   the FBL address. relay matches the complaint to your message through the
-   signed per-message Return-Path.
-4. Providers send aggregate reports every day. relay parses them.
-5. You read your report rows, and correct what you see. relay marks source
-   IPs from its own sending pool as verified senders and shows their
-   reverse-DNS hostname. Each source IP also shows its approximate location
-   and network. Policy updates and key rotation are dashboard operations.
-6. Misconfigured senders become visible quickly. Fix or block them early.
-
-Reputation is a set of boring signals, done consistently. relay runs the
-boring parts.
+1. Open **Monitoring**. Then compare both rates with their limits.
+2. Open **Reports**. Then read the new DMARC and TLS reports.
+3. Fix failing sources, expired records, or a sudden bounce source.
+4. Review the suppression list for entries that you can remove after a
+   mailbox is fixed.
+5. Examine the message log for held or failed messages.
 
 ## Related pages
 
 - <a href="{% url 'docs:detail' slug='deliverability' %}">Deliverability</a>.
-  The signals that receivers grade.
-- <a href="{% url 'docs:detail' slug='receiving' %}">Receiving</a>. How the
-  reports arrive.
+  Suppression, retries, and the outbound scan.
+- <a href="{% url 'docs:detail' slug='receiving' %}">Receiving</a>. Report
+  addresses and inbound filtering.
+- <a href="{% url 'docs:detail' slug='domains' %}">Domains and DNS</a>. The
+  records that providers grade.

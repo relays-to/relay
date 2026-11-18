@@ -31,6 +31,8 @@ the graph.
 - **PostgreSQL 18+ is required.** `db_default` uses `uuidv7()`.
 - **Update the relevant `AGENTS.md`** when a reviewer identifies a convention.
 - **Update `docs/docs/`** when behavior changes.
+- **Write user docs.** `docs/docs` is for relay users. Read `docs/AGENTS.md`
+  before you edit a page.
 - **Label every issue** with one lane and one tag, `<tag>: <lane> <what>.`
   Lanes: `sec`, `bug`, `perf`, `naming`, `bloat`, `doc`, `test`, `deps`.
   Tags: `side quest`, `sus`, `real`, `cap`, `receipts`, `yeet`, `duh`, `NPC`,

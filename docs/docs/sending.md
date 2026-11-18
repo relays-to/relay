@@ -1,178 +1,63 @@
 ---
 name: Sending
-description: The relay SMTP interface, every acceptance rule, and the delivery pipeline
+description: Connect your application over SMTP and submit your first message
 author: Johannes Maron
 ---
 
 # Sending
 
-This page covers the interface between your application and relay: how to
-connect, what relay checks on submission, and what happens to a message after
-relay accepts it.
+Use relay to send transactional email from your application. Your application
+connects to the relay submission host over SMTP. relay accepts the message,
+examines it, and delivers it to the recipient.
 
-## What you need
+## Before you start
 
-- An SMTP credential from the dashboard. The username is your organization
-  slug, and the password is the API key.
-- A sender domain registered to your organization, whose From-address you
-  use. The managed sender domain works from the first minute.
-- A receiver address that is not on your suppression list.
+You need three things:
 
-## Connect and authenticate
+- An organization. Register with GitHub. relay creates your personal
+  organization.
+- An SMTP credential. Open **Credentials**. Then create a credential. The key
+  appears once. Before you close the dialog, copy it.
+- A sender domain. Every organization gets a managed sender domain, for
+  example `acme.open.relays.to`. It is active immediately and needs no DNS
+  setup.
+  To send from your own domain, add the domain first. Then verify it. See
+  <a href="{% url 'docs:detail' slug='domains' %}">Domains and DNS</a>.
 
-| Port | Security                               | Use                                |
-| ---- | -------------------------------------- | ---------------------------------- |
-| 465  | Implicit TLS from the first byte       | Preferred submission path          |
-| 587  | STARTTLS required before AUTH and DATA | Corporate networks that filter 465 |
+The SMTP username is your organization slug. The SMTP password is the
+credential key.
 
-relay speaks SMTP AUTH PLAIN. The username is the organization slug, and the
-password is an SMTP credential key. No session and no TLS means no AUTH: the
-server refuses AUTH over plaintext on port 587.
+## Connect over SMTP
 
-The credentials page shows the same values as a `smtps://` URI, with the
-organization slug as the user and a `<credential key>` placeholder for the
-password. Clients that accept a URI take it once you put the key in.
+| Setting | Value |
+| --- | --- |
+| Host | `smtp.relays.to` |
+| Port with STARTTLS | `587` |
+| Port with implicit TLS | `465` |
+| Username | Your organization slug |
+| Password | Your credential key |
+| Authentication | `AUTH PLAIN` |
 
-The submission exchange:
+relay rejects plaintext submission. Port 587 needs STARTTLS before AUTH. Port
+465 uses TLS from the first byte.
 
-```text
-openssl s_client -starttls smtp -connect smtp.relays.to:587
-  EHLO your-app.example.com
-  AUTH PLAIN <base64 of \0org-slug\0api-key>
-  MAIL FROM: <billing@acme.com>
-  RCPT TO: <kim@example.net>
-  DATA
-  <message with headers and body>
-  .
-```
+If your network allows port 465, use it. If a firewall blocks port 465, use
+port 587.
 
-## The acceptance checks
+After you create a credential, the dialog shows the same values as an
+`smtps://` URI with the key in it. Before you close the dialog, copy the URI.
 
-relay runs its checks inside the SMTP transaction and answers with the
-final acceptance code:
-
-```mermaid
-flowchart TD
-    A[DATA received over TLS] --> B{Credential valid and not held?}
-    B -- No --> C[530 / 535]
-    B -- Yes --> D{From-domain registered to this org?}
-    D -- No --> E[550 Sender domain not registered]
-    D -- Yes --> F{Recipient suppressed?}
-    F -- Yes --> G[Store as suppressed, answer 250]
-    F -- No --> H{Billing active, or member recipient?}
-    H -- No --> I[550 not allowed without active billing]
-    H -- Yes --> J[Store as pending, enqueue spam scan]
-    J --> K[250 OK]
-```
-
-Notes on the rules:
-
-- The From-domain must resolve to a domain of your organization, matching by
-  root domain and organization. Subdomain From-addresses therefore work
-  without extra configuration.
-- A suppressed recipient is not an error. relay stores the message with the
-  suppressed status so the audit trail stays complete.
-- Without active billing, relay accepts only messages addressed to members
-  of the organization, so you can always test on yourself.
-
-## The delivery pipeline
-
-relay signs each message while the SMTP transaction is still open, so the
-stored message is the exact message that leaves. A task worker then takes
-over:
-
-```mermaid
-sequenceDiagram
-    participant MSA as MSA
-    participant Queue as Task worker
-    participant Scan as Scanner
-    participant DNS as DNS resolvers
-    participant Remote as Recipient MX
-
-    MSA->>MSA: mint Feedback-ID, sign with all domain keys
-    MSA-->>Client: 250 OK, signed message stored
-    Queue->>Scan: score the message
-    alt score reaches the hold threshold
-        Queue->>Queue: status held, stop
-    else clean
-        Queue->>DNS: MX lookup for the recipient domain
-        DNS-->>Queue: MX hosts by preference
-        Queue->>Remote: per host: STARTTLS on 25, then the message
-        Remote-->>Queue: SMTP answer
-    end
-```
-
-Important details of the pipeline:
-
-- **Signing covers the message as stored.** relay signs with the private
-  keys of the sender domain for RSA-2048 and Ed25519 at once.
-  All signatures cover the same headers: From, To, Subject, Date,
-  Message-ID, and `Feedback-ID`. The message detail page lists every
-  signature relay applied in its own card, next to the signing domain,
-  selector, and algorithm. The raw tag list is one click away.
-- **Customers' messages carry a platform cosign.** relay cosigns with the
-  keys of the platform domain. relay also sets a `Feedback-ID` header from
-  the sending domain, your organization, the mail type, and the platform's
-  own identifier last. Every message of a stream carries the same value,
-  because Gmail groups its complaint rates by those identifiers. relay
-  replaces a customer-supplied `Feedback-ID`.
-- **The envelope differs from the From header.** The Return-Path becomes
-  `bounce+{token}@{sender-subdomain}` with a short signed token that names
-  one message, so each bounce identifies one message, the envelope domain
-  aligns with your DKIM, and only relay can mint the token a bounce report
-  must carry.
-- **Sending spreads across an IP pool.** Each outgoing connection leaves
-  through a randomly picked relay sending IP. Every pool IP has matching
-  forward and reverse DNS, and a blacklisted IP can rotate out without an
-  outage. Every delivery attempt records the sending IP it used, so a
-  refusal names the address the receiver blocked.
-- **EHLO identifies the relay sending host**, whose name matches its
-  reverse DNS record. Receivers grade that consistency.
-- **Enforced MTA-STS.** For recipient domains with a policy, relay skips
-  hosts the policy does not permit. See
-  <a href="{% url 'docs:detail' slug='encryption' %}">Encryption</a>.
-- **relay records every SMTP leg.** The accepted submission is stored as
-  the first transmission of a message, followed by one transmission per
-  delivery attempt, each with the SMTP answer.
-
-## Message and attempt statuses
-
-The message carries one status. Every attempt carries its own:
-
-| Message status | Meaning                                                                                                           |
-| -------------- | ----------------------------------------------------------------------------------------------------------------- |
-| pending        | Stored, spam scan or delivery not finished yet                                                                    |
-| held           | the scanner held the message for spam or malware, and it never left                                               |
-| sent           | At least one attempt ended with success, unless a late bounce report flips it to bounced                          |
-| bounced        | A recipient server rejected the message permanently, in the SMTP answer or in a later bounce report               |
-| suppressed     | The recipient is on the suppression list                                                                          |
-| failed         | relay cannot deliver after its retries, the transcript shows why, unless a late bounce report flips it to bounced |
-
-The Transmission list per message starts with the submission and shows
-every delivery attempt: the MX host context, the SMTP status code, the
-answer text, and whether TLS was in use.
-
-## Bounce handling
-
-On a permanent 5xx rejection relay records the bounce and adds the
-recipient's address as a suppressions entry with the reason *bounce*.
-The rejection can also arrive after acceptance: a recipient server that
-accepted the message can still send a bounce report to the per-message
-bounce address, and the outcome is the same. Suppressed addresses reject
-silently on later submissions. There is no automatic removal. A human can
-release an address again in the dashboard. Manual entries can carry reason
-*manual*.
-
-## A minimal client
+## Send a test message
 
 Python with the standard library:
 
 ```python
-import smtplib, ssl
+import smtplib
+import ssl
 
 with smtplib.SMTP("smtp.relays.to", 587) as server:
     server.starttls(context=ssl.create_default_context())
-    server.login("acme", "your-smtp-credential-key")
+    server.login("acme", "your-credential-key")
     server.sendmail(
         "billing@acme.com",
         ["kim@example.net"],
@@ -183,12 +68,118 @@ with smtplib.SMTP("smtp.relays.to", 587) as server:
     )
 ```
 
-Libraries that speak SMTP natively set the same four things: host, port,
-STARTTLS, and the credential pair.
+Libraries that speak SMTP use the same five values: host, port, TLS mode,
+username, and password.
+
+You can also send a test message from the dashboard. Open **Message log**.
+Then click **Send test email**. relay sends the message to your account
+address.
+
+## Submission checks
+
+relay runs these checks on each message inside the SMTP transaction:
+
+```mermaid
+flowchart TD
+    A[Your application sends a message] --> B{Credential valid?}
+    B -- No --> C[535 Authentication failed]
+    B -- Yes --> D{From-domain belongs to your organization?}
+    D -- No --> E[550 Sender domain not registered]
+    D -- Yes --> F{Recipient on the suppression list?}
+    F -- Yes --> G[Store as suppressed and reply with 250]
+    F -- No --> H{Billing active, or recipient is a member?}
+    H -- No --> I[550 Recipient not allowed without active billing]
+    H -- Yes --> J[Store as pending and reply with 250]
+```
+
+### Sender domain
+
+The From-address must use a domain that you added to your organization. To
+send from a subdomain, add the subdomain as a domain first. relay makes sure
+that the domain belongs to your organization and that it is the closest
+registered domain for the address.
+
+### Suppression list
+
+If the recipient is on your suppression list, relay accepts the message but
+does not deliver it. The message gets the `suppressed` status. The SMTP
+transaction still replies with `250`, so your application does not retry.
+
+See <a href="{% url 'docs:detail' slug='deliverability' %}">Deliverability</a>
+for the suppression list.
+
+### Billing
+
+When billing is inactive, relay accepts messages only to members of your
+organization. Use a member address for a test. Activate billing to send to
+external recipients.
+
+### Suspended organizations
+
+If relay suspends your organization for sender reputation, submissions fail
+with `550 Account suspended due to sender reputation`.
+
+## SMTP replies
+
+| Reply | Meaning | What to do |
+| --- | --- | --- |
+| `235 Authentication successful` | The credential is valid. | Send the message. |
+| `250 OK` | relay accepted the message. | Examine the message log for the delivery status. |
+| `530 Authentication required` | The connection is not over TLS, or AUTH did not run. | Use STARTTLS or port 465 before AUTH. |
+| `535 Authentication failed` | The organization slug or key is wrong, or the support team placed the credential on hold. | Make sure that the slug and key are correct. Contact support if the credential is on hold. |
+| `550 Sender domain not registered` | The From-domain does not belong to your organization. | Use a verified sender domain. |
+| `550 Recipient not allowed without active billing` | Billing is inactive and the recipient is not a member. | Activate billing or use a member address. |
+| `550 Account suspended due to sender reputation` | relay suspended the organization. | Contact support. |
+
+## After acceptance
+
+relay signs the message when it accepts the submission. relay stores the
+signed message before it starts delivery. A `250` reply means that relay has
+the message, not that it delivered it.
+
+relay then does these steps:
+
+1. Scans the message for spam and malware.
+2. Looks up the recipient MX hosts.
+3. Attempts delivery to each host.
+4. Records every attempt in the message log.
+
+If the scan holds the message, relay does not deliver it. The message gets
+the `held` status. Open the message detail page. Then click **Release and
+send** to deliver a held message. Release is available only for spam holds. A
+message with malware stays held.
+
+A temporary delivery failure keeps the message `pending`. relay retries after
+2, 4, 8, 16, and 32 minutes. After the sixth failed attempt, the message gets
+the `failed` status.
+
+See <a href="{% url 'docs:detail' slug='message-statuses' %}">Message
+statuses</a> for every status.
+
+## Sandbox credentials
+
+Create a sandbox credential for your integration tests. relay stores and
+scans a message from a sandbox credential. relay never transmits it. The
+message gets the `sandboxed` status.
+
+A sandbox credential is for development. A normal credential is for
+production.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `535 Authentication failed` | Wrong organization slug or key. | Copy the slug from the dashboard. Create a new key if you lost the old one. |
+| `530 Authentication required` | The application sent AUTH before STARTTLS. | Use STARTTLS or port 465. |
+| `550 Sender domain not registered` | The From-domain is not verified for this organization. | Add the domain or use the managed domain. |
+| The message stays `pending` | Delivery retries are in progress. | Open the message detail page and read the transmissions. |
+| The message is `held` | The spam or malware scan held it. | Read the scan result. Release spam holds only. |
 
 ## Related pages
 
+- <a href="{% url 'docs:detail' slug='domains' %}">Domains and DNS</a>. Add
+  and verify your own sender domain.
 - <a href="{% url 'docs:detail' slug='deliverability' %}">Deliverability</a>.
-  The DNS records behind this pipeline.
-- <a href="{% url 'docs:detail' slug='reliability' %}">Reliability</a>.
-  Retries, attempts, and monitoring.
+  Suppression, retries, and delivery failures.
+- <a href="{% url 'docs:detail' slug='message-statuses' %}">Message
+  statuses</a>. Every status and attempt record.
