@@ -240,13 +240,13 @@ class MxCheck(Check):
                 if provider := match(exchange):
                     providers.append(
                         {
-                            "provider_name": provider.name,
-                            "country_code": provider.country_code,
+                            "provider_name": provider["name"],
+                            "country_code": provider["country_code"],
                             "exchange": exchange,
                         }
                     )
-                    if provider.country_code not in country_codes:
-                        country_codes.append(provider.country_code)
+                    if provider["country_code"] not in country_codes:
+                        country_codes.append(provider["country_code"])
                 addresses = list(
                     dict.fromkeys(
                         address
