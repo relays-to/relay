@@ -168,18 +168,403 @@
   country_name: Germany
   suffixes:
     - retarus.com
+- name: Yahoo
+  country_code: US
+  country_name: United States
+  suffixes:
+    - yahoodns.net
+    - yahoo.com
+    - aol.com
+- name: GMX
+  country_code: DE
+  country_name: Germany
+  suffixes:
+    - gmx.net
+    - gmx.de
+    - gmx.com
+    - gmx.at
+    - gmx.ch
+- name: WEB.DE
+  country_code: DE
+  country_name: Germany
+  suffixes:
+    - web.de
+- name: mail.com
+  country_code: DE
+  country_name: Germany
+  suffixes:
+    - mail.com
+- name: T-Online
+  country_code: DE
+  country_name: Germany
+  suffixes:
+    - t-online.de
+- name: Freenet
+  country_code: DE
+  country_name: Germany
+  suffixes:
+    - freenet.de
+- name: Seznam
+  country_code: CZ
+  country_name: Czechia
+  suffixes:
+    - seznam.cz
+- name: Naver
+  country_code: KR
+  country_name: South Korea
+  suffixes:
+    - naver.com
+- name: Kakao
+  country_code: KR
+  country_name: South Korea
+  suffixes:
+    - daum.net
+    - kakao.com
+- name: NTT Docomo
+  country_code: JP
+  country_name: Japan
+  suffixes:
+    - docomo.ne.jp
+- name: SoftBank
+  country_code: JP
+  country_name: Japan
+  suffixes:
+    - softbank.ne.jp
+- name: NetEase
+  country_code: CN
+  country_name: China
+  suffixes:
+    - 163.com
+    - 126.com
+    - yeah.net
+- name: Sina
+  country_code: CN
+  country_name: China
+  suffixes:
+    - sina.com
+    - sina.cn
+- name: Sohu
+  country_code: CN
+  country_name: China
+  suffixes:
+    - sohu.com
+- name: China Mobile
+  country_code: CN
+  country_name: China
+  suffixes:
+    - 139.com
+- name: Rambler
+  country_code: RU
+  country_name: Russia
+  suffixes:
+    - rambler.ru
+- name: WP
+  country_code: PL
+  country_name: Poland
+  suffixes:
+    - wp.pl
+- name: Interia
+  country_code: PL
+  country_name: Poland
+  suffixes:
+    - interia.pl
+- name: Libero
+  country_code: IT
+  country_name: Italy
+  suffixes:
+    - libero.it
+- name: Virgilio
+  country_code: IT
+  country_name: Italy
+  suffixes:
+    - virgilio.it
+- name: La Poste
+  country_code: FR
+  country_name: France
+  suffixes:
+    - laposte.net
+- name: Orange
+  country_code: FR
+  country_name: France
+  suffixes:
+    - orange.fr
+    - wanadoo.fr
+- name: Free
+  country_code: FR
+  country_name: France
+  suffixes:
+    - free.fr
+- name: Bouygues
+  country_code: FR
+  country_name: France
+  suffixes:
+    - bbox.fr
+- name: KPN
+  country_code: NL
+  country_name: Netherlands
+  suffixes:
+    - kpnmail.nl
+    - xs4all.nl
+- name: Ziggo
+  country_code: NL
+  country_name: Netherlands
+  suffixes:
+    - ziggo.nl
+- name: Proximus
+  country_code: BE
+  country_name: Belgium
+  suffixes:
+    - proximus.be
+- name: Swisscom
+  country_code: CH
+  country_name: Switzerland
+  suffixes:
+    - bluewin.ch
+- name: Movistar
+  country_code: ES
+  country_name: Spain
+  suffixes:
+    - movistar.es
+- name: UOL
+  country_code: BR
+  country_name: Brazil
+  suffixes:
+    - uol.com.br
+- name: Rediffmail
+  country_code: IN
+  country_name: India
+  suffixes:
+    - rediffmail.com
+- name: Telstra
+  country_code: AU
+  country_name: Australia
+  suffixes:
+    - bigpond.com
+- name: Spark New Zealand
+  country_code: NZ
+  country_name: New Zealand
+  suffixes:
+    - xtra.co.nz
+- name: Comcast
+  country_code: US
+  country_name: United States
+  suffixes:
+    - comcast.net
+- name: Verizon
+  country_code: US
+  country_name: United States
+  suffixes:
+    - verizon.net
+- name: AT&T
+  country_code: US
+  country_name: United States
+  suffixes:
+    - att.net
+    - sbcglobal.net
+    - bellsouth.net
+- name: Cox
+  country_code: US
+  country_name: United States
+  suffixes:
+    - cox.net
+- name: Spectrum
+  country_code: US
+  country_name: United States
+  suffixes:
+    - charter.net
+    - spectrum.net
+- name: EarthLink
+  country_code: US
+  country_name: United States
+  suffixes:
+    - earthlink.net
+- name: BT
+  country_code: GB
+  country_name: United Kingdom
+  suffixes:
+    - btinternet.com
+- name: TalkTalk
+  country_code: GB
+  country_name: United Kingdom
+  suffixes:
+    - talktalk.net
+- name: Eir
+  country_code: IE
+  country_name: Ireland
+  suffixes:
+    - eircom.net
+- name: Hey
+  country_code: US
+  country_name: United States
+  suffixes:
+    - hey.com
+- name: Hushmail
+  country_code: CA
+  country_name: Canada
+  suffixes:
+    - hushmail.com
+- name: StartMail
+  country_code: NL
+  country_name: Netherlands
+  suffixes:
+    - startmail.com
+- name: Mailfence
+  country_code: BE
+  country_name: Belgium
+  suffixes:
+    - mailfence.com
+- name: Runbox
+  country_code: NO
+  country_name: Norway
+  suffixes:
+    - runbox.com
+- name: Migadu
+  country_code: CH
+  country_name: Switzerland
+  suffixes:
+    - migadu.com
+- name: Kolab Now
+  country_code: CH
+  country_name: Switzerland
+  suffixes:
+    - kolabnow.com
+- name: Forward Email
+  country_code: US
+  country_name: United States
+  suffixes:
+    - forwardemail.net
+- name: MXroute
+  country_code: US
+  country_name: United States
+  suffixes:
+    - mxroute.com
+- name: Amazon SES
+  country_code: US
+  country_name: United States
+  suffixes:
+    - amazonses.com
+- name: Twilio SendGrid
+  country_code: US
+  country_name: United States
+  suffixes:
+    - sendgrid.net
+    - sendgrid.com
+- name: Mailchimp
+  country_code: US
+  country_name: United States
+  suffixes:
+    - mailchimp.com
+    - mcsv.net
+- name: Mailchimp Transactional
+  country_code: US
+  country_name: United States
+  suffixes:
+    - mandrillapp.com
 - name: Mailgun
   country_code: SE
   country_name: Sweden
   suffixes:
     - mailgun.org
-- name: SendGrid
-  country_code: US
-  country_name: United States
+    - mailgun.com
+- name: Mailjet
+  country_code: SE
+  country_name: Sweden
   suffixes:
-    - sendgrid.net
+    - mailjet.com
 - name: Postmark
   country_code: US
   country_name: United States
   suffixes:
     - postmarkapp.com
+    - mtasv.net
+- name: Brevo
+  country_code: FR
+  country_name: France
+  suffixes:
+    - brevo.com
+    - sendinblue.com
+- name: SparkPost
+  country_code: NL
+  country_name: Netherlands
+  suffixes:
+    - sparkpost.com
+    - sparkpostmail.com
+- name: MailerSend
+  country_code: LT
+  country_name: Lithuania
+  suffixes:
+    - mailersend.net
+- name: MailerLite
+  country_code: LT
+  country_name: Lithuania
+  suffixes:
+    - mailerlite.com
+- name: Elastic Email
+  country_code: US
+  country_name: United States
+  suffixes:
+    - elasticemail.com
+- name: ActiveCampaign
+  country_code: US
+  country_name: United States
+  suffixes:
+    - activecampaign.com
+    - activehostnet.com
+- name: Klaviyo
+  country_code: US
+  country_name: United States
+  suffixes:
+    - klaviyo.com
+- name: HubSpot
+  country_code: US
+  country_name: United States
+  suffixes:
+    - hubspot.com
+- name: Salesforce Marketing Cloud
+  country_code: US
+  country_name: United States
+  suffixes:
+    - salesforce.com
+- name: Constant Contact
+  country_code: US
+  country_name: United States
+  suffixes:
+    - constantcontact.com
+- name: Campaign Monitor
+  country_code: US
+  country_name: United States
+  suffixes:
+    - campaignmonitor.com
+    - createsend.com
+- name: Customer.io
+  country_code: US
+  country_name: United States
+  suffixes:
+    - customer.io
+    - customeriomail.com
+- name: Kit
+  country_code: US
+  country_name: United States
+  suffixes:
+    - convertkit.com
+    - kit.com
+- name: Buttondown
+  country_code: US
+  country_name: United States
+  suffixes:
+    - buttondown.email
+- name: Loops
+  country_code: US
+  country_name: United States
+  suffixes:
+    - loops.so
+- name: GetResponse
+  country_code: PL
+  country_name: Poland
+  suffixes:
+    - getresponse.com
+- name: AWeber
+  country_code: US
+  country_name: United States
+  suffixes:
+    - aweber.com
