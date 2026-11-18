@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 import pytest
 from django.utils import timezone
@@ -65,7 +65,7 @@ class TestIsStale:
     def test_is_stale__stale_running_check(self):
         check = DomainCheck(
             status=DomainCheck.Status.RUNNING,
-            modified_at=timezone.now() - datetime.timedelta(days=2),
+            modified_at=timezone.now() - dt.timedelta(days=2),
         )
 
         assert check.is_stale is True
@@ -80,7 +80,7 @@ class TestIsStale:
     def test_is_stale__old_complete_check(self):
         check = DomainCheck(
             status=DomainCheck.Status.COMPLETE,
-            modified_at=timezone.now() - datetime.timedelta(days=2),
+            modified_at=timezone.now() - dt.timedelta(days=2),
         )
 
         assert check.is_stale is True

@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 from email.message import EmailMessage
 
 import pytest
@@ -337,9 +337,7 @@ class TestParseFbl:
             subtype="feedback-report",
         )
         result = parse_fbl(msg.as_bytes())
-        assert result["arrival_at"] == datetime.datetime(
-            2025, 1, 15, 10, 30, tzinfo=datetime.UTC
-        )
+        assert result["arrival_at"] == dt.datetime(2025, 1, 15, 10, 30, tzinfo=dt.UTC)
 
     def test_parse_fbl__defaults_reporting_org_to_empty_without_from_header(self):
         msg = EmailMessage()

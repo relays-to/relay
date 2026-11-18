@@ -1,6 +1,6 @@
 """aiosmtpd SMTP server."""
 
-import datetime
+import datetime as dt
 import logging
 import signal
 import sys
@@ -20,7 +20,7 @@ from .handlers import BalancerHandler, ImplicitTLSHandler, SMTPHandler
 
 logger = logging.getLogger(__name__)
 
-BALANCER_PROXY_PROTOCOL_TIMEOUT = datetime.timedelta(seconds=3)
+BALANCER_PROXY_PROTOCOL_TIMEOUT = dt.timedelta(seconds=3)
 # The balancer port accepts only connections with a PROXY protocol header.
 # The Caddy L4 proxy terminates the client's TLS and forwards the session to
 # this port. Requiring its PROXY protocol header in code keeps the port
@@ -38,7 +38,7 @@ class SMTPServer:
         implicit_tls_ports=(465,),
         tls_cert_path="",
         tls_key_path="",
-        proxy_protocol_timeout: datetime.timedelta | None = None,
+        proxy_protocol_timeout: dt.timedelta | None = None,
         balancer_port: int | None = None,
     ):
         self.host = host
@@ -121,7 +121,7 @@ def run_smtp_server(
     implicit_tls_ports=(465,),
     tls_cert_path="",
     tls_key_path="",
-    proxy_protocol_timeout: datetime.timedelta | None = None,
+    proxy_protocol_timeout: dt.timedelta | None = None,
     balancer_port: int | None = None,
 ):
     """Run the SMTP submission server until interrupted."""

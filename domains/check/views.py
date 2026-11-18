@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import secrets
 
 from django.contrib import messages
@@ -80,8 +80,8 @@ class DomainCheckDetailView(
     parent = "domain_check:list"
     # Poll while a check runs, spread out so a burst of visitors does not
     # reload in lockstep.
-    REFRESH_INTERVAL = datetime.timedelta(seconds=2)
-    REFRESH_JITTER = datetime.timedelta(seconds=2)
+    REFRESH_INTERVAL = dt.timedelta(seconds=2)
+    REFRESH_JITTER = dt.timedelta(seconds=2)
 
     def get(self, request, *args, **kwargs):
         try:
@@ -138,13 +138,13 @@ class DomainCheckDetailView(
 class DomainCheckOgImageView(CacheControlMixin, generic.View):
     """Render the share card for one domain check as a PNG."""
 
-    OG_TTL = datetime.timedelta(hours=6)
+    OG_TTL = dt.timedelta(hours=6)
     cache_control = {
         "public": True,
         # The rendered bytes live in the Django cache for OG_TTL, so the
         # HTTP cache only needs to absorb request peaks.
-        "max_age": datetime.timedelta(minutes=1),
-        "s_maxage": datetime.timedelta(minutes=5),
+        "max_age": dt.timedelta(minutes=1),
+        "s_maxage": dt.timedelta(minutes=5),
     }
 
     def get(self, request, name, *args, **kwargs):

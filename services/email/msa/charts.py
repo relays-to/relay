@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 from django.db.models import Count
 from django.db.models.functions import TruncDate
@@ -16,7 +16,7 @@ SUPPRESSION_CHART_COLORS = {
 
 def build_suppression_chart(org):
     """Return chart data for suppression entries grouped by reason."""
-    start = timezone.localdate() - datetime.timedelta(days=CHART_DAYS - 1)
+    start = timezone.localdate() - dt.timedelta(days=CHART_DAYS - 1)
     rows = (
         SuppressionEntry.objects.filter(org=org, created_at__date__gte=start)
         .annotate(day=TruncDate("created_at"))

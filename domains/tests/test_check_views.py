@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import re
 from urllib.parse import quote
 
@@ -53,7 +53,7 @@ def make_check(**kwargs):
 
 def backdate(check, **delta):
     DomainCheck.objects.filter(pk=check.pk).update(
-        modified_at=timezone.now() - datetime.timedelta(**delta)
+        modified_at=timezone.now() - dt.timedelta(**delta)
     )
     check.refresh_from_db()
     return check

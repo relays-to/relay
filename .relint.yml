@@ -231,8 +231,8 @@
   hint: 'Import views as `from . import views` in URL configs, then reference `views.MyView.as_view()`.'
   filePattern: '.*/urls\.py$'
 - name: No import aliases
-  pattern: '(?m)^\s*(?:from\s+\S+\s+import|import)\b.*\bas\s+(?!_)\w+'
-  hint: 'Do not import with different names (no `import x as y`) unless necessary. `gettext_lazy as _` is the only accepted alias.'
+  pattern: '(?m)^\s*(?!import\s+datetime\s+as\s+dt(?:\s|$))(?:from\s+\S+\s+import|import)\b.*\bas\s+(?!_)\w+'
+  hint: 'Do not import with different names (no `import x as y`) unless necessary. `gettext_lazy as _` and `datetime as dt` are the only accepted aliases.'
   filePattern: '.*\.py$'
 - name: Use data-tooltip, not title attributes
   pattern: '(?s)<(?!iframe\b)(?!input\b)(?!textarea\b)(?!select\b)[^>]*\btitle\s*='

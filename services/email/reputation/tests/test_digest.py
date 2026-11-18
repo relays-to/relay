@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import decimal
 
 import pytest
@@ -37,7 +37,7 @@ def make_message(
     )
     if days_ago:
         OutgoingMessage.objects.filter(pk=message.pk).update(
-            created_at=timezone.now() - datetime.timedelta(days=days_ago)
+            created_at=timezone.now() - dt.timedelta(days=days_ago)
         )
     return message
 

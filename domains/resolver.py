@@ -1,7 +1,7 @@
 """Authoritative DNS resolver backed by Domain models."""
 
 import base64
-import datetime
+import datetime as dt
 from collections.abc import Iterator
 
 from django.conf import settings
@@ -38,8 +38,8 @@ class DNSResolver(BaseResolver):
     """Resolve DNS queries."""
 
     MX_PRIORITY: int = 10
-    NS_TTL: datetime.timedelta = datetime.timedelta(hours=1)
-    RECORD_TTL: datetime.timedelta = datetime.timedelta(hours=1)
+    NS_TTL: dt.timedelta = dt.timedelta(hours=1)
+    RECORD_TTL: dt.timedelta = dt.timedelta(hours=1)
 
     @property
     def ns_ttl_seconds(self) -> int:
