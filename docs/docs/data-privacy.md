@@ -71,11 +71,13 @@ the dashboard.
 | Public DNS resolvers   | Domain names                                       | MX, SPF, DKIM, DMARC, MTA-STS, and TLS-RPT lookups |
 | ipwho.is               | IP addresses from a transmission or a DMARC report | Approximate location in the dashboard              |
 | OpenFreeMap            | Map tile requests                                  | Map display in the dashboard                       |
+| flagcdn.com            | Country codes from the domain check                | Country flag images                                |
+| favicon.vemetric.com   | Domain names from the domain check                 | Domain icons                                       |
 | Mailbox providers      | DMARC, TLS, and FBL reports                        | Sender reputation                                  |
 
-The location and map requests run in your browser. relay does not proxy them
-and does not store the result. relay sends no message content to ipwho.is or
-OpenFreeMap.
+The location, map, flag, and icon requests run in your browser. relay does
+not proxy them and does not store the result. relay sends no message content
+to ipwho.is or OpenFreeMap.
 
 relay requests only the email scope from GitHub. It does not read your
 repositories.

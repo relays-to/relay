@@ -136,7 +136,7 @@ class TestDomainCheckListView:
         response = client.get("/domain-check/")
 
         assert (
-            'src="https://icons.duckduckgo.com/ip3/example.com.ico"'
+            'src="https://favicon.vemetric.com/example.com?size=96"'
             in response.content.decode()
         )
 

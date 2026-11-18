@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 class Tier(enum.StrEnum):
-    S = "S", _("S tier"), "default", (240, 243, 248), True, (255, 200, 45), 16
+    S = "S", _("S tier"), "primary", (240, 243, 248), True, (255, 200, 45), 16
     A_PLUS = "A+", _("A+ tier"), "success", (255, 200, 45), True
     A = "A", _("A tier"), "success", (255, 200, 45), True
     A_MINUS = "A-", _("A- tier"), "success", (255, 200, 45), True

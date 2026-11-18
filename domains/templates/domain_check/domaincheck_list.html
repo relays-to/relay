@@ -82,31 +82,42 @@
             data-tier="{% if domain_check.status == 'complete' %}{{ domain_check.tier_variant }}{% elif domain_check.status == 'failed' %}destructive{% else %}outline{% endif %}"
             href="{{ domain_check.get_absolute_url }}"
           >
-            <div class="flex flex-1 flex-col gap-1">
-              <span class="flex items-center gap-2">
-                <img
-                  src="https://icons.duckduckgo.com/ip3/{{ domain_check.name }}.ico"
-                  alt=""
-                  width="16"
-                  height="16"
-                  loading="lazy"
-                  referrerpolicy="no-referrer"
-                  class="size-4 shrink-0 rounded-sm object-contain"
-                >
-                <span class="text-lg font-semibold break-all">{{ domain_check.name }}</span>
-              </span>
-              <span class="text-sm text-muted-foreground">
-                {% translate "checked"|capfirst %} {{ domain_check.modified_at|naturaltime }}
-                {% if domain_check.status == "complete" and not domain_check.issue_count %}
-                  · {% translate "all checks pass" %}
-                {% endif %}
-              </span>
+            <div class="flex min-w-0 flex-1 items-center gap-3">
+              <img
+                src="https://favicon.vemetric.com/{{ domain_check.name }}?size=96"
+                alt=""
+                width="48"
+                height="48"
+                loading="lazy"
+                referrerpolicy="no-referrer"
+                class="size-12 shrink-0 rounded-md object-contain"
+              >
+              <div class="flex min-w-0 flex-1 flex-col gap-1">
+                <span class="flex flex-wrap items-center gap-2">
+                  <span class="text-lg font-semibold break-all">{{ domain_check.name }}</span>
+                  {% if domain_check.status == "complete" %}
+                    {% with flags=domain_check.jurisdiction_flags %}
+                      {% if flags %}
+                        {% include "domain_check/partials/jurisdiction_flags.html" with flags=flags compact=True %}
+                      {% endif %}
+                    {% endwith %}
+                  {% endif %}
+                </span>
+                <span class="text-xs text-muted-foreground sm:text-sm">
+                  {% translate "checked"|capfirst %} {{ domain_check.modified_at|naturaltime }}
+                  {% if domain_check.status == "complete" and not domain_check.issue_count %}
+                    · {% translate "all checks pass" %}
+                  {% endif %}
+                </span>
+              </div>
             </div>
             <div class="flex items-center gap-3">
               {% if domain_check.status == "complete" %}
                 <span
                   class="badge size-10 p-0 text-base"
                   data-variant="{{ domain_check.tier_variant }}"
+                  data-tooltip="{{ domain_check.tier.label }}"
+                  data-align="end"
                 >{{ domain_check.tier }}<span class="sr-only">
                     {% translate "tier" %}</span></span>
               {% elif domain_check.status == "failed" %}
@@ -114,7 +125,9 @@
               {% else %}
                 <span class="badge" data-variant="outline">{% translate "checking" %}</span>
               {% endif %}
-              {% tabler name="chevron-right" class="text-muted-foreground shrink-0" %}
+              <span class="hidden sm:flex">
+                {% tabler name="chevron-right" class="text-muted-foreground shrink-0" %}
+              </span>
             </div>
           </a>
         {% empty %}
