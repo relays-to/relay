@@ -7,4 +7,5 @@ captains_log/static/captains_log/** linguist-generated
 services/email/message/preview/gmail.py linguist-generated
 services/email/message/preview/apple_mail.py linguist-generated
 services/email/message/preview/outlook.py linguist-generated
+domains/check/jurisdictions.yaml linguist-generated
 *.html linguist-language=django
