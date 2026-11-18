@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 from django.db import migrations
 from django.utils import timezone
@@ -9,7 +9,7 @@ from services.email.dashboard.onboarding import get_onboarding_state
 
 # The migration Job runs before the Deployments roll, so leave the old workers
 # time to be replaced before the first task can be picked up.
-ROLLOUT_GRACE = datetime.timedelta(minutes=10)
+ROLLOUT_GRACE = dt.timedelta(minutes=10)
 
 
 def schedule_onboarding(apps, schema_editor):

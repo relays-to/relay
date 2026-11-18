@@ -2,6 +2,7 @@
 name: Message statuses
 description: Read the status of an outgoing or incoming message and its delivery attempts
 author: Johannes Maron
+modified_at: 2026-11-18
 ---
 
 # Message statuses

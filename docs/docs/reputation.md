@@ -2,6 +2,7 @@
 name: Sender reputation
 description: Monitor bounce and complaint rates, read provider reports, and avoid suspension
 author: Johannes Maron
+modified_at: 2026-11-18
 ---
 
 # Sender reputation

@@ -2,6 +2,7 @@
 name: ARC
 description: Sealed authentication results for forwarded mail
 author: Johannes Maron
+modified_at: 2026-09-29
 ---
 
 # ARC

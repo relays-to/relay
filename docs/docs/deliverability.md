@@ -2,6 +2,7 @@
 name: Deliverability
 description: Keep your mail out of spam, handle bounces, and understand delivery retries
 author: Johannes Maron
+modified_at: 2026-11-18
 ---
 
 # Deliverability

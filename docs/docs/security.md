@@ -2,6 +2,7 @@
 name: Security
 description: Protect your account, credentials, signing keys, and message transport
 author: Johannes Maron
+modified_at: 2026-11-18
 ---
 
 # Security

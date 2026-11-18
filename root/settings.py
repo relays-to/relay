@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/stable/ref/settings/
 """
 
 import base64
-import datetime
+import datetime as dt
 import hashlib
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -411,7 +411,7 @@ MX_TLS_KEY_PATH = env.list("MX_TLS_KEY_PATH", default=[])
 # the expectation; a positive value is required where enabled.
 proxy_protocol_timeout_secs = env.float("PROXY_PROTOCOL_TIMEOUT", default=None)
 PROXY_PROTOCOL_TIMEOUT = (
-    datetime.timedelta(seconds=proxy_protocol_timeout_secs)
+    dt.timedelta(seconds=proxy_protocol_timeout_secs)
     if proxy_protocol_timeout_secs
     else None
 )

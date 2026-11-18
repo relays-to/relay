@@ -2,6 +2,7 @@
 name: Return-Path
 description: Bounce address for email delivery notifications
 author: Johannes Maron
+modified_at: 2026-09-29
 ---
 
 # Return-Path

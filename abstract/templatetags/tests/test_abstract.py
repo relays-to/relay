@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import re
 import zoneinfo
 from types import SimpleNamespace
@@ -109,36 +109,33 @@ def test_include_md_toc__depth():
 def test_naturalday():
     assert abstract.naturalday(timezone.localdate()) == "today"
     assert (
-        abstract.naturalday(timezone.localdate() - datetime.timedelta(days=1))
-        == "yesterday"
+        abstract.naturalday(timezone.localdate() - dt.timedelta(days=1)) == "yesterday"
     )
     assert (
-        abstract.naturalday(timezone.localdate() + datetime.timedelta(days=1))
-        == "tomorrow"
+        abstract.naturalday(timezone.localdate() + dt.timedelta(days=1)) == "tomorrow"
     )
-    assert abstract.naturalday(datetime.date(2001, 9, 13)) == "Sept. 13, 2001"
+    assert abstract.naturalday(dt.date(2001, 9, 13)) == "Sept. 13, 2001"
 
 
 def test_naturaltime():
     assert abstract.naturaltime(timezone.now()) == "now"
     assert (
-        abstract.naturaltime(timezone.now() - datetime.timedelta(seconds=1))
-        == "a second ago"
+        abstract.naturaltime(timezone.now() - dt.timedelta(seconds=1)) == "a second ago"
     )
     assert (
-        abstract.naturaltime(timezone.now() - datetime.timedelta(seconds=2))
+        abstract.naturaltime(timezone.now() - dt.timedelta(seconds=2))
         == "2 seconds ago"
     )
     assert (
-        abstract.naturaltime(timezone.now() - datetime.timedelta(seconds=60))
+        abstract.naturaltime(timezone.now() - dt.timedelta(seconds=60))
         == "a minute ago"
     )
     assert (
-        abstract.naturaltime(timezone.now() - datetime.timedelta(seconds=60 * 60))
+        abstract.naturaltime(timezone.now() - dt.timedelta(seconds=60 * 60))
         == "an hour ago"
     )
     assert (
-        abstract.naturaltime(timezone.now() - datetime.timedelta(seconds=60 * 60 * 24))
+        abstract.naturaltime(timezone.now() - dt.timedelta(seconds=60 * 60 * 24))
         != "1 day ago"
     )
     assert (
@@ -149,9 +146,7 @@ def test_naturaltime():
     )
     assert (
         abstract.naturaltime(
-            (timezone.localtime() + datetime.timedelta(days=1)).replace(
-                hour=8, minute=0
-            )
+            (timezone.localtime() + dt.timedelta(days=1)).replace(hour=8, minute=0)
         )
         == "tomorrow 8 a.m."
     )
@@ -170,25 +165,25 @@ def test_highlight_code__unknown_language():
 
 
 def test_human_duration__milliseconds():
-    duration = datetime.timedelta(milliseconds=300)
+    duration = dt.timedelta(milliseconds=300)
 
     assert abstract.human_duration(duration) == "300 milliseconds"
 
 
 def test_human_duration__seconds():
-    assert abstract.human_duration(datetime.timedelta(seconds=5)) == "5 seconds"
+    assert abstract.human_duration(dt.timedelta(seconds=5)) == "5 seconds"
 
 
 def test_human_duration__minutes():
-    assert abstract.human_duration(datetime.timedelta(seconds=125)) == "2 minutes"
+    assert abstract.human_duration(dt.timedelta(seconds=125)) == "2 minutes"
 
 
 def test_human_duration__whole_minutes():
-    assert abstract.human_duration(datetime.timedelta(minutes=1)) == "a minute"
+    assert abstract.human_duration(dt.timedelta(minutes=1)) == "a minute"
 
 
 def test_human_duration__hours():
-    assert abstract.human_duration(datetime.timedelta(hours=3)) == "3 hours"
+    assert abstract.human_duration(dt.timedelta(hours=3)) == "3 hours"
 
 
 def test_tabler():
@@ -226,7 +221,7 @@ def test_tabler__without_size():
 
 
 def test_timestamp__renders_in_the_current_time_zone():
-    value = datetime.datetime(2025, 6, 1, 22, 30, tzinfo=datetime.UTC)
+    value = dt.datetime(2025, 6, 1, 22, 30, tzinfo=dt.UTC)
 
     with timezone.override("Europe/Berlin"):
         data = abstract.timestamp(value)

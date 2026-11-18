@@ -1,5 +1,5 @@
 import dataclasses
-import datetime
+import datetime as dt
 
 from django.tasks import DEFAULT_TASK_QUEUE_NAME, TaskContext, task
 from django.utils import timezone
@@ -22,10 +22,10 @@ from .lookup import Lookup
 class CheckRetry(ExponentialBackoff):
     """Retry a check twice, five seconds apart, then fail the row."""
 
-    base_delay: datetime.timedelta = datetime.timedelta(seconds=5)
+    base_delay: dt.timedelta = dt.timedelta(seconds=5)
     max_retries: int = 2
 
-    def __call__(self, context: TaskContext) -> datetime.timedelta | None:
+    def __call__(self, context: TaskContext) -> dt.timedelta | None:
         if delay := super().__call__(context):
             return delay
         DomainCheck.objects.filter(

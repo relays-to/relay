@@ -42,7 +42,7 @@ put it in `docs/docs`.
   exception.
 - Use a table for statuses, limits, records, errors, and reply codes.
 - Use a troubleshooting table at the end of setup articles.
-- Keep frontmatter `name`, `description`, and `author`.
+- Keep frontmatter `name`, `description`, `author`, and `modified_at`.
 - Link related articles with `{% url 'docs:detail' slug='...' %}`.
 - Link protocol background with `{% url 'know_how:detail' slug='...' %}`.
 
@@ -55,3 +55,7 @@ put it in `docs/docs`.
 - Write relay-specific user docs in `docs/docs`.
 - Do not add a Markdown file to `docs/docs` unless it is a user article.
   The content index publishes every `.md` file.
+- Every content Markdown file carries `modified_at: YYYY-MM-DD` in its front
+  matter, interpreted as midnight UTC. Bump it in the same commit as any
+  content change. Views and sitemaps use it for `Last-Modified`, ETag, and
+  `lastmod`.

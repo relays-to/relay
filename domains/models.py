@@ -1,6 +1,6 @@
 import base64
 import dataclasses
-import datetime
+import datetime as dt
 import hashlib
 from collections.abc import Iterable, Mapping
 from functools import reduce
@@ -503,7 +503,7 @@ class Domain(TimeStamped):
 
 
 class DomainCheck(TimeStamped):
-    CHECK_INTERVAL = datetime.timedelta(days=1)
+    CHECK_INTERVAL = dt.timedelta(days=1)
 
     class Status(models.TextChoices):
         PENDING = "pending", _("pending")

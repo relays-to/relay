@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import io
 
 import pytest
@@ -26,7 +26,7 @@ def make_image(name="example.com", status=DomainCheck.Status.COMPLETE, penalty=0
         check=check,
         host="relay.to",
         cache_key=f"card:{name}:{status}:{penalty}",
-        cache_ttl=datetime.timedelta(minutes=1),
+        cache_ttl=dt.timedelta(minutes=1),
     )
 
 

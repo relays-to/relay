@@ -1,5 +1,6 @@
 """Markdown article indexing that does not depend on Django views."""
 
+import datetime
 import pathlib
 
 import frontmatter
@@ -38,3 +39,20 @@ class MarkdownContent:
     def get_article_metadata(cls, slug: str) -> dict[str, str]:
         """Return the front matter of one article."""
         return cls.get_article(slug).metadata
+
+    @classmethod
+    def get_article_modified_at(cls, slug: str) -> datetime.datetime:
+        """Return the modification time of one article as an aware UTC datetime."""
+        return datetime.datetime.combine(
+            cls.get_article_metadata(slug)["modified_at"],
+            datetime.time.min,
+            tzinfo=datetime.UTC,
+        )
+
+    @classmethod
+    def get_latest_modified_at(cls) -> datetime.datetime | None:
+        """Return the newest article modification, or `None` for an empty index."""
+        return max(
+            (cls.get_article_modified_at(slug) for slug in cls.slugs),
+            default=None,
+        )

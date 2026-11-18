@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 from calendar import monthrange
 from itertools import accumulate
 
@@ -147,16 +147,14 @@ def build_reputation_chart(org):
     only the hard bounce and complaint rates feed the suspension check.
     """
     window_days = max(settings.REPUTATION_WINDOW_DAYS, 1)
-    start = timezone.localdate() - datetime.timedelta(days=window_days - 1)
+    start = timezone.localdate() - dt.timedelta(days=window_days - 1)
 
     sent_counts = sent_per_day(org, start)
     hard_bounce_counts = bounced_per_day(org, start)
     soft_bounce_counts = soft_bounces_per_day(org, start)
     complaint_counts = complaints_per_day(org, start)
 
-    days_list = [
-        start + datetime.timedelta(days=offset) for offset in range(window_days)
-    ]
+    days_list = [start + dt.timedelta(days=offset) for offset in range(window_days)]
     bounce_limit = settings.REPUTATION_BOUNCE_RATE_THRESHOLD * 100
     complaint_limit = settings.REPUTATION_COMPLAINT_RATE_THRESHOLD * 100
 
@@ -256,15 +254,15 @@ def build_volume_chart(org):
     """
     today = timezone.localdate()
     this_month = today.replace(day=1)
-    last_month = (this_month - datetime.timedelta(days=1)).replace(day=1)
+    last_month = (this_month - dt.timedelta(days=1)).replace(day=1)
     days_in_month = monthrange(today.year, today.month)[1]
     per_day = volume_per_day(org, last_month)
 
     rows = []
     last_total = this_total = 0
     for offset in range(days_in_month):
-        day = this_month + datetime.timedelta(days=offset)
-        last_day = last_month + datetime.timedelta(days=offset)
+        day = this_month + dt.timedelta(days=offset)
+        last_day = last_month + dt.timedelta(days=offset)
         has_last_day = last_day < this_month
         if has_last_day:
             last_total += per_day.get(last_day, 0)
@@ -278,10 +276,10 @@ def build_volume_chart(org):
         )
 
     # A last month with more days keeps its tail in the final point.
-    tail = last_month + datetime.timedelta(days=days_in_month)
+    tail = last_month + dt.timedelta(days=days_in_month)
     while tail < this_month:
         last_total += per_day.get(tail, 0)
-        tail += datetime.timedelta(days=1)
+        tail += dt.timedelta(days=1)
     if rows[-1]["last_month"] is not None:
         rows[-1]["last_month"] = last_total
 

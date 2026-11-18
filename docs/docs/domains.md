@@ -2,6 +2,7 @@
 name: Managed domains and DNS
 description: Use the managed sender domain, add your own domain, and verify the DNS records
 author: Johannes Maron
+modified_at: 2026-11-18
 ---
 
 # Managed domains and DNS

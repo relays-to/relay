@@ -1,6 +1,6 @@
 """ARC sealing of accepted inbound messages (RFC 8617)."""
 
-import datetime
+import datetime as dt
 import logging
 import time
 from enum import StrEnum
@@ -23,10 +23,10 @@ logger = logging.getLogger(__name__)
 ARC_INSTANCE_LIMIT = 50
 
 # Total time a DNS lookup may take.
-DNS_LOOKUP_LIFETIME = datetime.timedelta(seconds=2)
+DNS_LOOKUP_LIFETIME = dt.timedelta(seconds=2)
 
 # Total time chain verification may spend on DNS lookups.
-ARC_CHAIN_VERIFICATION_TIMEOUT = datetime.timedelta(seconds=10)
+ARC_CHAIN_VERIFICATION_TIMEOUT = dt.timedelta(seconds=10)
 
 
 class ChainResult(StrEnum):
@@ -166,7 +166,7 @@ def fetch_dkim_key_record(name: bytes, timeout: int = 5) -> bytes | None:
 
 
 def verify_arc_chain(
-    raw_bytes: bytes, dns_budget: datetime.timedelta = ARC_CHAIN_VERIFICATION_TIMEOUT
+    raw_bytes: bytes, dns_budget: dt.timedelta = ARC_CHAIN_VERIFICATION_TIMEOUT
 ) -> ChainResult:
     """
     Return the ARC chain validation status of a message.

@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 from types import SimpleNamespace
 
 import pytest
@@ -60,10 +60,10 @@ def make_context(attempt, name="example.com", error=ValueError):
 
 class TestCheckRetry:
     def test_call__returns_the_first_backoff(self):
-        assert CheckRetry()(make_context(0)) == datetime.timedelta(seconds=5)
+        assert CheckRetry()(make_context(0)) == dt.timedelta(seconds=5)
 
     def test_call__doubles_the_backoff(self):
-        assert CheckRetry()(make_context(1)) == datetime.timedelta(seconds=10)
+        assert CheckRetry()(make_context(1)) == dt.timedelta(seconds=10)
 
     @pytest.mark.django_db
     def test_call__fails_the_check_after_the_last_attempt(self):
@@ -98,7 +98,7 @@ class TestCheckDomain:
     def test_check_domain__starts_a_fresh_check(self, queue):
         check = make_check(status=DomainCheck.Status.COMPLETE, checks=[{"key": "mx"}])
         DomainCheck.objects.filter(pk=check.pk).update(
-            modified_at=timezone.now() - datetime.timedelta(days=2)
+            modified_at=timezone.now() - dt.timedelta(days=2)
         )
 
         check_domain.func(name="example.com")

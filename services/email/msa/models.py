@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 from enum import nonmember
 
 from django.core.validators import validate_email
@@ -169,7 +169,7 @@ class SuppressionQuerySet(models.QuerySet):
         All entries for the current org suppress regardless of age or reason.
         Bounce entries from any other org suppress for 30 days after creation.
         """
-        bounce_cutoff = timezone.now() - datetime.timedelta(days=30)
+        bounce_cutoff = timezone.now() - dt.timedelta(days=30)
         return (
             self.filter(
                 address_hash=self.model.hash_address(email),

@@ -2,6 +2,7 @@
 name: Receiving
 description: Point your MX record at relay and receive inbound mail on an HTTPS endpoint
 author: Johannes Maron
+modified_at: 2026-11-18
 ---
 
 # Receiving

@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import email
 import logging
 
@@ -556,7 +556,7 @@ class TestVerifyArcChain:
         dns_resolver.lookups.clear()
 
         with caplog.at_level(logging.WARNING):
-            result = verify_arc_chain(sealed, dns_budget=datetime.timedelta())
+            result = verify_arc_chain(sealed, dns_budget=dt.timedelta())
 
         assert result == ChainResult.FAIL
         assert dns_resolver.lookups == []
