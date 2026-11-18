@@ -307,6 +307,7 @@ class SpfLookup:
     records: tuple[str, ...] = ()
     addresses: tuple[str, ...] = ()
     exact: tuple[str, ...] = ()
+    hosts: tuple[str, ...] = ()
     lookups: int = 0
     sampled: int = 0
     exhausted: bool = False
@@ -321,6 +322,7 @@ class SpfWalk:
     visited: set[str] = dataclasses.field(default_factory=set)
     addresses: list[str] = dataclasses.field(default_factory=list)
     exact: list[str] = dataclasses.field(default_factory=list)
+    hosts: list[str] = dataclasses.field(default_factory=list)
     lookups: int = 0
     sampled: int = 0
     exhausted: bool = False
@@ -376,6 +378,7 @@ class SpfWalk:
                 if record.lower().startswith("v=spf1")
             )
             if len(spf_records) == 1:
+                self.hosts.append(name)
                 self.walk_record(name, spf_records[0])
 
     def add_mechanism_addresses(
@@ -387,6 +390,7 @@ class SpfWalk:
             if mechanism == "a"
             else self.lookup.mx(host or domain).exchanges
         )
+        self.hosts.extend(names)
         ipv4_prefix, _, ipv6_prefix = prefix.partition("/")
         ipv4_prefix = ipv4_prefix or "32"
         ipv6_prefix = ipv6_prefix.lstrip("/") or "128"
@@ -461,6 +465,7 @@ class SpfCheck(Check):
                 for address in dict.fromkeys(walk.exact)
                 if cls.is_global_address(address)
             ),
+            hosts=tuple(dict.fromkeys(name.lower().rstrip(".") for name in walk.hosts)),
             lookups=walk.lookups,
             sampled=walk.sampled,
             exhausted=walk.exhausted,
@@ -587,9 +592,23 @@ class SpfCheck(Check):
 
     @classmethod
     def calculate_jurisdiction(cls, spf: SpfLookup, lookup: Lookup) -> dict:
+        providers = []
         networks = []
         country_codes = []
         seen = set()
+        # An include, a, or mx term names the host that sends the mail, so the
+        # provider list answers the ownership question without an address lookup.
+        for host in spf.hosts:
+            if provider := match(host):
+                providers.append(
+                    {
+                        "provider_name": provider["name"],
+                        "country_code": provider["country_code"],
+                        "host": host,
+                    }
+                )
+                if provider["country_code"] not in country_codes:
+                    country_codes.append(provider["country_code"])
         for address in spf.addresses[: cls.MAX_JURISDICTION_ADDRESSES]:
             asn = lookup.fetch_asn(address)
             if asn is not None and asn.asn not in seen:
@@ -605,7 +624,7 @@ class SpfCheck(Check):
                 if asn.country_code and asn.country_code not in country_codes:
                     country_codes.append(asn.country_code)
         return {
-            "providers": [],
+            "providers": providers,
             "networks": networks,
             "country_codes": country_codes,
         }
