@@ -113,13 +113,13 @@ If no host accepts the message, relay keeps the message `pending` and retries
 the whole list:
 
 | Attempt | Wait before the attempt |
-| --- | --- |
-| 1 | Immediate |
-| 2 | 2 minutes |
-| 3 | 4 minutes |
-| 4 | 8 minutes |
-| 5 | 16 minutes |
-| 6 | 32 minutes |
+| ------- | ----------------------- |
+| 1       | Immediate               |
+| 2       | 2 minutes               |
+| 3       | 4 minutes               |
+| 4       | 8 minutes               |
+| 5       | 16 minutes              |
+| 6       | 32 minutes              |
 
 The sixth failed attempt ends the message as `failed`. The whole schedule
 takes about one hour.

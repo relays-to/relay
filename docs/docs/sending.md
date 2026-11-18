@@ -30,14 +30,14 @@ credential key.
 
 ## Connect over SMTP
 
-| Setting | Value |
-| --- | --- |
-| Host | `smtp.relays.to` |
-| Port with STARTTLS | `587` |
-| Port with implicit TLS | `465` |
-| Username | Your organization slug |
-| Password | Your credential key |
-| Authentication | `AUTH PLAIN` |
+| Setting                | Value                  |
+| ---------------------- | ---------------------- |
+| Host                   | `smtp.relays.to`       |
+| Port with STARTTLS     | `587`                  |
+| Port with implicit TLS | `465`                  |
+| Username               | Your organization slug |
+| Password               | Your credential key    |
+| Authentication         | `AUTH PLAIN`           |
 
 relay rejects plaintext submission. Port 587 needs STARTTLS before AUTH. Port
 465 uses TLS from the first byte.
@@ -122,15 +122,15 @@ with `550 Account suspended due to sender reputation`.
 
 ## SMTP replies
 
-| Reply | Meaning | What to do |
-| --- | --- | --- |
-| `235 Authentication successful` | The credential is valid. | Send the message. |
-| `250 OK` | relay accepted the message. | Examine the message log for the delivery status. |
-| `530 Authentication required` | The connection is not over TLS, or AUTH did not run. | Use STARTTLS or port 465 before AUTH. |
-| `535 Authentication failed` | The organization slug or key is wrong, or the support team placed the credential on hold. | Make sure that the slug and key are correct. Contact support if the credential is on hold. |
-| `550 Sender domain not registered` | The From-domain does not belong to your organization. | Use a verified sender domain. |
-| `550 Recipient not allowed without active billing` | Billing is inactive and the recipient is not a member. | Activate billing or use a member address. |
-| `550 Account suspended due to sender reputation` | relay suspended the organization. | Contact support. |
+| Reply                                              | Meaning                                                                                   | What to do                                                                                 |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `235 Authentication successful`                    | The credential is valid.                                                                  | Send the message.                                                                          |
+| `250 OK`                                           | relay accepted the message.                                                               | Examine the message log for the delivery status.                                           |
+| `530 Authentication required`                      | The connection is not over TLS, or AUTH did not run.                                      | Use STARTTLS or port 465 before AUTH.                                                      |
+| `535 Authentication failed`                        | The organization slug or key is wrong, or the support team placed the credential on hold. | Make sure that the slug and key are correct. Contact support if the credential is on hold. |
+| `550 Sender domain not registered`                 | The From-domain does not belong to your organization.                                     | Use a verified sender domain.                                                              |
+| `550 Recipient not allowed without active billing` | Billing is inactive and the recipient is not a member.                                    | Activate billing or use a member address.                                                  |
+| `550 Account suspended due to sender reputation`   | relay suspended the organization.                                                         | Contact support.                                                                           |
 
 ## After acceptance
 
@@ -168,13 +168,13 @@ production.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-| --- | --- | --- |
-| `535 Authentication failed` | Wrong organization slug or key. | Copy the slug from the dashboard. Create a new key if you lost the old one. |
-| `530 Authentication required` | The application sent AUTH before STARTTLS. | Use STARTTLS or port 465. |
-| `550 Sender domain not registered` | The From-domain is not verified for this organization. | Add the domain or use the managed domain. |
-| The message stays `pending` | Delivery retries are in progress. | Open the message detail page and read the transmissions. |
-| The message is `held` | The spam or malware scan held it. | Read the scan result. Release spam holds only. |
+| Symptom                            | Likely cause                                           | Fix                                                                         |
+| ---------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `535 Authentication failed`        | Wrong organization slug or key.                        | Copy the slug from the dashboard. Create a new key if you lost the old one. |
+| `530 Authentication required`      | The application sent AUTH before STARTTLS.             | Use STARTTLS or port 465.                                                   |
+| `550 Sender domain not registered` | The From-domain is not verified for this organization. | Add the domain or use the managed domain.                                   |
+| The message stays `pending`        | Delivery retries are in progress.                      | Open the message detail page and read the transmissions.                    |
+| The message is `held`              | The spam or malware scan held it.                      | Read the scan result. Release spam holds only.                              |
 
 ## Related pages
 

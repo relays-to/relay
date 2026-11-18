@@ -24,14 +24,14 @@ See [Data flows](#data-flows).
 
 ## What relay stores
 
-| Data | Where | How long |
-| --- | --- | --- |
-| Raw message bodies | Object storage in Germany | Until delivery succeeds. Then relay deletes the body. |
-| Message metadata | Database in Germany | 30 days |
-| Message headers, SMTP transcripts, and webhook delivery records | Database in Germany | 30 days, with the message |
-| DMARC, TLS, and FBL reports | Database in Germany | 30 days, with the message |
-| Suppression list | Database, as salted SHA-256 hashes | Until you remove the entry |
-| Account and organization data | Database in Germany | While your account exists |
+| Data                                                            | Where                              | How long                                              |
+| --------------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------- |
+| Raw message bodies                                              | Object storage in Germany          | Until delivery succeeds. Then relay deletes the body. |
+| Message metadata                                                | Database in Germany                | 30 days                                               |
+| Message headers, SMTP transcripts, and webhook delivery records | Database in Germany                | 30 days, with the message                             |
+| DMARC, TLS, and FBL reports                                     | Database in Germany                | 30 days, with the message                             |
+| Suppression list                                                | Database, as salted SHA-256 hashes | Until you remove the entry                            |
+| Account and organization data                                   | Database in Germany                | While your account exists                             |
 
 relay also keeps a salted hash of an address that bounced for another
 organization for 30 days. This shared block protects all senders from a dead
@@ -64,14 +64,14 @@ the dashboard.
 
 ## Data flows
 
-| Service | Data | Purpose |
-| --- | --- | --- |
-| GitHub OAuth | Your GitHub identity and email address | Sign-in and account creation |
-| Receiving mail servers | Message content and SMTP metadata | Email delivery |
-| Public DNS resolvers | Domain names | MX, SPF, DKIM, DMARC, MTA-STS, and TLS-RPT lookups |
-| ipwho.is | IP addresses from a transmission or a DMARC report | Approximate location in the dashboard |
-| OpenFreeMap | Map tile requests | Map display in the dashboard |
-| Mailbox providers | DMARC, TLS, and FBL reports | Sender reputation |
+| Service                | Data                                               | Purpose                                            |
+| ---------------------- | -------------------------------------------------- | -------------------------------------------------- |
+| GitHub OAuth           | Your GitHub identity and email address             | Sign-in and account creation                       |
+| Receiving mail servers | Message content and SMTP metadata                  | Email delivery                                     |
+| Public DNS resolvers   | Domain names                                       | MX, SPF, DKIM, DMARC, MTA-STS, and TLS-RPT lookups |
+| ipwho.is               | IP addresses from a transmission or a DMARC report | Approximate location in the dashboard              |
+| OpenFreeMap            | Map tile requests                                  | Map display in the dashboard                       |
+| Mailbox providers      | DMARC, TLS, and FBL reports                        | Sender reputation                                  |
 
 The location and map requests run in your browser. relay does not proxy them
 and does not store the result. relay sends no message content to ipwho.is or

@@ -14,11 +14,11 @@ needs no edit at your root domain.
 
 ## Domain types
 
-| Type | Example | Who creates it | What it does |
-| --- | --- | --- | --- |
-| Managed sender domain | `acme.open.relays.to` | relay, at signup | Sends mail immediately with no DNS setup. |
-| Custom domain | `acme.com` | You | Sends and receives mail with your own name. |
-| Receiving domain | `app.acme.com` | You | Receives mail on a subdomain. |
+| Type                  | Example               | Who creates it   | What it does                                |
+| --------------------- | --------------------- | ---------------- | ------------------------------------------- |
+| Managed sender domain | `acme.open.relays.to` | relay, at signup | Sends mail immediately with no DNS setup.   |
+| Custom domain         | `acme.com`            | You              | Sends and receives mail with your own name. |
+| Receiving domain      | `app.acme.com`        | You              | Receives mail on a subdomain.               |
 
 Every organization gets a managed sender domain. It is pre-verified and
 cannot be deleted.
@@ -48,8 +48,8 @@ records. A From-address must match a domain in your organization.
 Publish NS records for the sender subdomain, for example
 `mail.relay.acme.com`. Use the nameservers from the domain page:
 
-| Type | Name | Value |
-| --- | --- | --- |
+| Type | Name                  | Value           |
+| ---- | --------------------- | --------------- |
 | `NS` | `mail.relay.acme.com` | `ns1.relays.to` |
 | `NS` | `mail.relay.acme.com` | `ns2.relays.to` |
 
@@ -60,9 +60,9 @@ relay nameserver must serve the sender subdomain.
 
 Open the **Sending** tab. Then publish the records that it shows.
 
-| Type | Name | Value |
-| --- | --- | --- |
-| `TXT` | `acme.com` | `v=spf1 include:mail.relay.acme.com -all` |
+| Type    | Name                                | Value                                          |
+| ------- | ----------------------------------- | ---------------------------------------------- |
+| `TXT`   | `acme.com`                          | `v=spf1 include:mail.relay.acme.com -all`      |
 | `CNAME` | `relay-rsa2048._domainkey.acme.com` | `relay-rsa2048._domainkey.mail.relay.acme.com` |
 | `CNAME` | `relay-ed25519._domainkey.acme.com` | `relay-ed25519._domainkey.mail.relay.acme.com` |
 
@@ -74,12 +74,12 @@ relay needs both CNAMEs for the full sending check.
 
 Open the **Reporting** tab. Then publish the records that it shows.
 
-| Type | Name | Value |
-| --- | --- | --- |
-| `TXT` | `_dmarc.acme.com` | `v=DMARC1; p=reject; sp=reject; adkim=r; aspf=r; rua=mailto:dmarc@mail.relay.acme.com; ruf=mailto:ruf@mail.relay.acme.com;` |
-| `CNAME` | `_mta-sts.acme.com` | `_mta-sts.mail.relay.acme.com` |
-| `CNAME` | `mta-sts.acme.com` | `mta-sts.mail.relay.acme.com` |
-| `CNAME` | `_smtp._tls.acme.com` | `_smtp._tls.mail.relay.acme.com` |
+| Type    | Name                  | Value                                                                                                                       |
+| ------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `TXT`   | `_dmarc.acme.com`     | `v=DMARC1; p=reject; sp=reject; adkim=r; aspf=r; rua=mailto:dmarc@mail.relay.acme.com; ruf=mailto:ruf@mail.relay.acme.com;` |
+| `CNAME` | `_mta-sts.acme.com`   | `_mta-sts.mail.relay.acme.com`                                                                                              |
+| `CNAME` | `mta-sts.acme.com`    | `mta-sts.mail.relay.acme.com`                                                                                               |
+| `CNAME` | `_smtp._tls.acme.com` | `_smtp._tls.mail.relay.acme.com`                                                                                            |
 
 The DMARC record tells receivers to reject failing mail. It also tells them
 to send reports to relay. The MTA-STS and TLS-RPT CNAMEs delegate their
@@ -100,10 +100,10 @@ cannot share a name with another record.
 To receive mail on the domain, open the **Receiving** tab. Then publish its
 MX records.
 
-| Type | Name | Priority | Value |
-| --- | --- | --- | --- |
-| `MX` | `acme.com` | `10` | `mx1.relays.to` |
-| `MX` | `acme.com` | `10` | `mx2.relays.to` |
+| Type | Name       | Priority | Value           |
+| ---- | ---------- | -------- | --------------- |
+| `MX` | `acme.com` | `10`     | `mx1.relays.to` |
+| `MX` | `acme.com` | `10`     | `mx2.relays.to` |
 
 A sending-only domain can leave this record out.
 
@@ -154,15 +154,15 @@ domain. relay manages those names.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-| --- | --- | --- |
-| The delegation check fails | The NS records are missing or wrong. | Publish the NS records from the domain page. |
-| The SPF check fails | The root TXT record is missing or has a typo. | Publish the exact SPF value from the **Sending** tab. |
-| A DKIM check fails | The CNAME name or target is wrong. | Copy the selector name and target from the page. |
-| The DMARC check fails | The TXT record is missing or has no relay reporting address. | Publish the exact DMARC value from the **Reporting** tab. |
-| The MTA-STS check fails | A CNAME is wrong, or a live MX record is not in the policy. | Publish both CNAMEs. Then add the MX host to the policy. |
-| The TLS-RPT check fails | The `_smtp._tls` CNAME is missing or wrong. | Publish the CNAME from the **Reporting** tab. |
-| A check stays pending after you publish a record | DNS caching. | Wait for the TTL of your zone. Then verify again. |
+| Symptom                                          | Likely cause                                                 | Fix                                                       |
+| ------------------------------------------------ | ------------------------------------------------------------ | --------------------------------------------------------- |
+| The delegation check fails                       | The NS records are missing or wrong.                         | Publish the NS records from the domain page.              |
+| The SPF check fails                              | The root TXT record is missing or has a typo.                | Publish the exact SPF value from the **Sending** tab.     |
+| A DKIM check fails                               | The CNAME name or target is wrong.                           | Copy the selector name and target from the page.          |
+| The DMARC check fails                            | The TXT record is missing or has no relay reporting address. | Publish the exact DMARC value from the **Reporting** tab. |
+| The MTA-STS check fails                          | A CNAME is wrong, or a live MX record is not in the policy.  | Publish both CNAMEs. Then add the MX host to the policy.  |
+| The TLS-RPT check fails                          | The `_smtp._tls` CNAME is missing or wrong.                  | Publish the CNAME from the **Reporting** tab.             |
+| A check stays pending after you publish a record | DNS caching.                                                 | Wait for the TTL of your zone. Then verify again.         |
 
 ## Related pages
 

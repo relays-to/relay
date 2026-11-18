@@ -27,11 +27,11 @@ domain is in good standing before you migrate.
 
 Open **Monitoring** to see these values:
 
-| Card | What it shows | Limit |
-| --- | --- | --- |
-| Hard bounce rate | Permanent rejections divided by sent messages. | 5% |
-| Complaint rate | Complaints and held messages divided by sent messages. | 0.1% |
-| Cost | Your message volume and monthly cost. | Depends on your plan. |
+| Card             | What it shows                                          | Limit                 |
+| ---------------- | ------------------------------------------------------ | --------------------- |
+| Hard bounce rate | Permanent rejections divided by sent messages.         | 5%                    |
+| Complaint rate   | Complaints and held messages divided by sent messages. | 0.1%                  |
+| Cost             | Your message volume and monthly cost.                  | Depends on your plan. |
 
 The rates use a rolling 7-day window. The soft bounce rate is display only. A
 temporary 4xx refusal never suspends an organization.
@@ -91,12 +91,12 @@ flowchart LR
     B --> D[Monitoring]
 ```
 
-| Report | What it contains | What to do |
-| --- | --- | --- |
-| DMARC | Aggregate XML with the authentication results for your domain. | Examine the sources that fail. Fix or block a sender you do not know. |
-| DMARC failures | A sample of a message that failed DMARC. | Read the headers. Then find the source. |
-| TLS | Success and failure counts for TLS connections to your MX hosts. | If failures increase, examine your MTA-STS and TLS-RPT records. |
-| FBL (feedback loop) | A complaint report for a message that a recipient marked as spam. | Remove the recipient. Then review the message content. |
+| Report              | What it contains                                                  | What to do                                                            |
+| ------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------- |
+| DMARC               | Aggregate XML with the authentication results for your domain.    | Examine the sources that fail. Fix or block a sender you do not know. |
+| DMARC failures      | A sample of a message that failed DMARC.                          | Read the headers. Then find the source.                               |
+| TLS                 | Success and failure counts for TLS connections to your MX hosts.  | If failures increase, examine your MTA-STS and TLS-RPT records.       |
+| FBL (feedback loop) | A complaint report for a message that a recipient marked as spam. | Remove the recipient. Then review the message content.                |
 
 The DMARC and TLS reports arrive because your DNS records name relay as the
 collector. See <a href="{% url 'docs:detail' slug='receiving' %}">Receiving</a>

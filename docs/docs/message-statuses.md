@@ -32,16 +32,16 @@ stateDiagram-v2
     failed --> bounced : late bounce report
 ```
 
-| Status | Meaning | What to do |
-| --- | --- | --- |
-| `pending` | relay stored the message. The scan or delivery is not finished. | Wait. Read the transmissions if the status does not change. |
-| `held` | The spam or malware scan held the message. relay did not deliver it. | Read the scan result. If it is a spam hold, click **Release and send**. |
-| `sent` | A recipient mail server accepted the message. | Nothing. A late bounce report can still change the status to `bounced`. |
-| `bounced` | A recipient server rejected the message permanently. | The recipient is on the suppression list. Remove the entry only if the mailbox accepts mail again. |
-| `failed` | relay did not deliver the message after all retries, or MTA-STS blocked every host. | Open the transmissions and read the reply from each host. |
-| `suppressed` | The recipient was on the suppression list at submission. | relay did not deliver the message. Remove the address from the list to send again. |
-| `sandboxed` | The message came from a sandbox credential. relay did not deliver it. | Nothing. The message is a test message. |
-| `dropped` | relay suspended the organization, so it dropped the queued message. | Contact support. |
+| Status       | Meaning                                                                             | What to do                                                                                         |
+| ------------ | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `pending`    | relay stored the message. The scan or delivery is not finished.                     | Wait. Read the transmissions if the status does not change.                                        |
+| `held`       | The spam or malware scan held the message. relay did not deliver it.                | Read the scan result. If it is a spam hold, click **Release and send**.                            |
+| `sent`       | A recipient mail server accepted the message.                                       | Nothing. A late bounce report can still change the status to `bounced`.                            |
+| `bounced`    | A recipient server rejected the message permanently.                                | The recipient is on the suppression list. Remove the entry only if the mailbox accepts mail again. |
+| `failed`     | relay did not deliver the message after all retries, or MTA-STS blocked every host. | Open the transmissions and read the reply from each host.                                          |
+| `suppressed` | The recipient was on the suppression list at submission.                            | relay did not deliver the message. Remove the address from the list to send again.                 |
+| `sandboxed`  | The message came from a sandbox credential. relay did not deliver it.               | Nothing. The message is a test message.                                                            |
+| `dropped`    | relay suspended the organization, so it dropped the queued message.                 | Contact support.                                                                                   |
 
 ### What the statuses do not tell you
 
@@ -69,13 +69,13 @@ stateDiagram-v2
     received --> webhook_failed : all endpoint attempts fail
 ```
 
-| Status | Meaning | What to do |
-| --- | --- | --- |
-| `received` | relay accepted the message. The scan or webhook delivery is not finished. | Wait. The message log shows the delivery attempts. |
-| `quarantined` | The message got a quarantine result from DMARC, the spam scan, or the malware scan. | Read the message and its score. A quarantined message never reaches a webhook. |
-| `dropped` | Billing is inactive, or no active endpoint matches the recipient. | Activate billing or add a matching endpoint. |
-| `webhook_sent` | A matching endpoint replied with 2xx. | Nothing. The delivery record shows the response. |
-| `webhook_failed` | No matching endpoint accepted the message. | Read the delivery record. Read the response code and the endpoint state. |
+| Status           | Meaning                                                                             | What to do                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `received`       | relay accepted the message. The scan or webhook delivery is not finished.           | Wait. The message log shows the delivery attempts.                             |
+| `quarantined`    | The message got a quarantine result from DMARC, the spam scan, or the malware scan. | Read the message and its score. A quarantined message never reaches a webhook. |
+| `dropped`        | Billing is inactive, or no active endpoint matches the recipient.                   | Activate billing or add a matching endpoint.                                   |
+| `webhook_sent`   | A matching endpoint replied with 2xx.                                               | Nothing. The delivery record shows the response.                               |
+| `webhook_failed` | No matching endpoint accepted the message.                                          | Read the delivery record. Read the response code and the endpoint state.       |
 
 A message that hits a `p=reject` DMARC policy never gets a status. relay
 rejects it during the SMTP transaction, so the message is never stored.
@@ -86,15 +86,15 @@ A transmission is one step of one message. An outgoing message starts with a
 submission record. Each delivery attempt adds a record. An incoming message
 starts with a reception record. Each webhook `POST` adds a delivery record.
 
-| Transmission status | Meaning |
-| --- | --- |
-| `received` | relay accepted the message on inbound SMTP. |
-| `submitted` | relay accepted the message for delivery. |
-| `sandboxed` | A sandbox credential submitted the message. No delivery attempt followed. |
-| `sent` | This attempt reached a recipient host that accepted the message. |
-| `bounced` | This attempt got a permanent rejection, now or in a later bounce report. |
-| `failed` | This attempt failed. The record names the host and the reason. |
-| `retry` | A bounce report announced a delay. The remote server keeps trying. |
+| Transmission status | Meaning                                                                   |
+| ------------------- | ------------------------------------------------------------------------- |
+| `received`          | relay accepted the message on inbound SMTP.                               |
+| `submitted`         | relay accepted the message for delivery.                                  |
+| `sandboxed`         | A sandbox credential submitted the message. No delivery attempt followed. |
+| `sent`              | This attempt reached a recipient host that accepted the message.          |
+| `bounced`           | This attempt got a permanent rejection, now or in a later bounce report.  |
+| `failed`            | This attempt failed. The record names the host and the reason.            |
+| `retry`             | A bounce report announced a delay. The remote server keeps trying.        |
 
 One delivery walk adds one record for each host that relay reached. A failed
 walk keeps the reply from every host, including hosts that MTA-STS rejected.
@@ -119,12 +119,12 @@ reply code.
 
 The timeline colors each attempt:
 
-| Color | Meaning |
-| --- | --- |
-| Green | The attempt succeeded. |
-| Red | The attempt failed. |
-| Yellow | The remote server asked relay to retry. |
-| Blue | The inbound reception or the outbound submission. |
+| Color  | Meaning                                           |
+| ------ | ------------------------------------------------- |
+| Green  | The attempt succeeded.                            |
+| Red    | The attempt failed.                               |
+| Yellow | The remote server asked relay to retry.           |
+| Blue   | The inbound reception or the outbound submission. |
 
 The scan bar uses green for a clean result, yellow for a hold or rewrite, and
 red for a rejection. A gray scan bar means the check failed.
@@ -133,13 +133,13 @@ red for a rejection. A gray scan bar means the check failed.
 
 relay scans every message for malware. The detail page shows the result:
 
-| Badge | Meaning |
-| --- | --- |
-| `no virus` | The scan found nothing. |
-| `virus: name` | The scan found a virus. The badge names it. |
-| `encrypted part` | The scan did not read a password-protected attachment. |
-| `macro` | The scan did not inspect an attachment with Office macros. |
-| `scan limits` | The attachment was larger than the scan limit. |
+| Badge            | Meaning                                                    |
+| ---------------- | ---------------------------------------------------------- |
+| `no virus`       | The scan found nothing.                                    |
+| `virus: name`    | The scan found a virus. The badge names it.                |
+| `encrypted part` | The scan did not read a password-protected attachment.     |
+| `macro`          | The scan did not inspect an attachment with Office macros. |
+| `scan limits`    | The attachment was larger than the scan limit.             |
 
 Until a scan completes, the message shows no antivirus badge. relay retries
 the scan.

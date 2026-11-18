@@ -30,10 +30,10 @@ request to this endpoint for each accepted message.
 Open **Domains**. Select your domain. Then click the **Receiving** tab.
 Publish the MX records that the page shows.
 
-| Type | Name | Priority | Value |
-| --- | --- | --- | --- |
-| `MX` | Your receiving domain | `10` | `mx1.relays.to` |
-| `MX` | Your receiving domain | `10` | `mx2.relays.to` |
+| Type | Name                  | Priority | Value           |
+| ---- | --------------------- | -------- | --------------- |
+| `MX` | Your receiving domain | `10`     | `mx1.relays.to` |
+| `MX` | Your receiving domain | `10`     | `mx2.relays.to` |
 
 The page shows the exact names for your domain. If your DNS provider imports
 zone files, use the **Zone file** button.
@@ -50,11 +50,11 @@ sending-only domain can leave the MX record out.
 
 Open **Inbound email**. Then click **New endpoint**. Enter these values:
 
-| Field | Value |
-| --- | --- |
-| URL | An HTTPS URL in your application. |
-| Name | The endpoint name. |
-| Domain | The receiving domain. |
+| Field           | Value                                                               |
+| --------------- | ------------------------------------------------------------------- |
+| URL             | An HTTPS URL in your application.                                   |
+| Name            | The endpoint name.                                                  |
+| Domain          | The receiving domain.                                               |
 | Address pattern | The recipients this endpoint accepts, for example `*@app.acme.com`. |
 
 The pattern is a glob over the full recipient address. Examples:
@@ -142,20 +142,20 @@ relay sends a flat JSON body. The raw message is not in the body. A signed
 }
 ```
 
-| Field | Meaning |
-| --- | --- |
-| `type` | `email.received` for real mail, `email.test` for a test delivery. |
-| `message_id` | The relay message ID. Use it to open the message in the dashboard. |
-| `sender` | The envelope sender. |
-| `recipient` | The envelope recipient. |
-| `subject` | The subject header. |
-| `rfc822_message_id` | The `Message-ID` header of the message. |
-| `received_with_tls` | Whether the inbound connection used TLS. |
-| `receiving_domain` | The domain that accepted the message. |
-| `body_url` | A signed download URL for the raw message. The URL expires, so download the body promptly. |
-| `spam_score` | The spam score. |
-| `spam_action` | The scan action, for example `no action`. |
-| `received_at` | The delivery timestamp, in UTC. |
+| Field               | Meaning                                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| `type`              | `email.received` for real mail, `email.test` for a test delivery.                          |
+| `message_id`        | The relay message ID. Use it to open the message in the dashboard.                         |
+| `sender`            | The envelope sender.                                                                       |
+| `recipient`         | The envelope recipient.                                                                    |
+| `subject`           | The subject header.                                                                        |
+| `rfc822_message_id` | The `Message-ID` header of the message.                                                    |
+| `received_with_tls` | Whether the inbound connection used TLS.                                                   |
+| `receiving_domain`  | The domain that accepted the message.                                                      |
+| `body_url`          | A signed download URL for the raw message. The URL expires, so download the body promptly. |
+| `spam_score`        | The spam score.                                                                            |
+| `spam_action`       | The scan action, for example `no action`.                                                  |
+| `received_at`       | The delivery timestamp, in UTC.                                                            |
 
 A test delivery has type `email.test`. Most fields are empty and `body_url`
 is `null`. Use the **Test** button on an endpoint to send one.
@@ -164,12 +164,12 @@ is `null`. Use the **Test** button on an endpoint to send one.
 
 relay signs each delivery. The request carries these headers:
 
-| Header | Value |
-| --- | --- |
-| `webhook-id` | `msg_<uuid>`, unique for each delivery. |
-| `webhook-timestamp` | Unix seconds at signing time. |
-| `webhook-signature` | `v1,<base64 HMAC-SHA256 signature>`. |
-| `Content-Type` | `application/json`. |
+| Header              | Value                                   |
+| ------------------- | --------------------------------------- |
+| `webhook-id`        | `msg_<uuid>`, unique for each delivery. |
+| `webhook-timestamp` | Unix seconds at signing time.           |
+| `webhook-signature` | `v1,<base64 HMAC-SHA256 signature>`.    |
+| `Content-Type`      | `application/json`.                     |
 
 The signed content is `{id}.{timestamp}.{body}`. The signature is an
 HMAC-SHA256 signature of that byte string with the endpoint signing secret.
@@ -206,17 +206,17 @@ relay expects a 2xx reply within 30 seconds. Any other reply, a timeout, or
 a connection error is a failure.
 
 | Attempt | Delay before the attempt |
-| --- | --- |
-| 1 | Immediate |
-| 2 | 5 seconds |
-| 3 | 5 minutes |
-| 4 | 30 minutes |
-| 5 | 2 hours |
-| 6 | 5 hours |
-| 7 | 10 hours |
-| 8 | 14 hours |
-| 9 | 20 hours |
-| 10 | 24 hours |
+| ------- | ------------------------ |
+| 1       | Immediate                |
+| 2       | 5 seconds                |
+| 3       | 5 minutes                |
+| 4       | 30 minutes               |
+| 5       | 2 hours                  |
+| 6       | 5 hours                  |
+| 7       | 10 hours                 |
+| 8       | 14 hours                 |
+| 9       | 20 hours                 |
+| 10      | 24 hours                 |
 
 relay adds 0 to 29 seconds of random delay to each attempt. Ten attempts
 cover about three days.
@@ -243,13 +243,13 @@ Use the record to find a slow endpoint, a wrong signature, or a server error.
 relay accepts report traffic for your domains automatically. These messages
 are not delivered to your webhooks.
 
-| Address | Purpose | What relay does |
-| --- | --- | --- |
-| `dmarc@{sender-subdomain}` | DMARC aggregate reports | relay stores and parses the XML report. |
-| `ruf@{sender-subdomain}` | DMARC failure reports | relay stores and parses the report. |
-| `tls@{sender-subdomain}` | TLS reports | relay stores and parses the JSON report. |
-| `bounce+{token}@{sender-subdomain}` | Bounce reports for one outgoing message | relay marks that message as bounced. |
-| `postmaster@{your-domain}` | Mail to postmaster, with or without a plus extension | relay stores the message and forwards a copy to your organization members. |
+| Address                             | Purpose                                              | What relay does                                                            |
+| ----------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| `dmarc@{sender-subdomain}`          | DMARC aggregate reports                              | relay stores and parses the XML report.                                    |
+| `ruf@{sender-subdomain}`            | DMARC failure reports                                | relay stores and parses the report.                                        |
+| `tls@{sender-subdomain}`            | TLS reports                                          | relay stores and parses the JSON report.                                   |
+| `bounce+{token}@{sender-subdomain}` | Bounce reports for one outgoing message              | relay marks that message as bounced.                                       |
+| `postmaster@{your-domain}`          | Mail to postmaster, with or without a plus extension | relay stores the message and forwards a copy to your organization members. |
 
 The DMARC and TLS addresses are collectors. Your DMARC and TLS-RPT records
 point at them. relay handles the reports and shows them in the dashboard.
@@ -281,14 +281,14 @@ Quarantined messages stay readable, with their score and virus verdict.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-| --- | --- | --- |
-| The sender gets `550 Relay not authorised for this recipient` | The recipient domain is not added or not verified. | Add the domain. Then verify its MX record. |
-| No webhook fires | No endpoint matches the recipient. | Make sure that the address pattern and the domain are correct. |
-| No webhook fires | The message is quarantined. | Read the message in the log. Then read the spam score. |
-| No webhook fires | Billing is inactive. | Activate billing. relay drops inbound messages without active billing. |
-| Signature verification fails | The signing secret is wrong or the raw body changed. | Copy the secret again. Then verify the exact request body. |
-| Deliveries repeat | The endpoint replied with a non-2xx code or timed out. | Reply with 2xx. Then process the message after the response. |
+| Symptom                                                       | Likely cause                                           | Fix                                                                    |
+| ------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| The sender gets `550 Relay not authorised for this recipient` | The recipient domain is not added or not verified.     | Add the domain. Then verify its MX record.                             |
+| No webhook fires                                              | No endpoint matches the recipient.                     | Make sure that the address pattern and the domain are correct.         |
+| No webhook fires                                              | The message is quarantined.                            | Read the message in the log. Then read the spam score.                 |
+| No webhook fires                                              | Billing is inactive.                                   | Activate billing. relay drops inbound messages without active billing. |
+| Signature verification fails                                  | The signing secret is wrong or the raw body changed.   | Copy the secret again. Then verify the exact request body.             |
+| Deliveries repeat                                             | The endpoint replied with a non-2xx code or timed out. | Reply with 2xx. Then process the message after the response.           |
 
 ## Related pages
 
