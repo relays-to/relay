@@ -265,8 +265,8 @@ class Lookup:
             try:
                 ip = ipaddress.ip_address(address)
             except ValueError:
-                ip = None
-            if ip is not None:
+                pass
+            else:
                 if isinstance(ip, ipaddress.IPv6Address):
                     nibbles = ip.exploded.replace(":", "")
                     query = ".".join(reversed(nibbles)) + ".origin6.asn.cymru.com"
