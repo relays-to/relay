@@ -182,6 +182,7 @@ class BreadcrumbViewMixin:
         return reverse(cls.parent)
 
     def get_page_title(self) -> str:
+        """Name the current view for breadcrumbs and share cards, falling back to the object string."""
         if not (title := self.get_title(self.request)):
             title = str(obj) if (obj := getattr(self, "object", None)) else ""
         return title

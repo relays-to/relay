@@ -12,6 +12,10 @@ class TestLoginView:
         response = client.get("/account/login")
         assert response.headers["Cache-Control"] == "no-store"
 
+    def test_get__page_title(self, client):
+        response = client.get("/account/login")
+        assert response.context["page_title"] == "login"
+
 
 @pytest.mark.django_db
 class TestOrganizationListView:
@@ -28,6 +32,10 @@ class TestOrganizationListView:
         response = admin_client.get("/organizations/")
         assert response.status_code == 200
         assert list(response.context["organizations"]) == [org]
+
+    def test_get__page_title(self, admin_client, org):
+        response = admin_client.get("/organizations/")
+        assert response.context["page_title"] == "organizations"
 
     def test_get__shows_user_orgs(self, admin_client, user, org):
         second_org = Organization.objects.create(slug="second-org")
@@ -193,6 +201,10 @@ class TestMembershipCreateView:
             org=org, user=other_user, role=Membership.Role.WRITE
         ).exists()
 
+    def test_get__page_title(self, admin_client, org):
+        response = admin_client.get(f"/org/{org.slug}/settings/members/new")
+        assert response.context["page_title"] == "Edit member"
+
     def test_post__unknown_user_shows_error(self, admin_client, org):
         response = admin_client.post(
             f"/org/{org.slug}/settings/members/new",
@@ -233,6 +245,13 @@ class TestMembershipDeleteView:
         )
         assert response.status_code == 403
 
+    def test_get__page_title(self, admin_client, org, other_user):
+        m = Membership.objects.create(
+            org=org, user=other_user, role=Membership.Role.WRITE
+        )
+        response = admin_client.get(f"/org/{org.slug}/settings/members/{m.pk}/delete")
+        assert response.context["page_title"] == "Remove member"
+
     def test_post__removes_member(self, admin_client, org, other_user):
         m = Membership.objects.create(
             org=org, user=other_user, role=Membership.Role.WRITE
@@ -249,6 +268,16 @@ class TestMembershipDeleteView:
         assert response.status_code == 404
 
 
+@pytest.mark.django_db
+class TestMembershipUpdateView:
+    def test_get__page_title(self, admin_client, org, other_user):
+        m = Membership.objects.create(
+            org=org, user=other_user, role=Membership.Role.WRITE
+        )
+        response = admin_client.get(f"/org/{org.slug}/settings/members/{m.pk}/edit")
+        assert response.context["page_title"] == "Edit member"
+
+
 class TestUserPreferenceUpdateView:
     def test_get__requires_login(self, client):
         response = client.get("/account/preferences")
@@ -259,6 +288,11 @@ class TestUserPreferenceUpdateView:
     def test_get__no_store_cache_control_header(self, admin_client):
         response = admin_client.get("/account/preferences")
         assert response.headers["Cache-Control"] == "no-store"
+
+    @pytest.mark.django_db
+    def test_get__page_title(self, admin_client):
+        response = admin_client.get("/account/preferences")
+        assert response.context["page_title"] == "localization"
 
     @pytest.mark.django_db
     def test_get__shows_saved_time_zone(self, admin_client, user):

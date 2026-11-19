@@ -6,6 +6,7 @@ from django.test import RequestFactory
 from django.views import generic
 
 from abstract.views import (
+    BreadcrumbViewMixin,
     CacheControlMixin,
     ConditionalGetMixin,
     MarkdownView,
@@ -106,3 +107,42 @@ class TestMarkdownView:
         assert breadcrumbs[-1]["title"] == "Test"
         assert breadcrumbs[-1]["url"] is None
         assert breadcrumbs[0]["title"] == "Home"
+
+
+class TestBreadcrumbViewMixin:
+    def test_get_title__capitalizes_the_label(self):
+        class TestView(BreadcrumbViewMixin):
+            title = "domain check"
+
+        assert TestView.get_title() == "Domain check"
+
+    def test_get_title__returns_empty_without_a_label(self):
+        class TestView(BreadcrumbViewMixin):
+            title = ""
+
+        assert TestView.get_title() == ""
+
+    def test_get_page_title__falls_back_to_the_object_string(self):
+        class TestView(BreadcrumbViewMixin):
+            object = "example.com"
+
+            def __init__(self):
+                self.request = RequestFactory().get("/test/")
+
+        assert TestView().get_page_title() == "example.com"
+
+    def test_get_page_title__returns_empty_without_a_title_or_object(self):
+        class TestView(BreadcrumbViewMixin):
+            def __init__(self):
+                self.request = RequestFactory().get("/test/")
+
+        assert TestView().get_page_title() == ""
+
+    def test_get_context_data__has_page_title(self):
+        class TestView(BreadcrumbViewMixin, generic.TemplateView):
+            title = "domain check"
+
+        view = TestView()
+        view.request = RequestFactory().get("/test/")
+
+        assert view.get_context_data()["page_title"] == "Domain check"

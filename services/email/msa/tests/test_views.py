@@ -153,6 +153,14 @@ class TestMessageDetailView:
             "v=1; a=ed25519-sha256; b",
         ]
 
+    def test_get__page_title_falls_back_for_a_blank_subject(
+        self, admin_client, org, user
+    ):
+        msg = make_message(org, user, subject="")
+        response = admin_client.get(f"/org/{org.slug}/email/messages/{msg.id}")
+        assert response.status_code == 200
+        assert response.context["page_title"] == str(msg)
+
 
 @pytest.mark.django_db
 class TestMessageReleaseView:

@@ -48,6 +48,7 @@ class OpenGraphImage:
         font: ImageFont.FreeTypeFont,
         fill: tuple[int, ...],
     ) -> float:
+        """Composite text with its leftmost ink on `x` and return its right edge."""
         layer = Image.new("RGBA", (self.WIDTH_PX, self.HEIGHT_PX), (0, 0, 0, 0))
         ImageDraw.Draw(layer).text(
             (0, baseline), text, font=font, fill=fill, anchor="ls"
@@ -57,6 +58,7 @@ class OpenGraphImage:
         return x + right - left
 
     def draw_wordmark(self, image: Image.Image, label: str) -> None:
+        """Render the relay wordmark with a descriptor beside it."""
         baseline = self.HEADER_BASELINE_PX
         wordmark_font = self.font("space-mono-700-italic.ttf", 58)
         label_font = self.font("fira-sans-500.ttf", 28)
@@ -118,6 +120,7 @@ class OpenGraphImage:
         raise NotImplementedError
 
     def compose(self) -> Image.Image:
+        """Draw the overlay on the background and return the finished card."""
         image = self.background()
         overlay = Image.new("RGBA", (self.WIDTH_PX, self.HEIGHT_PX), (0, 0, 0, 0))
         self.draw(overlay)
@@ -134,6 +137,8 @@ class OpenGraphImage:
 
 @dataclasses.dataclass(kw_only=True)
 class BrandImage(OpenGraphImage):
+    """Render the relay wordmark and tagline as the default share card."""
+
     WORDMARK: typing.ClassVar[str] = "relay"
     WORDMARK_SIZE_PX: typing.ClassVar[int] = 170
     WORDMARK_BASELINE_PX: typing.ClassVar[int] = 345
@@ -174,6 +179,8 @@ class BrandImage(OpenGraphImage):
 
 @dataclasses.dataclass(kw_only=True)
 class TitleImage(OpenGraphImage):
+    """Render a page title on relay's brand background."""
+
     title: str
 
     TITLE_TOP_PX: typing.ClassVar[int] = 214
@@ -239,23 +246,17 @@ class TitleImage(OpenGraphImage):
                 line = ""
             while draw.textlength(word, font=font) > self.TITLE_WIDTH_PX:
                 cut = len(word)
-                while cut and (
-                    draw.textlength(word[:cut], font=font) > self.TITLE_WIDTH_PX
-                ):
+                while draw.textlength(word[:cut], font=font) > self.TITLE_WIDTH_PX:
                     cut -= 1
-                cut = max(cut, 1)
                 lines.append(word[:cut])
                 word = word[cut:]
             line = word
-        if line:
-            lines.append(line)
+        lines.append(line)
         return lines
 
     def ellipsize(
         self, draw: ImageDraw.ImageDraw, font: ImageFont.FreeTypeFont, line: str
     ) -> str:
-        while line and (
-            draw.textlength(f"{line.rstrip()}…", font=font) > self.TITLE_WIDTH_PX
-        ):
+        while draw.textlength(f"{line.rstrip()}…", font=font) > self.TITLE_WIDTH_PX:
             line = line[:-1]
         return f"{line.rstrip()}…"

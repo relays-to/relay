@@ -100,10 +100,8 @@ class MessageDetailView(
     parent = "message:message-list"
 
     def get_page_title(self):
-        message = getattr(self, "object", None)
-        if message and message.subject:
-            return message.subject
-        return super().get_page_title()
+        """Name the breadcrumb and share card after the message subject."""
+        return self.object.subject or super().get_page_title()
 
     def get_object(self, queryset=None):
         return get_object_or_404(queryset or self.get_queryset(), pk=self.kwargs["pk"])

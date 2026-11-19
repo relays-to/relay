@@ -82,6 +82,8 @@ class OpenSourceView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateVie
 
 
 class OpenGraphImageView(CacheControlMixin, generic.View):
+    """Serve the signed share card named by the query signature."""
+
     MAX_TITLE_LENGTH = 120
     OG_TTL = dt.timedelta(days=1)
     cache_control = {

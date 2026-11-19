@@ -5,7 +5,7 @@ import pytest
 from django.core.cache import cache
 from PIL import Image
 
-from abstract.open_graph import OpenGraphImage
+from abstract.open_graph import BrandImage, OpenGraphImage, TitleImage
 
 CACHE_HIT = "render must not draw on a cache hit"
 
@@ -71,3 +71,51 @@ class TestOpenGraphImage:
         image = Undrawable(cache_key="cached", cache_ttl=dt.timedelta(minutes=1))
 
         assert image.render() == b"payload"
+
+
+class TestBrandImage:
+    def test_render__returns_the_default_card(self):
+        cache.clear()
+        image = BrandImage(cache_key="brand", cache_ttl=dt.timedelta(minutes=1))
+
+        payload = image.render()
+
+        assert payload.startswith(b"\x89PNG\r\n\x1a\n")
+        assert Image.open(io.BytesIO(payload)).size == (
+            BrandImage.WIDTH_PX,
+            BrandImage.HEIGHT_PX,
+        )
+
+
+class TestTitleImage:
+    def make_image(self, title: str) -> TitleImage:
+        return TitleImage(
+            title=title,
+            cache_key="title",
+            cache_ttl=dt.timedelta(minutes=1),
+        )
+
+    def test_render__returns_a_title_card(self):
+        cache.clear()
+
+        payload = self.make_image("Message log").render()
+
+        assert payload.startswith(b"\x89PNG\r\n\x1a\n")
+        assert Image.open(io.BytesIO(payload)).size == (
+            TitleImage.WIDTH_PX,
+            TitleImage.HEIGHT_PX,
+        )
+
+    @pytest.mark.parametrize(
+        "title",
+        [
+            "",
+            "relay: communication as a service",
+            "A" * 200,
+            " ".join(["a long page title"] * 20),
+        ],
+    )
+    def test_render__fits_any_title(self, title):
+        cache.clear()
+
+        assert self.make_image(title).render()

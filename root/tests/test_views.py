@@ -1,8 +1,11 @@
+import hashlib
 from inspect import iscoroutinefunction
+from urllib.parse import unquote
 
 import pytest
 from asgiref.sync import async_to_sync, sync_to_async
 from django.conf import settings
+from django.core.cache import cache
 from django.db import connections
 from django.http import HttpResponse
 from django.template import engines
@@ -10,7 +13,8 @@ from django.test import RequestFactory
 from django.urls import reverse
 from django.utils.module_loading import import_string
 
-from root.views import HomeView
+from abstract.open_graph import signer
+from root.views import HomeView, OpenGraphImageView
 
 
 class TestHomeView:
@@ -27,6 +31,89 @@ class TestHomeView:
         view.request = RequestFactory().get("/", HTTP_HOST="localhost:8000")
         context = view.get_context_data()
         assert context["nameservers"] == ["ns1.localhost", "ns2.localhost"]
+
+
+class TestOpenGraphImageView:
+    def test_get__returns_a_png(self, client):
+        response = client.get(
+            reverse("og-image"),
+            {"signature": signer.sign("Message log")},
+        )
+
+        assert response.status_code == 200
+        assert response.headers["Content-Type"] == "image/png"
+        assert response.content.startswith(b"\x89PNG\r\n\x1a\n")
+
+    def test_get__sets_a_public_cache_control_header(self, client):
+        response = client.get(
+            reverse("og-image"),
+            {"signature": signer.sign("Message log")},
+        )
+
+        assert (
+            response.headers["Cache-Control"] == "public, max-age=86400, s-maxage=86400"
+        )
+
+    def test_get__rejects_an_unsigned_title(self, client):
+        response = client.get(reverse("og-image"), {"title": "Message log"})
+
+        assert response.status_code == 404
+
+    def test_get__rejects_a_forged_signature(self, client):
+        response = client.get(reverse("og-image"), {"signature": "Message log"})
+
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize("title", ["", "   "])
+    def test_get__rejects_a_blank_title(self, client, title):
+        response = client.get(
+            reverse("og-image"),
+            {"signature": signer.sign(title)},
+        )
+
+        assert response.status_code == 404
+
+    def test_get__truncates_a_long_title(self, client):
+        response = client.get(
+            reverse("og-image"),
+            {"signature": signer.sign("A" * 200)},
+        )
+
+        assert response.status_code == 200
+        title = "A" * OpenGraphImageView.MAX_TITLE_LENGTH
+        key = f"open_graph:title:{hashlib.sha256(title.encode()).hexdigest()}"
+        assert cache.get(key)
+
+
+class TestHomeViewBrandCard:
+    def test_get__uses_the_static_brand_card(self, client):
+        content = client.get(reverse("home")).content.decode()
+
+        assert 'property="og:image"' in content
+        assert "img/og-image" in content
+
+
+class TestPageCard:
+    def test_get__uses_a_signed_title_card(self, client):
+        page = client.get(reverse("docs:list"))
+        content = page.content.decode()
+
+        signature = content.split("/og.png?signature=")[1].split('"')[0]
+
+        assert "img/og-image" not in content
+        assert client.get(f"/og.png?signature={signature}").status_code == 200
+
+
+@pytest.mark.django_db
+class TestNotificationSettingsView:
+    def test_get__uses_a_notifications_share_card(self, admin_client):
+        content = admin_client.get(
+            reverse("django_letter_notifications:settings")
+        ).content.decode()
+
+        signature = content.split("/og.png?signature=")[1].split('"')[0]
+
+        assert signer.unsign(unquote(signature)) == "Notifications"
 
 
 class TestHomeViewRender:
