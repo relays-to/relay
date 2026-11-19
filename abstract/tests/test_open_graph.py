@@ -2,7 +2,6 @@ import datetime as dt
 import io
 
 import pytest
-from django.core import signing
 from django.core.cache import cache
 from PIL import Image
 
@@ -86,19 +85,6 @@ class TestBrandImage:
             BrandImage.WIDTH_PX,
             BrandImage.HEIGHT_PX,
         )
-
-
-class TestTitleSigning:
-    def test_signer__round_trips(self):
-        signer = signing.Signer(salt="open-graph")
-
-        assert signer.unsign(signer.sign("Message log")) == "Message log"
-
-    def test_signer__rejects_a_forged_token(self):
-        signer = signing.Signer(salt="open-graph")
-
-        with pytest.raises(signing.BadSignature):
-            signer.unsign("Message log")
 
 
 class TestTitleImage:

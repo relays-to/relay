@@ -62,10 +62,13 @@ class TestHomeViewBrandCard:
 
 class TestPageCard:
     def test_get__uses_a_signed_title_card(self, client):
-        content = client.get(reverse("docs:list")).content.decode()
+        page = client.get(reverse("docs:list"))
+        content = page.content.decode()
 
-        assert "/og.png?signature=" in content
+        signature = content.split("/og.png?signature=")[1].split('"')[0]
+
         assert "img/og-image" not in content
+        assert client.get(f"/og.png?signature={signature}").status_code == 200
 
 
 class TestHomeViewRender:

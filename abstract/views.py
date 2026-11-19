@@ -174,7 +174,8 @@ class BreadcrumbViewMixin:
     @classmethod
     def get_title(cls, request=None) -> str:
         """Return the breadcrumb title for this page."""
-        return str(cls.title) if cls.title else ""
+        title = str(cls.title)
+        return f"{title[:1].upper()}{title[1:]}" if title else ""
 
     @classmethod
     def get_url(cls, request) -> str | None:
