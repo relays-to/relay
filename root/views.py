@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views import defaults, generic
 from django.views.csrf import csrf_failure
 
-from abstract.open_graph import TitleImage
+from abstract.open_graph import TitleImage, signer
 from abstract.views import (
     PUBLIC_PAGE_CACHE,
     BreadcrumbViewMixin,
@@ -95,9 +95,7 @@ class OpenGraphImageView(CacheControlMixin, generic.View):
 
     def get(self, request, *args, **kwargs):
         try:
-            title = signing.Signer(salt="open-graph").unsign(
-                request.GET.get("signature", "")
-            )
+            title = signer.unsign(request.GET.get("signature", ""))
         except signing.BadSignature as error:
             raise Http404 from error
         title = " ".join(title.split())[: self.MAX_TITLE_LENGTH]

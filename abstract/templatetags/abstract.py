@@ -5,7 +5,6 @@ from urllib.parse import urlencode
 
 from django.contrib.admin.templatetags.admin_urls import admin_urlname
 from django.contrib.humanize.templatetags import humanize
-from django.core import signing
 from django.template import defaultfilters, loader
 from django.template.defaulttags import register
 from django.templatetags.static import static
@@ -20,6 +19,7 @@ from pygments.lexers import get_lexer_by_name
 from pygments.util import ClassNotFound
 
 from .. import utils
+from ..open_graph import signer
 
 register.filter(is_safe=True)(humanize.ordinal)
 register.filter(is_safe=True)(humanize.intcomma)
@@ -97,7 +97,7 @@ def admin_url(context):
 def social_image(context, title=""):
     """Render the share card meta tags, or the brand card without a title."""
     if title:
-        signature = signing.Signer(salt="open-graph").sign(str(title))
+        signature = signer.sign(str(title))
         path = f"{reverse('og-image')}?{urlencode({'signature': signature})}"
         alt = gettext("Relay share card: %(title)s") % {"title": title}
     else:

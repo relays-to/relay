@@ -4,10 +4,13 @@ import io
 import pathlib
 import typing
 
+from django.core import signing
 from django.core.cache import cache
 from PIL import Image, ImageDraw, ImageFont
 
 type RGB = tuple[int, int, int]
+
+signer = signing.Signer(salt="open-graph")  # Scopes signatures to share card titles.
 
 
 @dataclasses.dataclass(kw_only=True)

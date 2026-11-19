@@ -3,7 +3,6 @@ from inspect import iscoroutinefunction
 import pytest
 from asgiref.sync import async_to_sync, sync_to_async
 from django.conf import settings
-from django.core import signing
 from django.db import connections
 from django.http import HttpResponse
 from django.template import engines
@@ -11,6 +10,7 @@ from django.test import RequestFactory
 from django.urls import reverse
 from django.utils.module_loading import import_string
 
+from abstract.open_graph import signer
 from root.views import HomeView
 
 
@@ -34,7 +34,7 @@ class TestOpenGraphImageView:
     def test_get__returns_a_png(self, client):
         response = client.get(
             reverse("og-image"),
-            {"signature": signing.Signer(salt="open-graph").sign("Message log")},
+            {"signature": signer.sign("Message log")},
         )
 
         assert response.status_code == 200
