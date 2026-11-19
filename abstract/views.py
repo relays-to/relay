@@ -186,9 +186,8 @@ class BreadcrumbViewMixin:
 
     def get_page_title(self) -> str:
         """Return the current page title, falling back to the object's string."""
-        title = self.get_title(self.request)
-        if not title and (obj := getattr(self, "object", None)):
-            title = str(obj)
+        if not (title := self.get_title(self.request)):
+            title = str(obj) if (obj := getattr(self, "object", None)) else ""
         return title
 
     def get_breadcrumbs(self):
