@@ -100,7 +100,6 @@ class MessageDetailView(
     parent = "message:message-list"
 
     def get_page_title(self):
-        """Name the page by the message subject instead of the object string."""
         message = getattr(self, "object", None)
         if message and message.subject:
             return message.subject

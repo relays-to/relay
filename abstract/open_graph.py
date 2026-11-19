@@ -48,7 +48,6 @@ class OpenGraphImage:
         font: ImageFont.FreeTypeFont,
         fill: tuple[int, ...],
     ) -> float:
-        """Composite text with its leftmost ink on `x` and return its right edge."""
         layer = Image.new("RGBA", (self.WIDTH_PX, self.HEIGHT_PX), (0, 0, 0, 0))
         ImageDraw.Draw(layer).text(
             (0, baseline), text, font=font, fill=fill, anchor="ls"
@@ -58,7 +57,6 @@ class OpenGraphImage:
         return x + right - left
 
     def draw_wordmark(self, image: Image.Image, label: str) -> None:
-        """Draw the relay wordmark with a descriptor beside it."""
         baseline = self.HEADER_BASELINE_PX
         wordmark_font = self.font("space-mono-700-italic.ttf", 58)
         label_font = self.font("fira-sans-500.ttf", 28)
@@ -69,8 +67,6 @@ class OpenGraphImage:
         divider = right + 20
         label_box = draw.textbbox((0, baseline), label, font=label_font, anchor="ls")
         x_height = draw.textbbox((0, baseline), "rea", font=wordmark_font, anchor="ls")
-        # Center the descriptor on the wordmark's lowercase body instead of its
-        # baseline, so the pair reads as one lockup.
         label_baseline = (
             baseline
             + (x_height[1] + x_height[3]) / 2
@@ -122,7 +118,6 @@ class OpenGraphImage:
         raise NotImplementedError
 
     def compose(self) -> Image.Image:
-        """Draw the overlay on the background and return the finished card."""
         image = self.background()
         overlay = Image.new("RGBA", (self.WIDTH_PX, self.HEIGHT_PX), (0, 0, 0, 0))
         self.draw(overlay)
@@ -139,8 +134,6 @@ class OpenGraphImage:
 
 @dataclasses.dataclass(kw_only=True)
 class BrandImage(OpenGraphImage):
-    """Render the relay wordmark and tagline as the default share card."""
-
     WORDMARK: typing.ClassVar[str] = "relay"
     WORDMARK_SIZE_PX: typing.ClassVar[int] = 170
     WORDMARK_BASELINE_PX: typing.ClassVar[int] = 345
@@ -169,7 +162,6 @@ class BrandImage(OpenGraphImage):
         font: ImageFont.FreeTypeFont,
         baseline: float,
     ) -> None:
-        """Center a line on the card by its ink, not its advance width."""
         layer = Image.new("RGBA", (self.WIDTH_PX, self.HEIGHT_PX), (0, 0, 0, 0))
         ImageDraw.Draw(layer).text(
             (0, baseline), text, font=font, fill=self.INK, anchor="ls"
@@ -182,8 +174,6 @@ class BrandImage(OpenGraphImage):
 
 @dataclasses.dataclass(kw_only=True)
 class TitleImage(OpenGraphImage):
-    """Render a page title on relay's brand background."""
-
     title: str
 
     TITLE_TOP_PX: typing.ClassVar[int] = 214
@@ -205,8 +195,6 @@ class TitleImage(OpenGraphImage):
         font, lines = self.fit_title(draw)
         spacing = round(font.size * self.TITLE_SPACING_RATIO)
         text = "\n".join(lines)
-        # Measure the painted ink, not the em box, so wrapping and descenders
-        # cannot shift the block off center.
         layer = Image.new("RGBA", (self.WIDTH_PX, self.HEIGHT_PX), (0, 0, 0, 0))
         ImageDraw.Draw(layer).multiline_text(
             (0, 0), text, font=font, fill=self.INK, spacing=spacing
@@ -221,7 +209,6 @@ class TitleImage(OpenGraphImage):
     def fit_title(
         self, draw: ImageDraw.ImageDraw
     ) -> tuple[ImageFont.FreeTypeFont, list[str]]:
-        """Return the largest font and the wrapped title that fit the card."""
         title = " ".join(self.title.split()) or "relay"
         for size in range(
             self.TITLE_MAX_SIZE_PX,
@@ -240,7 +227,6 @@ class TitleImage(OpenGraphImage):
     def wrap_title(
         self, draw: ImageDraw.ImageDraw, font: ImageFont.FreeTypeFont, title: str
     ) -> list[str]:
-        """Wrap `title` to the card width and break words that cannot fit."""
         lines: list[str] = []
         line = ""
         for word in title.split():
@@ -268,7 +254,6 @@ class TitleImage(OpenGraphImage):
     def ellipsize(
         self, draw: ImageDraw.ImageDraw, font: ImageFont.FreeTypeFont, line: str
     ) -> str:
-        """Trim `line` until it and an ellipsis fit the card width."""
         while line and (
             draw.textlength(f"{line.rstrip()}…", font=font) > self.TITLE_WIDTH_PX
         ):

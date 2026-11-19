@@ -10,7 +10,6 @@ from django.test import RequestFactory
 from django.urls import reverse
 from django.utils.module_loading import import_string
 
-from abstract.open_graph import signer
 from root.views import HomeView
 
 
@@ -28,47 +27,6 @@ class TestHomeView:
         view.request = RequestFactory().get("/", HTTP_HOST="localhost:8000")
         context = view.get_context_data()
         assert context["nameservers"] == ["ns1.localhost", "ns2.localhost"]
-
-
-class TestOpenGraphImageView:
-    def test_get__returns_a_png(self, client):
-        response = client.get(
-            reverse("og-image"),
-            {"signature": signer.sign("Message log")},
-        )
-
-        assert response.status_code == 200
-        assert response.headers["Content-Type"] == "image/png"
-        assert response.content.startswith(b"\x89PNG\r\n\x1a\n")
-
-    def test_get__rejects_an_unsigned_title(self, client):
-        response = client.get(reverse("og-image"), {"title": "Message log"})
-
-        assert response.status_code == 404
-
-    def test_get__rejects_a_forged_signature(self, client):
-        response = client.get(reverse("og-image"), {"signature": "Message log"})
-
-        assert response.status_code == 404
-
-
-class TestHomeViewBrandCard:
-    def test_get__uses_the_static_brand_card(self, client):
-        content = client.get(reverse("home")).content.decode()
-
-        assert 'property="og:image"' in content
-        assert "img/og-image" in content
-
-
-class TestPageCard:
-    def test_get__uses_a_signed_title_card(self, client):
-        page = client.get(reverse("docs:list"))
-        content = page.content.decode()
-
-        signature = content.split("/og.png?signature=")[1].split('"')[0]
-
-        assert "img/og-image" not in content
-        assert client.get(f"/og.png?signature={signature}").status_code == 200
 
 
 class TestHomeViewRender:

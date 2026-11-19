@@ -63,7 +63,6 @@ class HomeView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateView):
     def get_context_data(self, **kwargs):
         platform = self.request.get_host().split(":")[0]
         return super().get_context_data(**kwargs) | {
-            # The landing page keeps the brand card instead of a title card.
             "page_title": "",
             "nameservers": [f"ns1.{platform}", f"ns2.{platform}"],
             "brands": BRANDS,
@@ -83,8 +82,6 @@ class OpenSourceView(CacheControlMixin, BreadcrumbViewMixin, generic.TemplateVie
 
 
 class OpenGraphImageView(CacheControlMixin, generic.View):
-    """Render a share card for a signed page title as a PNG."""
-
     MAX_TITLE_LENGTH = 120
     OG_TTL = dt.timedelta(days=1)
     cache_control = {

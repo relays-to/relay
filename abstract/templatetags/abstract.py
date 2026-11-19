@@ -95,7 +95,6 @@ def admin_url(context):
 
 @register.inclusion_tag("abstract/social_image.html", takes_context=True)
 def social_image(context, title=""):
-    """Render the share card meta tags, or the brand card without a title."""
     if title:
         signature = signer.sign(str(title))
         path = f"{reverse('og-image')}?{urlencode({'signature': signature})}"

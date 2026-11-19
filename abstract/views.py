@@ -163,9 +163,6 @@ class BreadcrumbViewMixin:
     the request (for example, the current org name from `request.current_org`).
     Override `get_url(cls, request)` for URL patterns that need kwargs
     from the request (for example, org-scoped views).
-
-    Templates receive `page_title` for share cards, falling back to the
-    object's string on detail pages.
     """
 
     title: str = ""
@@ -185,7 +182,6 @@ class BreadcrumbViewMixin:
         return reverse(cls.parent)
 
     def get_page_title(self) -> str:
-        """Return the current page title, falling back to the object's string."""
         if not (title := self.get_title(self.request)):
             title = str(obj) if (obj := getattr(self, "object", None)) else ""
         return title

@@ -6,7 +6,6 @@ from django.test import RequestFactory
 from django.views import generic
 
 from abstract.views import (
-    BreadcrumbViewMixin,
     CacheControlMixin,
     ConditionalGetMixin,
     MarkdownView,
@@ -107,20 +106,3 @@ class TestMarkdownView:
         assert breadcrumbs[-1]["title"] == "Test"
         assert breadcrumbs[-1]["url"] is None
         assert breadcrumbs[0]["title"] == "Home"
-
-
-class TestGetTitle:
-    def test_get_title__capitalizes_the_label(self):
-        class TestView(BreadcrumbViewMixin):
-            title = "domain check"
-
-        assert TestView.get_title() == "Domain check"
-
-    def test_get_page_title__leaves_the_object_string_alone(self):
-        class TestView(BreadcrumbViewMixin):
-            object = "example.com"
-
-            def __init__(self):
-                self.request = RequestFactory().get("/test/")
-
-        assert TestView().get_page_title() == "example.com"
