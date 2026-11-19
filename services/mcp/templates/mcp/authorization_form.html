@@ -10,7 +10,7 @@
   {% blocktranslate trimmed with client_name=client.name asvar social_title %}
     Authorize {{ client_name }}
   {% endblocktranslate %}
-  {% include "partials/social_image.html" with title=social_title %}
+  {% social_image social_title %}
 {% endblock %}
 {% block content %}
   <div class="max-w-md">

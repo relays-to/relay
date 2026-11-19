@@ -3,7 +3,7 @@
 {% block title %}{% translate "notifications"|capfirst %} | relay{% endblock %}
 {% block social_image %}
   {% translate "notifications"|capfirst as social_title %}
-  {% include "partials/social_image.html" with title=social_title %}
+  {% social_image social_title %}
 {% endblock %}
 {% block content %}
   <div class="max-w-xl">

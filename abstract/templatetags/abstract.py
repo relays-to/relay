@@ -8,9 +8,11 @@ from django.contrib.humanize.templatetags import humanize
 from django.core import signing
 from django.template import defaultfilters, loader
 from django.template.defaulttags import register
+from django.templatetags.static import static
 from django.urls import NoReverseMatch, reverse
 from django.utils import formats, timezone
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext
 from humanize import naturaldelta
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
@@ -91,12 +93,20 @@ def admin_url(context):
         return reverse("admin:index")
 
 
-@register.simple_tag(takes_context=True)
-def og_image_url(context, title):
-    """Return the absolute URL of the signed share card for `title`."""
-    url = context.request.build_absolute_uri(reverse("og-image"))
-    signature = signing.Signer(salt="open-graph").sign(str(title))
-    return f"{url}?{urlencode({'signature': signature})}"
+@register.inclusion_tag("abstract/social_image.html", takes_context=True)
+def social_image(context, title=""):
+    """Render the share card meta tags, or the brand card without a title."""
+    if title:
+        signature = signing.Signer(salt="open-graph").sign(str(title))
+        path = f"{reverse('og-image')}?{urlencode({'signature': signature})}"
+        alt = gettext("Relay share card: %(title)s") % {"title": title}
+    else:
+        path = static("img/og-image.png")
+        alt = gettext("relay logo and the tagline communication as a service")
+    return {
+        "image_url": context.request.build_absolute_uri(path),
+        "image_alt": alt,
+    }
 
 
 @register.inclusion_tag("abstract/timestamp.html")
