@@ -9,6 +9,7 @@ from . import views
 urlpatterns = [
     path("health/", include("root.health")),
     path("", views.HomeView.as_view(), name="home"),
+    path("og.png", views.OpenGraphImageView.as_view(), name="og-image"),
     path("open-source/", views.OpenSourceView.as_view(), name="open-source"),
     # Platform (not org-scoped)
     path("", include("accounts.urls")),

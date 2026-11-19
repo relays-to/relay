@@ -171,7 +171,8 @@ class BreadcrumbViewMixin:
     @classmethod
     def get_title(cls, request=None) -> str:
         """Return the breadcrumb title for this page."""
-        return str(cls.title) if cls.title else ""
+        title = str(cls.title)
+        return f"{title[:1].upper()}{title[1:]}" if title else ""
 
     @classmethod
     def get_url(cls, request) -> str | None:
@@ -180,11 +181,15 @@ class BreadcrumbViewMixin:
             return None
         return reverse(cls.parent)
 
+    def get_page_title(self) -> str:
+        """Name the current view for breadcrumbs and share cards, falling back to the object string."""
+        if not (title := self.get_title(self.request)):
+            title = str(obj) if (obj := getattr(self, "object", None)) else ""
+        return title
+
     def get_breadcrumbs(self):
         """Build the breadcrumb chain by traversing parents to the root."""
-        breadcrumbs = [{"title": self.get_title(self.request), "url": None}]
-        if not breadcrumbs[0]["title"] and hasattr(self, "object") and self.object:
-            breadcrumbs[0]["title"] = str(self.object)
+        breadcrumbs = [{"title": self.get_page_title(), "url": None}]
 
         url = self.get_url(self.request)
         while url:
@@ -204,6 +209,7 @@ class BreadcrumbViewMixin:
     def get_context_data(self, **kwargs):
         return super().get_context_data(**kwargs) | {
             "breadcrumbs": self.get_breadcrumbs(),
+            "page_title": self.get_page_title(),
         }
 
 

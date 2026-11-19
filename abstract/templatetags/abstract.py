@@ -1,14 +1,17 @@
 import datetime as dt
 import decimal
 from html import escape
+from urllib.parse import urlencode
 
 from django.contrib.admin.templatetags.admin_urls import admin_urlname
 from django.contrib.humanize.templatetags import humanize
 from django.template import defaultfilters, loader
 from django.template.defaulttags import register
+from django.templatetags.static import static
 from django.urls import NoReverseMatch, reverse
 from django.utils import formats, timezone
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext
 from humanize import naturaldelta
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
@@ -16,6 +19,7 @@ from pygments.lexers import get_lexer_by_name
 from pygments.util import ClassNotFound
 
 from .. import utils
+from ..open_graph import signer
 
 register.filter(is_safe=True)(humanize.ordinal)
 register.filter(is_safe=True)(humanize.intcomma)
@@ -87,6 +91,22 @@ def admin_url(context):
         return reverse(admin_urlname(model._meta, url_suffix), args=args)
     except NoReverseMatch:
         return reverse("admin:index")
+
+
+@register.inclusion_tag("abstract/social_image.html", takes_context=True)
+def social_image(context, title=""):
+    """Render share-card metadata for the title, falling back to the static brand card."""
+    if title:
+        signature = signer.sign(str(title))
+        path = f"{reverse('og-image')}?{urlencode({'signature': signature})}"
+        alt = gettext("Relay share card: %(title)s") % {"title": title}
+    else:
+        path = static("img/og-image.png")
+        alt = gettext("relay logo and the tagline communication as a service")
+    return {
+        "image_url": context.request.build_absolute_uri(path),
+        "image_alt": alt,
+    }
 
 
 @register.inclusion_tag("abstract/timestamp.html")

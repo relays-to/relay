@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% load i18n %}
 {% block title %}{% translate "notifications"|capfirst %} | relay{% endblock %}
+{% block social_image %}
+  {% translate "notifications"|capfirst as social_title %}
+  {% social_image social_title %}
+{% endblock %}
 {% block content %}
   <div class="max-w-xl">
     <h2 class="mb-6">{% translate "notifications"|capfirst %}</h2>
