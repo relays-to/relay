@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 type RGB = tuple[int, int, int]
 
-signer = signing.Signer(salt="open-graph")  # Scopes signatures to share card titles.
+signer = signing.Signer(salt="open-graph")
 
 
 @dataclasses.dataclass(kw_only=True)
