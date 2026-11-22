@@ -39,7 +39,7 @@ repos:
         additional_dependencies:
           - stylelint@16.26.1
           - stylelint-config-standard@39.0.0
-          - stylelint-plugin-logical-css@2.1.0
+          - stylelint-plugin-logical-css@2.1.1
         args: [--fix]
         exclude: (?:^|/)(?:static|templates)/emails/
   - repo: https://github.com/oxc-project/mirrors-oxlint
