@@ -43,7 +43,7 @@ repos:
         args: [--fix]
         exclude: (?:^|/)(?:static|templates)/emails/
   - repo: https://github.com/oxc-project/mirrors-oxlint
-    rev: v1.60.0
+    rev: v1.94.0
     hooks:
       - id: oxlint
   - repo: https://github.com/oxc-project/mirrors-oxfmt
