@@ -177,7 +177,7 @@ spec:
     spec:
       containers:
         - name: rspamd
-          image: rspamd/rspamd:4.2.3
+          image: rspamd/rspamd:4.3.0
           ports:
             - {name: controller, containerPort: 11334}
           volumeMounts:
