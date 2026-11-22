@@ -332,7 +332,7 @@ spec:
     spec:
       containers:
         - name: storage
-          image: andrewgaul/s3proxy:4.1.1
+          image: andrewgaul/s3proxy:4.2.0
           env:
             - {name: S3PROXY_ENDPOINT, value: "http://0.0.0.0:8080"}
             - {name: S3PROXY_AUTHORIZATION, value: aws-v4}
