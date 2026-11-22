@@ -116,7 +116,7 @@ repos:
       - id: relint
         args: []
   - repo: https://github.com/seddonym/import-linter
-    rev: v2.16
+    rev: v2.17
     hooks:
       - id: import-linter
         language: python
