@@ -2,7 +2,7 @@
 name: Deliverability
 description: Keep your mail out of spam, handle bounces, and understand delivery retries
 author: Johannes Maron
-modified_at: 2026-11-18
+modified_at: 2026-11-24
 ---
 
 # Deliverability
@@ -43,9 +43,10 @@ recipient to the suppression list. The rejection can arrive in two ways:
 - The recipient server replies with a permanent 5xx code during delivery.
 - The recipient server accepts the message and sends a bounce report later.
 
-In both cases, relay sets the message to `bounced` and suppresses the
-address. Later submissions to that address get the `suppressed` status. The
-SMTP transaction still replies with `250`, so your application does not retry.
+In both cases, relay sets the message to `bounced`, a hard bounce, and
+suppresses the address. Later submissions to that address get the
+`suppressed` status. The SMTP transaction still replies with `250`, so your
+application does not retry.
 
 relay stores each entry as a salted SHA-256 hash. relay can compare an
 address with the list but cannot read the address back.
@@ -94,10 +95,11 @@ flowchart TD
     B -- clean --> E[MX lookup and MTA-STS check]
     E --> F[Attempt at each MX host]
     F -- accepted --> G[Status sent]
-    F -- permanent rejection --> H[Status bounced and address suppressed]
+    F -- permanent rejection --> H[Status bounced, a hard bounce, and address suppressed]
     F -- temporary failure --> I[Status stays pending]
     I --> F
-    I -- retries exhausted --> J[Status failed]
+    I -- retries exhausted after a 4xx --> J[Status soft_bounced]
+    I -- retries exhausted without a 4xx --> K[Status failed]
     F -- late bounce report --> H
 ```
 
@@ -121,13 +123,14 @@ the whole list:
 | 5       | 16 minutes              |
 | 6       | 32 minutes              |
 
-The sixth failed attempt ends the message as `failed`. The whole schedule
-takes about one hour.
+The sixth failed attempt ends the message. When a host refused it with a 4xx
+reply, the status becomes `soft_bounced`. When no host replied with a 4xx,
+the status becomes `failed`. The whole schedule takes about one hour.
 
 ### Permanent failures
 
-A 5xx reply is permanent. relay sets the message to `bounced`. It also
-suppresses the recipient. Do not wait for a retry.
+A 5xx reply is permanent. relay sets the message to `bounced`, a hard
+bounce. It also suppresses the recipient. Do not wait for a retry.
 
 A bounce report can also arrive after a successful delivery. relay then
 changes a `sent` or `failed` message to `bounced`.
@@ -135,7 +138,10 @@ changes a `sent` or `failed` message to `bounced`.
 ### Temporary failures
 
 A 4xx reply, a connection error, a missing MX record, or a DNS lookup timeout
-is temporary. relay records the reply. Then relay retries.
+is temporary. relay records the reply and retries. A 4xx reply records a soft
+bounce on the transmission. A connection error records a failure. After the
+last attempt, a 4xx reply ends the message as `soft_bounced`. A transport
+failure without a 4xx reply ends it as `failed`.
 
 relay records a domain without MX records and a failed DNS lookup as
 different failures. A delegation can take time to propagate, so relay retries

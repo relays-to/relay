@@ -2,7 +2,7 @@
 name: Receiving
 description: Point your MX record at relay and receive inbound mail on an HTTPS endpoint
 author: Johannes Maron
-modified_at: 2026-11-18
+modified_at: 2026-11-24
 ---
 
 # Receiving
@@ -248,7 +248,7 @@ are not delivered to your webhooks.
 | `dmarc@{sender-subdomain}`          | DMARC aggregate reports                              | relay stores and parses the XML report.                                    |
 | `ruf@{sender-subdomain}`            | DMARC failure reports                                | relay stores and parses the report.                                        |
 | `tls@{sender-subdomain}`            | TLS reports                                          | relay stores and parses the JSON report.                                   |
-| `bounce+{token}@{sender-subdomain}` | Bounce reports for one outgoing message              | relay marks that message as bounced.                                       |
+| `bounce+{token}@{sender-subdomain}` | Bounce reports for one outgoing message              | relay marks that message as a hard bounce.                                 |
 | `postmaster@{your-domain}`          | Mail to postmaster, with or without a plus extension | relay stores the message and forwards a copy to your organization members. |
 
 The DMARC and TLS addresses are collectors. Your DMARC and TLS-RPT records
@@ -257,7 +257,7 @@ point at them. relay handles the reports and shows them in the dashboard.
 The bounce address is unique for each outgoing message. relay accepts a
 bounce report only for an address that relay created and only when the report
 names the original recipient. A permanent failure marks the original message
-as `bounced` and suppresses the recipient.
+as a hard bounce and suppresses the recipient.
 
 ### Postmaster copies
 

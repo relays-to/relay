@@ -2,7 +2,7 @@
 name: Message statuses
 description: Read the status of an outgoing or incoming message and its delivery attempts
 author: Johannes Maron
-modified_at: 2026-11-18
+modified_at: 2026-11-24
 ---
 
 # Message statuses
@@ -24,7 +24,8 @@ stateDiagram-v2
     pending --> held : scan holds the message
     pending --> sent : a recipient host accepts the message
     pending --> bounced : permanent rejection
-    pending --> failed : retries exhausted
+    pending --> soft_bounced : retries exhausted after a 4xx rejection
+    pending --> failed : retries exhausted without a 4xx rejection
     pending --> dropped : organization suspended
 
     held --> pending : release and send
@@ -32,16 +33,17 @@ stateDiagram-v2
     failed --> bounced : late bounce report
 ```
 
-| Status       | Meaning                                                                             | What to do                                                                                         |
-| ------------ | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `pending`    | relay stored the message. The scan or delivery is not finished.                     | Wait. Read the transmissions if the status does not change.                                        |
-| `held`       | The spam or malware scan held the message. relay did not deliver it.                | Read the scan result. If it is a spam hold, click **Release and send**.                            |
-| `sent`       | A recipient mail server accepted the message.                                       | Nothing. A late bounce report can still change the status to `bounced`.                            |
-| `bounced`    | A recipient server rejected the message permanently.                                | The recipient is on the suppression list. Remove the entry only if the mailbox accepts mail again. |
-| `failed`     | relay did not deliver the message after all retries, or MTA-STS blocked every host. | Open the transmissions and read the reply from each host.                                          |
-| `suppressed` | The recipient was on the suppression list at submission.                            | relay did not deliver the message. Remove the address from the list to send again.                 |
-| `sandboxed`  | The message came from a sandbox credential. relay did not deliver it.               | Nothing. The message is a test message.                                                            |
-| `dropped`    | relay suspended the organization, so it dropped the queued message.                 | Contact support.                                                                                   |
+| Status         | Meaning                                                                                                                               | What to do                                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `pending`      | relay stored the message. The scan or delivery is not finished.                                                                       | Wait. Read the transmissions if the status does not change.                                                    |
+| `held`         | The spam or malware scan held the message. relay did not deliver it.                                                                  | Read the scan result. If it is a spam hold, click **Release and send**.                                        |
+| `sent`         | A recipient mail server accepted the message.                                                                                         | Nothing. A late bounce report can still change the status to `bounced`.                                        |
+| `soft_bounced` | A recipient server rejected the message with a temporary 4xx reply, and the retries ran out.                                          | Nothing. The condition is temporary. The recipient stays off the suppression list. Send again later if needed. |
+| `bounced`      | A recipient server rejected the message permanently. relay calls this a hard bounce.                                                  | The recipient is on the suppression list. Remove the entry only if the mailbox accepts mail again.             |
+| `failed`       | relay did not deliver the message after all retries and no host sent a 4xx reply. A configuration error or MTA-STS can also end here. | Open the transmissions and read the reply from each host.                                                      |
+| `suppressed`   | The recipient was on the suppression list at submission.                                                                              | relay did not deliver the message. Remove the address from the list to send again.                             |
+| `sandboxed`    | The message came from a sandbox credential. relay did not deliver it.                                                                 | Nothing. The message is a test message.                                                                        |
+| `dropped`      | relay suspended the organization, so it dropped the queued message.                                                                   | Contact support.                                                                                               |
 
 ### What the statuses do not tell you
 
@@ -53,8 +55,9 @@ bounce report to the per-message return path. relay changes the message to
 `bounced` and suppresses the recipient.
 
 A temporary failure does not change the status. The message stays `pending`
-while relay retries. A permanent rejection changes the status to `bounced`. A
-relay-side transport failure can end as `failed`.
+while relay retries. A permanent rejection changes the status to `bounced`.
+When the retries run out after a 4xx reply, the message ends as
+`soft_bounced`. When they run out without one, it ends as `failed`.
 
 ## Incoming messages
 
@@ -93,6 +96,7 @@ starts with a reception record. Each webhook `POST` adds a delivery record.
 | `sandboxed`         | A sandbox credential submitted the message. No delivery attempt followed. |
 | `sent`              | This attempt reached a recipient host that accepted the message.          |
 | `bounced`           | This attempt got a permanent rejection, now or in a later bounce report.  |
+| `soft_bounced`      | This attempt got a temporary 4xx rejection.                               |
 | `failed`            | This attempt failed. The record names the host and the reason.            |
 | `retry`             | A bounce report announced a delay. The remote server keeps trying.        |
 
@@ -119,12 +123,12 @@ reply code.
 
 The timeline colors each attempt:
 
-| Color  | Meaning                                           |
-| ------ | ------------------------------------------------- |
-| Green  | The attempt succeeded.                            |
-| Red    | The attempt failed.                               |
-| Yellow | The remote server asked relay to retry.           |
-| Blue   | The inbound reception or the outbound submission. |
+| Color  | Meaning                                                                |
+| ------ | ---------------------------------------------------------------------- |
+| Green  | The attempt succeeded.                                                 |
+| Red    | The attempt got a hard bounce or failed for another reason.            |
+| Yellow | The attempt got a soft bounce, or the remote server asked for a retry. |
+| Blue   | The inbound reception or the outbound submission.                      |
 
 The scan bar uses green for a clean result, yellow for a hold or rewrite, and
 red for a rejection. A gray scan bar means the check failed.

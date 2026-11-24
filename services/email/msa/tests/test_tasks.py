@@ -658,7 +658,7 @@ class TestDeliverMessage:
         msg.refresh_from_db()
         assert msg.status == OutgoingMessage.Status.PENDING
         transmission = Transmission.objects.get(message=msg)
-        assert transmission.status == Transmission.Status.FAILED
+        assert transmission.status == Transmission.Status.SOFT_BOUNCED
         assert transmission.remote_host == "mx.example.com"
         assert transmission.code == 450
         assert transmission.output == "450 Try again later"
@@ -762,13 +762,13 @@ class TestDeliverMessage:
         ) == {
             (
                 "mx1.example.com",
-                Transmission.Status.FAILED,
+                Transmission.Status.SOFT_BOUNCED,
                 451,
                 "451 4.2.1 Try again later",
             ),
             (
                 "mx2.example.com",
-                Transmission.Status.FAILED,
+                Transmission.Status.SOFT_BOUNCED,
                 451,
                 "451 4.2.1 Try again later",
             ),
@@ -932,6 +932,25 @@ class TestDeliveryRetry:
 
         message.refresh_from_db()
         assert message.status == OutgoingMessage.Status.FAILED
+
+    @pytest.mark.django_db(transaction=True)
+    def test_delivery_retry__soft_bounces_the_message_of_the_last_attempt(self, org):
+        message = make_outgoing_message(org)
+        Transmission.objects.create(
+            message=message,
+            status=Transmission.Status.SOFT_BOUNCED,
+            code=450,
+            started_at=timezone.now(),
+            finished_at=timezone.now(),
+        )
+        context = make_delivery_retry_context(
+            attempt=DELIVERY_RETRY.max_retries, message_id=str(message.pk)
+        )
+
+        assert delivery_retry(context) is None
+
+        message.refresh_from_db()
+        assert message.status == OutgoingMessage.Status.SOFT_BOUNCED
 
     @pytest.mark.django_db(transaction=True)
     def test_delivery_retry__keeps_a_delivered_message_sent(self, org):

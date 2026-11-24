@@ -110,11 +110,20 @@ def delivery_retry(context):
 
 def mark_failed_if_pending(message_id):
     """Move a message that is still waiting to its final status."""
+    from services.email.message.models import Transmission
+
     from .models import OutgoingMessage
 
+    status = (
+        OutgoingMessage.Status.SOFT_BOUNCED
+        if Transmission.objects.filter(
+            message_id=message_id, status=Transmission.Status.SOFT_BOUNCED
+        ).exists()
+        else OutgoingMessage.Status.FAILED
+    )
     OutgoingMessage.objects.filter(
         pk=message_id, status=OutgoingMessage.Status.PENDING
-    ).update(status=OutgoingMessage.Status.FAILED, modified_at=timezone.now())
+    ).update(status=status, modified_at=timezone.now())
 
 
 def record_drop(message, output):
@@ -330,9 +339,7 @@ def deliver_via_mx_hosts(message, mx_hosts, raw_bytes, return_path):
                         )
                         return OutgoingMessage.Status.BOUNCED, ""
                     case _:
-                        transmission.details = refusal_details(code)
-                        transmission.code = code
-                        transmission.output = output
+                        record_refusal(transmission, code, output)
                         reasons.append((mx_host, transmission.local_ip_address, output))
                         has_temporary_failure = True
             except (aiosmtplib.SMTPException, OSError) as error:
@@ -371,13 +378,25 @@ def deliver_via_mx_hosts(message, mx_hosts, raw_bytes, return_path):
     return outcome_status, failure
 
 
-def refusal_details(code):
-    """Describe a refusal that did not accept the message."""
-    match code // 100:
-        case 4:
-            return "Temporary failure, the remote server asked relay to try again later"
-        case _:
-            return "The remote server did not accept the message"
+def record_refusal(transmission, code, output):
+    """
+    Store a refusal that leaves the message pending for another attempt.
+
+    A 4xx reply is a soft bounce of this attempt. Any other refusal is a
+    failed attempt.
+    """
+    from services.email.message.models import Transmission
+
+    if code // 100 == 4:
+        transmission.status = Transmission.Status.SOFT_BOUNCED
+        transmission.details = (
+            "Temporary failure, the remote server asked relay to try again later"
+        )
+    else:
+        transmission.status = Transmission.Status.FAILED
+        transmission.details = "The remote server did not accept the message"
+    transmission.code = code
+    transmission.output = output
 
 
 def format_smtp_refusal(error):

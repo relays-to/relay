@@ -52,18 +52,11 @@ def compute_org_reputation(org: Organization) -> ReputationStats:
         message__created_at__gte=window_start,
         status=Transmission.Status.BOUNCED,
     ).count()
-    soft_bounces = (
-        OutgoingMessage.objects.filter(
-            org=org,
-            created_at__gte=window_start,
-            status=OutgoingMessage.Status.FAILED,
-            transmissions__status=Transmission.Status.FAILED,
-            transmissions__code__gte=400,
-            transmissions__code__lt=500,
-        )
-        .distinct()
-        .count()
-    )
+    soft_bounces = OutgoingMessage.objects.filter(
+        org=org,
+        created_at__gte=window_start,
+        status=OutgoingMessage.Status.SOFT_BOUNCED,
+    ).count()
 
     provider_reports = FblReport.objects.filter(
         org=org,

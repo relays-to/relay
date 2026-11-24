@@ -54,6 +54,9 @@ class TestOutgoingMessageStatus:
     def test_badge_variant__bounced(self):
         assert OutgoingMessage.Status.BOUNCED.badge_variant == "destructive"
 
+    def test_badge_variant__soft_bounced(self):
+        assert OutgoingMessage.Status.SOFT_BOUNCED.badge_variant == "warning"
+
     def test_badge_variant__dropped(self):
         assert OutgoingMessage.Status.DROPPED.badge_variant == "destructive"
 

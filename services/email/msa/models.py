@@ -53,7 +53,8 @@ class OutgoingMessage(Message):
         PENDING = "pending", _("pending")
         SENT = "sent", _("sent")
         HELD = "held", _("held")
-        BOUNCED = "bounced", _("bounced")
+        SOFT_BOUNCED = "soft_bounced", _("soft bounce")
+        BOUNCED = "bounced", _("hard bounce")
         DROPPED = "dropped", _("dropped")
         SUPPRESSED = "suppressed", _("suppressed")
         SANDBOXED = "sandboxed", _("sandboxed")
@@ -66,7 +67,7 @@ class OutgoingMessage(Message):
             match self:
                 case status_class.SENT:
                     return "success"
-                case status_class.HELD:
+                case status_class.HELD | status_class.SOFT_BOUNCED:
                     return "warning"
                 case status_class.SANDBOXED:
                     return "sandbox"

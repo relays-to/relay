@@ -132,10 +132,10 @@ class TestComputeOrgReputation:
         assert stats["soft_bounces"] == 0
 
     def test_compute_org_reputation__counts_soft_bounces(self, org, user):
-        message = make_message(org, OutgoingMessage.Status.FAILED)
+        message = make_message(org, OutgoingMessage.Status.SOFT_BOUNCED)
         Transmission.objects.create(
             message=message,
-            status=Transmission.Status.FAILED,
+            status=Transmission.Status.SOFT_BOUNCED,
             code=450,
             started_at=timezone.now(),
             finished_at=timezone.now(),
@@ -147,12 +147,12 @@ class TestComputeOrgReputation:
         assert stats["hard_bounces"] == 0
 
     def test_compute_org_reputation__counts_multiple_refusals_once(self, org, user):
-        message = make_message(org, OutgoingMessage.Status.FAILED)
+        message = make_message(org, OutgoingMessage.Status.SOFT_BOUNCED)
         started_at = timezone.now()
         for code in (450, 451):
             Transmission.objects.create(
                 message=message,
-                status=Transmission.Status.FAILED,
+                status=Transmission.Status.SOFT_BOUNCED,
                 code=code,
                 started_at=started_at,
                 finished_at=timezone.now(),
@@ -219,7 +219,7 @@ class TestSoftBounceAfterRetries:
         )
 
         message.refresh_from_db()
-        assert message.status == OutgoingMessage.Status.FAILED
+        assert message.status == OutgoingMessage.Status.SOFT_BOUNCED
         assert compute_org_reputation(org)["soft_bounces"] == 1
 
 
@@ -255,10 +255,10 @@ class TestCheckOrgReputation:
 
     def test_check_org_reputation__ignores_soft_bounces(self, org, user, settings):
         settings.REPUTATION_MIN_VOLUME = 1
-        message = make_message(org, OutgoingMessage.Status.FAILED)
+        message = make_message(org, OutgoingMessage.Status.SOFT_BOUNCED)
         Transmission.objects.create(
             message=message,
-            status=Transmission.Status.FAILED,
+            status=Transmission.Status.SOFT_BOUNCED,
             code=450,
             started_at=timezone.now(),
             finished_at=timezone.now(),
