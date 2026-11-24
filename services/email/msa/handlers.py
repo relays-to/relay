@@ -111,6 +111,8 @@ class SMTPHandler(ProxyProtocolMixin):
             if credential is None:
                 return "535 Authentication failed"
             session.credential = credential
+        except IndexError:
+            return "535 Authentication failed"
         except ValueError, DatabaseError:
             logger.exception("AUTH error")
             return "535 Authentication failed"
