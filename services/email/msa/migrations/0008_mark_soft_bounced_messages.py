@@ -1,4 +1,5 @@
 from django.db import migrations
+from django.utils import timezone
 
 
 def mark_soft_bounced_messages(apps, schema_editor):
@@ -10,9 +11,15 @@ def mark_soft_bounced_messages(apps, schema_editor):
         code__gte=400,
         code__lt=500,
     )
+    message_ids = refusals.values("message_id")
+    # The timeline changes for every affected message, so bump its
+    # modification time and let conditional GETs render the new status.
+    outgoing_message.objects.filter(pk__in=message_ids).update(
+        modified_at=timezone.now()
+    )
     outgoing_message.objects.filter(
         status="failed",
-        pk__in=refusals.values("message_id"),
+        pk__in=message_ids,
     ).update(status="soft_bounced")
     refusals.update(status="soft_bounced")
 
