@@ -2,7 +2,7 @@
 name: Sender reputation
 description: Monitor bounce and complaint rates, read provider reports, and avoid suspension
 author: Johannes Maron
-modified_at: 2026-11-18
+modified_at: 2026-11-24
 ---
 
 # Sender reputation
@@ -27,22 +27,26 @@ domain is in good standing before you migrate.
 
 Open **Monitoring** to see these values:
 
-| Card             | What it shows                                          | Limit                 |
-| ---------------- | ------------------------------------------------------ | --------------------- |
-| Hard bounce rate | Permanent rejections divided by sent messages.         | 5%                    |
-| Complaint rate   | Complaints and held messages divided by sent messages. | 0.1%                  |
-| Cost             | Your message volume and monthly cost.                  | Depends on your plan. |
+| Card             | What it shows                                                               | Limit                 |
+| ---------------- | --------------------------------------------------------------------------- | --------------------- |
+| Hard bounce rate | Permanent rejections divided by sent messages.                              | 5%                    |
+| Soft bounce rate | Messages whose retries ran out after a 4xx reply, divided by sent messages. | Display only          |
+| Complaint rate   | Complaints and held messages divided by sent messages.                      | 0.1%                  |
+| Cost             | Your message volume and monthly cost.                                       | Depends on your plan. |
 
-The rates use a rolling 7-day window. The soft bounce rate is display only. A
-temporary 4xx refusal never suspends an organization.
+The rates use a rolling 7-day window. Only the hard bounce rate and the
+complaint rate can suspend an organization. The soft bounce rate is display
+only. It does not count toward a suspension. A temporary 4xx refusal alone
+never suspends an organization.
 
-Members can receive a weekly digest with the same numbers. Change the
-notification in **Notifications**.
+Members can receive a weekly digest with the hard bounce rate and the
+complaint rate. Change the notification in **Notifications**.
 
 ## Suspension
 
-relay suspends an organization when either rate is more than its limit and
-the organization sent at least 100 messages in the window.
+relay suspends an organization when the hard bounce rate or the complaint
+rate is more than its limit and the organization sent at least 100 messages
+in the window.
 
 A suspended organization has these limits:
 

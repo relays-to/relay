@@ -379,6 +379,7 @@ class TestTransmission:
         [
             (Transmission.Status.SENT, "success"),
             (Transmission.Status.FAILED, "destructive"),
+            (Transmission.Status.SOFT_BOUNCED, "warning"),
             (Transmission.Status.BOUNCED, "destructive"),
             (Transmission.Status.RETRY, "outline"),
         ],

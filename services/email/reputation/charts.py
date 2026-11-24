@@ -83,13 +83,9 @@ def soft_bounces_per_day(org, start):
         OutgoingMessage.objects.filter(
             org=org,
             created_at__date__gte=start,
-            status=OutgoingMessage.Status.FAILED,
-            transmissions__status=Transmission.Status.FAILED,
-            transmissions__code__gte=400,
-            transmissions__code__lt=500,
+            status=OutgoingMessage.Status.SOFT_BOUNCED,
         ),
         "created_at",
-        distinct=True,
     )
 
 

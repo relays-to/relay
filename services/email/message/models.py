@@ -430,6 +430,7 @@ TIMELINE_COLORS = {
     "received": "var(--color-chart-blue)",
     "sent": "var(--color-chart-green)",
     "retry": "var(--color-chart-yellow)",
+    "soft_bounced": "var(--color-chart-yellow)",
     "failed": "var(--color-chart-red)",
     "bounced": "var(--color-chart-red)",
     "sandboxed": "var(--color-chart-gray)",
@@ -452,7 +453,8 @@ class Transmission(Timing):
         SENT = "sent", _("sent")
         FAILED = "failed", _("failed")
         RETRY = "retry", _("retry")
-        BOUNCED = "bounced", _("bounced")
+        SOFT_BOUNCED = "soft_bounced", _("soft bounce")
+        BOUNCED = "bounced", _("hard bounce")
 
     class TlsMode(models.TextChoices):
         PLAINTEXT = "plaintext", "plaintext"
@@ -600,6 +602,8 @@ class Transmission(Timing):
         match self.status:
             case self.Status.SENT | self.Status.RECEIVED:
                 return "success"
+            case self.Status.SOFT_BOUNCED:
+                return "warning"
             case self.Status.FAILED | self.Status.BOUNCED:
                 return "destructive"
             case _:

@@ -97,7 +97,7 @@ class TestBuildReputationChart:
         settings.REPUTATION_WINDOW_DAYS = 7
         hard = make_message(org, dt.date(2026, 9, 16))
         soft = make_message(org, dt.date(2026, 9, 16))
-        soft.status = OutgoingMessage.Status.FAILED
+        soft.status = OutgoingMessage.Status.SOFT_BOUNCED
         soft.save(update_fields=["status"])
         Transmission.objects.create(
             message=hard,
@@ -108,7 +108,7 @@ class TestBuildReputationChart:
         )
         Transmission.objects.create(
             message=soft,
-            status=Transmission.Status.FAILED,
+            status=Transmission.Status.SOFT_BOUNCED,
             code=450,
             started_at=timezone.now(),
             finished_at=timezone.now(),
