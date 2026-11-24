@@ -308,6 +308,13 @@ class TestHandleAuth:
         )
         assert result == "535 Authentication failed"
 
+    async def test_handle_auth__missing_plain_response(self):
+
+        handler = SMTPHandler()
+        session = SimpleNamespace()
+        result = await handler.handle_AUTH(None, session, None, ["PLAIN"])
+        assert result == "535 Authentication failed"
+
     @pytest.mark.django_db(transaction=True)
     async def test_handle_auth__wrong_key(self, user, org):
 
