@@ -86,23 +86,14 @@
             <li class="m-0 text-muted-foreground">{{ check.detail }}</li>
           {% endfor %}
         </ul>
-        {% if public %}
+        {% if public and check.slug %}
           <p class="m-0 mt-2 text-sm text-muted-foreground">
-            {% if check.slug %}
-              <a
-                class="link"
-                href="{% url 'know_how:detail' slug=check.slug %}"
-                target="_blank"
-                rel="noopener noreferrer"
-              >{% translate "Learn more" %}</a>
-              {% translate "or" %}
-            {% endif %}
             <a
               class="link"
-              href="{% url 'accounts:org-start' %}"
-              rel="nofollow"
-            >{% translate "get started" %}</a>.
-            {% translate "We host DMARC reporting, MTA-STS, and TLS-RPT for free." %}
+              href="{% url 'know_how:detail' slug=check.slug %}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >{% translate "Learn more" %}</a>
           </p>
         {% endif %}
       </section>
