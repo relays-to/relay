@@ -1,6 +1,7 @@
 import base64
 import gzip
 import io
+import logging
 import zipfile
 from email import message_from_string
 from email.message import EmailMessage, Message
@@ -90,6 +91,38 @@ class TestReportAttachment:
         attachment.add_header("Content-Disposition", "attachment", filename="a.json")
         outer.attach(attachment)
         assert list(ReportAttachment.iterate_from(outer.as_bytes())) == [b"payload"]
+
+    def test_iterate_from__derives_gzip_from_the_content_type(self):
+        """Some reporters omit the suffix and label the part by content type only."""
+        compressed = gzip.compress(b"<feedback/>")
+        raw = make_email_with_attachment("report", compressed, "application/gzip")
+        assert list(ReportAttachment.iterate_from(raw)) == [b"<feedback/>"]
+
+    def test_iterate_from__logs_corrupt_gzip_attachment(self, caplog):
+        raw = make_email_with_attachment("report.xml.gz", b"not gzip")
+        with caplog.at_level(logging.WARNING):
+            assert list(ReportAttachment.iterate_from(raw)) == []
+        assert "report.xml.gz" in caplog.text
+        assert "failed to decompress" in caplog.text
+
+    def test_iterate_from__logs_zip_without_a_file_entry(self, caplog):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("empty/", b"")
+        raw = make_email_with_attachment(
+            "report.zip", buf.getvalue(), "application/zip"
+        )
+        with caplog.at_level(logging.WARNING):
+            assert list(ReportAttachment.iterate_from(raw)) == []
+        assert "report.zip" in caplog.text
+        assert "no file entry" in caplog.text
+
+    def test_iterate_from__logs_attachment_over_the_size_limit(self, caplog):
+        oversized = gzip.compress(b"a" * (ReportAttachment.MAX_BYTES + 1))
+        raw = make_email_with_attachment("report.xml.gz", oversized)
+        with caplog.at_level(logging.WARNING):
+            assert list(ReportAttachment.iterate_from(raw)) == []
+        assert "larger than the size limit" in caplog.text
 
 
 def make_multipart_with_sub_part(sub_part):

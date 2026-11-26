@@ -1,6 +1,7 @@
 import datetime as dt
 import itertools
 import json
+import logging
 import time
 from email import message_from_bytes, policy
 from email.message import EmailMessage
@@ -866,3 +867,27 @@ class TestParseTlsReport:
         assert failure.receiving_mx_ip_address == "192.0.2.1"
         assert failure.count == 2
         assert failure.additional_info == "https://acme.com/why"
+
+    def test_logs_malformed_report(self, org, caplog):
+        message = make_incoming_message(org)
+        report = TlsReport(
+            org=org,
+            domain=message.domain,
+            receiving_domain="example.com",
+            mail_from="tlsreports@acme.com",
+            rcpt_to="tls-rpt@example.com",
+            subject="Report Domain: example.com",
+            message_id="<tls-bad@example.com>",
+            report_id="",
+        )
+        report.raw_body.save("tls.eml", ContentFile(b"not a report"))
+        report.save()
+
+        with caplog.at_level(logging.WARNING):
+            parse_tls_report.func(report_pk=str(report.pk))
+
+        assert str(report.pk) in caplog.text
+        assert "could not be parsed" in caplog.text
+        report.refresh_from_db()
+        assert report.reporting_org == ""
+        assert not TlsFailure.objects.filter(report=report).exists()
