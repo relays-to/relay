@@ -992,6 +992,7 @@ class BlocklistsCheck(Check):
 
     KEY = "blocklists"
     LABEL = "Blocklists"
+    SLUG = "blocklists"
     HINTS = {
         "Domain blocklists": "Ask the operator to delist the domain, then fix the sending behavior that caused it.",
         "SPF address blocklists": "Ask the operator to delist the address, then fix the sending behavior that caused it.",
