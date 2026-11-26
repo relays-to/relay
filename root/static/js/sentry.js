@@ -1,7 +1,8 @@
 import * as Sentry from "@sentry/browser";
 
-const readMetaContent = (name) =>
-  document.querySelector(`meta[name="${name}"]`)?.content;
+function readMetaContent(name) {
+  return document.querySelector(`meta[name="${name}"]`)?.content;
+}
 
 Sentry.init({
   dsn: readMetaContent("sentry-dsn"),
