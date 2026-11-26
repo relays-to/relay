@@ -18,11 +18,12 @@ domain_monitor_notification = Notification(
 
 @domain_monitor_notification
 class DomainMonitorEmail(TemplateEmail):
+    """Report which checks broke or recovered since the previous run."""
+
     template_name = "emails/domain_monitor.html"
     subject = _("%(domain_name)s: %(change_count)d changes")
     subject_broke = _("%(domain_name)s: %(subcheck_label)s needs attention")
     subject_fixed = _("%(domain_name)s: %(subcheck_label)s is fixed")
-    preheader = _("See what changed and how to fix it.")
 
     def __init__(
         self,

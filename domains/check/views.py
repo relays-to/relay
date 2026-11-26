@@ -150,7 +150,11 @@ class DomainCheckMonitorView(NoStoreCacheMixin, generic.View):
                 return render(
                     request,
                     "domain_check/domaincheck_monitor.html",
-                    {"domain_check": domain_check, "user_orgs": user_orgs},
+                    {
+                        "domain_check": domain_check,
+                        "user_orgs": user_orgs,
+                        "page_title": _("monitor"),
+                    },
                 )
 
     @method_decorator(login_required)

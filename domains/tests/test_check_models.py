@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from domains.check.evaluation import Check, CheckResult, MxCheck, SubCheck
 from domains.check.tiers import Tier
-from domains.models import DomainCheck
+from domains.models import Domain, DomainCheck
 
 
 def make_row(key="mx", subchecks=(), **kwargs):
@@ -428,3 +428,300 @@ class TestStore:
                 "addresses": [],
             }
         ]
+
+
+class TestIsStaleMonitored:
+    def test_is_stale__monitored_check_is_fresh_within_the_hour(self):
+        check = DomainCheck(
+            status=DomainCheck.Status.COMPLETE,
+            domain_id=1,
+            modified_at=timezone.now() - dt.timedelta(minutes=30),
+        )
+
+        assert check.is_stale is False
+
+    def test_is_stale__monitored_check_is_stale_after_the_hour(self):
+        check = DomainCheck(
+            status=DomainCheck.Status.COMPLETE,
+            domain_id=1,
+            modified_at=timezone.now() - dt.timedelta(hours=2),
+        )
+
+        assert check.is_stale is True
+
+
+@pytest.mark.django_db
+class TestForDomain:
+    def test_for_domain__creates_and_links_a_missing_check(self, org):
+        domain = Domain.objects.create(name="example.com", org=org)
+        DomainCheck.objects.all().delete()
+
+        domain_check = DomainCheck.for_domain(domain)
+
+        assert domain_check.name == "example.com"
+        assert domain_check.domain == domain
+        assert domain_check.status == DomainCheck.Status.PENDING
+
+    def test_for_domain__returns_an_existing_linked_check(self, org):
+        domain = Domain.objects.create(name="example.com", org=org)
+        existing = DomainCheck.objects.get(name="example.com")
+
+        domain_check = DomainCheck.for_domain(domain)
+
+        assert domain_check.pk == existing.pk
+        assert domain_check.domain == domain
+
+    def test_for_domain__adopts_a_complete_free_check_as_the_baseline(self, org):
+        domain = Domain.objects.create(name="example.com", org=org)
+        DomainCheck.objects.all().delete()
+        checks = [make_row(subchecks=[{"label": "MX record", "status": "pass"}])]
+        free_check = DomainCheck.objects.create(
+            name="example.com",
+            status=DomainCheck.Status.COMPLETE,
+            checks=checks,
+        )
+
+        domain_check = DomainCheck.for_domain(domain)
+
+        free_check.refresh_from_db()
+        assert domain_check.pk == free_check.pk
+        assert free_check.domain == domain
+        assert free_check.previous_checks == free_check.checks
+
+    def test_for_domain__keeps_an_existing_baseline(self, org):
+        domain = Domain.objects.create(name="example.com", org=org)
+        DomainCheck.objects.all().delete()
+        previous = [make_row()]
+        free_check = DomainCheck.objects.create(
+            name="example.com",
+            status=DomainCheck.Status.COMPLETE,
+            checks=[make_row(key="spf")],
+            previous_checks=previous,
+        )
+
+        DomainCheck.for_domain(domain)
+
+        free_check.refresh_from_db()
+        assert free_check.previous_checks == previous
+
+    def test_for_domain__links_an_unfinished_free_check_without_a_baseline(self, org):
+        domain = Domain.objects.create(name="example.com", org=org)
+        DomainCheck.objects.all().delete()
+        free_check = DomainCheck.objects.create(
+            name="example.com",
+            status=DomainCheck.Status.PENDING,
+            checks=[make_row()],
+        )
+
+        DomainCheck.for_domain(domain)
+
+        free_check.refresh_from_db()
+        assert free_check.domain == domain
+        assert free_check.previous_checks == []
+
+
+class TestFlattenChecks:
+    def test_flatten_checks__keys_each_subcheck_by_check_and_position(self):
+        rows = [
+            make_row(
+                key="mx",
+                subchecks=[
+                    {"label": "MX record", "status": "pass", "detail": "one"},
+                    {"label": "STARTTLS", "status": "fail", "detail": "two"},
+                ],
+            ),
+            make_row(
+                key="spf",
+                subchecks=[{"label": "STARTTLS", "status": "pass", "detail": "three"}],
+            ),
+        ]
+
+        assert DomainCheck.flatten_checks(rows) == {
+            ("mx", 0): ("MX", "MX record", "pass", "one"),
+            ("mx", 1): ("MX", "STARTTLS", "fail", "two"),
+            ("spf", 0): ("SPF", "STARTTLS", "pass", "three"),
+        }
+
+    def test_flatten_checks__defaults_a_missing_detail(self):
+        rows = [make_row(subchecks=[{"label": "MX record", "status": "pass"}])]
+
+        assert DomainCheck.flatten_checks(rows)[("mx", 0)] == (
+            "MX",
+            "MX record",
+            "pass",
+            "",
+        )
+
+
+class TestCalculateChanges:
+    def make_changes(self, previous, current):
+        return DomainCheck(checks=current).calculate_changes(previous)
+
+    def test_calculate_changes__reports_a_regression_with_its_hint(self):
+        previous = [
+            make_row(key="spf", subchecks=[{"label": "Strict all", "status": "pass"}])
+        ]
+        current = [
+            make_row(
+                key="spf",
+                subchecks=[{"label": "Strict all", "status": "fail", "detail": "~all"}],
+            )
+        ]
+
+        changes = self.make_changes(previous, current)
+
+        assert changes == [
+            {
+                "check_key": "spf",
+                "check_label": "SPF",
+                "subcheck_label": "Strict all",
+                "detail": "~all",
+                "hint": ("End the SPF record with -all instead of ~all."),
+                "previous_status": "pass",
+                "current_status": "fail",
+            }
+        ]
+
+    def test_calculate_changes__reports_a_recovery_without_a_hint(self):
+        previous = [make_row(subchecks=[{"label": "MX record", "status": "fail"}])]
+        current = [make_row(subchecks=[{"label": "MX record", "status": "pass"}])]
+
+        changes = self.make_changes(previous, current)
+
+        assert changes == [
+            {
+                "check_key": "mx",
+                "check_label": "MX",
+                "subcheck_label": "MX record",
+                "detail": "",
+                "hint": "",
+                "previous_status": "fail",
+                "current_status": "pass",
+            }
+        ]
+
+    def test_calculate_changes__reports_a_newly_failing_subcheck(self):
+        previous = [make_row(subchecks=[])]
+        current = [make_row(subchecks=[{"label": "MX record", "status": "fail"}])]
+
+        changes = self.make_changes(previous, current)
+
+        assert [
+            (change["previous_status"], change["current_status"]) for change in changes
+        ] == [(None, "fail")]
+
+    def test_calculate_changes__stays_silent_without_a_status_flip(self):
+        previous = [
+            make_row(
+                subchecks=[
+                    {"label": "MX record", "status": "pass"},
+                    {"label": "MX TTL", "status": "fail"},
+                ]
+            )
+        ]
+        current = [
+            make_row(
+                subchecks=[
+                    {"label": "MX record", "status": "pass"},
+                    {"label": "MX TTL", "status": "fail"},
+                ]
+            )
+        ]
+
+        assert self.make_changes(previous, current) == []
+
+    def test_calculate_changes__keeps_subchecks_apart_by_position(self):
+        previous = [
+            make_row(
+                subchecks=[
+                    {"label": "STARTTLS", "status": "fail"},
+                    {"label": "STARTTLS", "status": "pass"},
+                ]
+            )
+        ]
+        current = [
+            make_row(
+                subchecks=[
+                    {"label": "STARTTLS", "status": "fail"},
+                    {"label": "STARTTLS", "status": "fail"},
+                ]
+            )
+        ]
+
+        changes = self.make_changes(previous, current)
+
+        assert len(changes) == 1
+        assert changes[0]["previous_status"] == "pass"
+        assert changes[0]["current_status"] == "fail"
+
+
+@pytest.mark.django_db
+class TestStoreMonitored:
+    def make_linked_check(self, org, **kwargs):
+        Domain.objects.create(name="example.com", org=org)
+        fields = {
+            "status": DomainCheck.Status.RUNNING,
+            "checks": [],
+            "previous_checks": [],
+        }
+        fields.update(kwargs)
+        DomainCheck.objects.filter(name="example.com").update(**fields)
+        return DomainCheck.objects.get(name="example.com")
+
+    def test_store__first_run_only_stores_the_baseline(self, org):
+        check = self.make_linked_check(org)
+
+        changes = DomainCheck.store(
+            "example.com", [CheckResult(key, key, "done") for key in Check.order()]
+        )
+
+        check.refresh_from_db()
+        assert changes == []
+        assert check.previous_checks == check.checks
+
+    def test_store__reports_the_changes_against_the_baseline(self, org):
+        baseline = [
+            make_row(key="spf", subchecks=[{"label": "Strict all", "status": "pass"}])
+        ]
+        check = self.make_linked_check(org, previous_checks=baseline)
+
+        changes = DomainCheck.store(
+            "example.com",
+            [
+                CheckResult(key, key, "done")
+                if key != "spf"
+                else CheckResult(
+                    "spf",
+                    "SPF",
+                    "done",
+                    (SubCheck("Strict all", "fail", "~all"),),
+                )
+                for key in Check.order()
+            ],
+        )
+
+        check.refresh_from_db()
+        assert [
+            (
+                change["subcheck_label"],
+                change["previous_status"],
+                change["current_status"],
+            )
+            for change in changes
+        ] == [("Strict all", "pass", "fail")]
+        assert check.previous_checks == check.checks
+
+    def test_store__an_unmonitored_run_never_reports_changes(self):
+        check = make_check(status=DomainCheck.Status.RUNNING)
+
+        changes = DomainCheck.store(
+            "example.com", [CheckResult(key, key, "done") for key in Check.order()]
+        )
+
+        check.refresh_from_db()
+        assert changes == []
+
+    def test_store__an_unfinished_run_returns_none(self):
+        make_check(status=DomainCheck.Status.RUNNING)
+
+        assert DomainCheck.store("example.com", []) is None

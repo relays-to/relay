@@ -100,6 +100,7 @@ class ConditionalGetMixin(RevalidationCacheMixin):
     """Answer conditional GETs with an ETag and `Last-Modified` from the object."""
 
     def get_last_modified(self, obj) -> dt.datetime:
+        """Return the timestamp of `obj`'s newest change."""
         return obj.modified_at
 
     def get_etag(self, obj) -> str:
