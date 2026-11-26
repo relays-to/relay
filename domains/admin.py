@@ -1,5 +1,4 @@
 from django.contrib import admin, messages
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
@@ -59,17 +58,13 @@ class DomainCheckAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
     )
     def recheck(self, request, queryset):
         """Force a fresh check, even for results that are still recent."""
-        to_check = queryset.exclude(
-            status__in=[DomainCheck.Status.PENDING, DomainCheck.Status.RUNNING]
-        )
-        names = list(to_check.values_list("name", flat=True))
-        to_check.update(
-            status=DomainCheck.Status.RUNNING,
-            checks=[],
-            modified_at=timezone.now(),
+        names = list(
+            queryset.exclude(
+                status__in=[DomainCheck.Status.PENDING, DomainCheck.Status.RUNNING]
+            ).values_list("name", flat=True)
         )
         for name in names:
-            enqueue_check(name)
+            enqueue_check(name, restart=True)
         if names:
             self.message_user(
                 request,
