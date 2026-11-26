@@ -321,6 +321,22 @@
             status: pass
             detail: "1 hour"
             severity: broken
+        metadata:
+          jurisdiction:
+            providers:
+              - provider_name: Hetzner
+                country_code: DE
+                exchange: mx1.relays.to
+              - provider_name: Hetzner
+                country_code: DE
+                exchange: mx2.relays.to
+            networks:
+              - asn: 24940
+                network_name: Hetzner Online GmbH
+                country_code: DE
+                address: 116.203.34.11
+            country_codes:
+              - DE
       - key: spf
         label: SPF
         status: partial
@@ -346,6 +362,28 @@
             status: pass
             detail: "1 hour"
             severity: broken
+        metadata:
+          jurisdiction:
+            providers:
+              - provider_name: Brevo
+                country_code: FR
+                host: sendinblue.com
+              - provider_name: Amazon SES
+                country_code: US
+                host: amazonses.com
+            networks:
+              - asn: 16276
+                network_name: OVHcloud
+                country_code: FR
+                address: 51.75.0.1
+              - asn: 16509
+                network_name: Amazon.com, Inc.
+                country_code: US
+                address: 3.120.0.1
+            country_codes:
+              - DE
+              - FR
+              - US
       - key: dmarc
         label: DMARC
         status: pass
