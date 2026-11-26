@@ -7,18 +7,28 @@ from .models import UserPreference
 
 
 class HttpHeaderRemoteUserMiddleware(RemoteUserMiddleware):
-    """Authenticate each request as `X-Remote-User`, falling back to `REMOTE_USER_NAME`. Registered only when DEBUG is True."""
+    """
+    Authenticate each request as `X-Remote-User`, falling back to `REMOTE_USER_NAME`.
+
+    Registered only when DEBUG is True. The public checker stays anonymous so
+    its cache headers match production.
+    """
 
     header = "HTTP_X_REMOTE_USER"
     REMOTE_USER_NAME = "test"
     force_logout_if_no_header = True
+    PUBLIC_PATHS = ("/domain-check/",)
 
     def process_request(self, request):
+        if request.path.startswith(self.PUBLIC_PATHS):
+            return None
         # An active hijack must not be reset by development auto-login.
         hijack_history = request.session.get("hijack_history")
         return None if hijack_history else super().process_request(request)
 
     async def aprocess_request(self, request):
+        if request.path.startswith(self.PUBLIC_PATHS):
+            return None
         hijack_history = await request.session.aget("hijack_history")
         return None if hijack_history else await super().aprocess_request(request)
 

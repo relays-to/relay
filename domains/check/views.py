@@ -1,17 +1,18 @@
 import datetime as dt
 import secrets
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import Http404, HttpResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.http import urlencode
 from django.utils.translation import gettext_lazy as _
 from django.views import generic
+from django.views.decorators.csrf import csrf_exempt
 
 from abstract.views import (
     BreadcrumbViewMixin,
@@ -20,11 +21,11 @@ from abstract.views import (
     ConditionalGetMixin,
     NoStoreCacheMixin,
 )
-from domains.models import DomainCheck, canonicalize_domain_name
+from domains.models import Domain, DomainCheck, canonicalize_domain_name
 
 from .forms import DomainCheckForm
 from .open_graph import DomainCheckImage
-from .tasks import check_domain
+from .tasks import enqueue_check
 
 
 class DomainCheckListView(
@@ -47,6 +48,7 @@ class DomainCheckListView(
         }
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class DomainCheckSubmitView(NoStoreCacheMixin, generic.FormView):
     form_class = DomainCheckForm
 
@@ -58,7 +60,7 @@ class DomainCheckSubmitView(NoStoreCacheMixin, generic.FormView):
             name=form.cleaned_data["name"]
         )
         if domain_check.is_stale:
-            check_domain.enqueue(name=domain_check.name)
+            enqueue_check(domain_check.name)
         else:
             messages.info(
                 self.request,
@@ -106,16 +108,7 @@ class DomainCheckDetailView(
     def post(self, request, *args, **kwargs):
         """Queue a fresh check and drop the visitor on the polling page."""
         domain_check = self.get_object()
-        if domain_check.status not in {
-            DomainCheck.Status.PENDING,
-            DomainCheck.Status.RUNNING,
-        }:
-            DomainCheck.objects.filter(pk=domain_check.pk).update(
-                status=DomainCheck.Status.RUNNING,
-                checks=[],
-                modified_at=timezone.now(),
-            )
-            check_domain.enqueue(name=domain_check.name)
+        enqueue_check(domain_check.name, restart=True)
         return redirect("domain_check:detail", name=domain_check.name)
 
     def get_context_data(self, **kwargs):
@@ -123,16 +116,72 @@ class DomainCheckDetailView(
             "refresh_secs": (
                 self.REFRESH_INTERVAL.total_seconds()
                 + secrets.randbelow(int(self.REFRESH_JITTER.total_seconds()) + 1)
-            )
+            ),
+        }
+
+    @property
+    def is_checking(self) -> bool:
+        return self.object.status in {
+            DomainCheck.Status.PENDING,
+            DomainCheck.Status.RUNNING,
         }
 
     def get_template_names(self):
-        if self.object.status in {
-            DomainCheck.Status.PENDING,
-            DomainCheck.Status.RUNNING,
-        }:
+        if self.is_checking:
             return ["domain_check/domaincheck_checking.html"]
         return ["domain_check/domaincheck_detail.html"]
+
+
+class DomainCheckMonitorView(NoStoreCacheMixin, generic.View):
+    @method_decorator(login_required)
+    def get(self, request, name, *args, **kwargs):
+        domain_check = get_object_or_404(DomainCheck, name=name)
+        user_orgs = list(request.user.organizations.all())
+        match user_orgs:
+            case []:
+                messages.info(
+                    request,
+                    _("Create an organization first. Then add the domain to it."),
+                )
+                return redirect("accounts:org-list")
+            case [org]:
+                return self.monitor(request, domain_check, org)
+            case _:
+                return render(
+                    request,
+                    "domain_check/domaincheck_monitor.html",
+                    {"domain_check": domain_check, "user_orgs": user_orgs},
+                )
+
+    @method_decorator(login_required)
+    def post(self, request, name, *args, **kwargs):
+        domain_check = get_object_or_404(DomainCheck, name=name)
+        org = get_object_or_404(
+            request.user.organizations, slug=request.POST.get("org", "")
+        )
+        return self.monitor(request, domain_check, org)
+
+    def monitor(self, request, domain_check, org):
+        platform_name = canonicalize_domain_name(settings.PLATFORM_DOMAIN)
+        if domain_check.name == platform_name:
+            messages.error(
+                request,
+                _("Cannot add %(base)s. relay manages that zone.")
+                % {"base": platform_name},
+            )
+            return redirect(domain_check)
+        try:
+            domain, created = Domain.objects.get_or_create(
+                org=org, name=domain_check.name
+            )
+        except ValidationError as error:
+            for message in error.messages:
+                messages.error(request, message)
+            return redirect(domain_check)
+        domain_check = DomainCheck.for_domain(domain)
+        if not created and domain_check.is_stale:
+            enqueue_check(domain_check.name)
+        return redirect(domain)
 
 
 class DomainCheckOgImageView(CacheControlMixin, generic.View):

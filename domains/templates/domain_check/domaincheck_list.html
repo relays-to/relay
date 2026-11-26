@@ -31,7 +31,6 @@
           </p>
 
           <form method="post" action="{% url 'domain_check:submit' %}" class="mt-4">
-            {% csrf_token %}
             <label class="sr-only" for="id_name">{{ form.name.label }}</label>
             <div class="input-group">
               {{ form.name }}

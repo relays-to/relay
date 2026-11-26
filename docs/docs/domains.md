@@ -118,6 +118,37 @@ Each tab has a **Zone file** download. If your DNS provider imports zone
 files, use it. The file lists the records for that group with an explicit
 TTL.
 
+## Monitor your domain
+
+relay checks every custom domain about once an hour. The check starts when
+you add the domain. The first result lists every record that is missing.
+
+Open **Domains**. Then open the domain. The **Monitoring** section at the
+top shows the tier, the last check, and every record. The **Setup** section
+below it holds the sending, receiving, and reporting tabs. Click **Check
+now** to run a check before the next hourly run.
+
+relay emails the members of your organization when a record changes. The
+email shows the new tier and lists the records that now fail and the records
+that pass again. Turn the email off in **Notifications**.
+
+relay does not monitor the managed sender domain, because relay controls its
+DNS.
+
+## Monitor a domain from the free checker
+
+Open the <a href="{% url 'domain_check:list' %}">domain check</a>. Check the
+domain. The monitoring banner under the score offers **Monitor this domain**.
+If your organization already manages the domain, the link takes you to the
+domain page.
+
+Sign in with GitHub when the page asks. Choose the organization when you
+belong to more than one. The domain joins that organization and relay starts
+the monitoring.
+
+A domain belongs to one organization. relay refuses a domain that another
+organization owns.
+
 ## MTA-STS
 
 relay serves an MTA-STS policy in `enforce` mode for every domain that

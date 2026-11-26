@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib import messages
+from django.db.models import Count, Max
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
@@ -15,7 +16,7 @@ from accounts.views import OrganizationScopedView
 
 from . import resolver
 from .forms import DomainCreateForm, DomainMtaStsForm
-from .models import Domain, canonicalize_domain_name
+from .models import Domain, DomainCheck, canonicalize_domain_name
 from .services import verify_domain_dns
 from .zonefile import build_zone_file
 
@@ -26,7 +27,23 @@ class DomainListView(OrganizationScopedView, ConditionalGetListMixin, generic.Li
     parent = "accounts:org-home"
 
     def get_queryset(self):
-        return Domain.objects.filter(org=self.org)
+        return Domain.objects.filter(org=self.org).select_related("domain_check")
+
+    def get_list_summary(self, queryset):
+        summary = queryset.aggregate(
+            count=Count("pk"),
+            modified_at=Max("modified_at"),
+            check_modified_at=Max("domain_check__modified_at"),
+        )
+        modified_at = max(
+            (
+                value
+                for value in (summary["modified_at"], summary["check_modified_at"])
+                if value is not None
+            ),
+            default=None,
+        )
+        return summary["count"], modified_at
 
 
 class DomainCreateView(OrganizationScopedView, generic.CreateView):
@@ -59,16 +76,30 @@ class DomainDetailView(OrganizationScopedView, ConditionalGetMixin, generic.Deta
     parent = "domains:domain-list"
 
     def get_queryset(self):
-        return Domain.objects.filter(org=self.org, is_managed=False)
+        return Domain.objects.filter(org=self.org, is_managed=False).select_related(
+            "domain_check"
+        )
+
+    def get_last_modified(self, obj):
+        try:
+            domain_check = obj.domain_check
+        except DomainCheck.DoesNotExist:
+            return obj.modified_at
+        return max(obj.modified_at, domain_check.modified_at)
 
     def get_context_data(self, **kwargs):
         platform = self.request.get_host().split(":")[0]
+        try:
+            domain_check = self.object.domain_check
+        except DomainCheck.DoesNotExist:
+            domain_check = None
         return super().get_context_data(**kwargs) | {
             "nameservers": [f"ns1.{platform}", f"ns2.{platform}"],
             "dkim_cnames": self.object.dkim_cnames,
             "mx_hostnames": settings.DNS_MX_HOSTNAMES,
             "mx_priority": resolver.DNSResolver.MX_PRIORITY,
             "mta_sts_form": DomainMtaStsForm(instance=self.object),
+            "domain_check": domain_check,
         }
 
     def post(self, request, *args, **kwargs):

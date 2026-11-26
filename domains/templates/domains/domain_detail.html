@@ -1,219 +1,296 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load abstract esm i18n %}
 {% block title %}{{ domain.name }} | relay{% endblock %}
 {% block content %}
-  <header class="flex items-center justify-between gap-4 mb-6">
+  <header class="mb-6">
     <div class="min-w-0">
       <h2 class="m-0">{{ domain.name }}</h2>
       {% if domain.dns_checked_at %}
         <p class="m-0 mt-2 text-sm text-muted-foreground">
-          {% blocktranslate with checked_at=domain.dns_checked_at|date:"DATETIME_FORMAT" trimmed %}
-            Last DNS check: {{ checked_at }}
-          {% endblocktranslate %}
+          {% translate "Last DNS check:" %}
+          {% timestamp domain.dns_checked_at %}
         </p>
       {% endif %}
     </div>
-    <form method="post">
-      {% csrf_token %}
-      <div role="group" class="button-group">
-        <button
-          type="submit"
-          class="btn"
-          data-variant="primary"
-          formaction="{% url 'domains:domain-verify' org.slug domain.pk %}"
-        >
-          {% translate "verify DNS"|capfirst %}
-        </button>
-        <button
-          type="submit"
-          class="btn"
-          data-variant="destructive"
-          formaction="{% url 'domains:domain-delete' org.slug domain.pk %}"
-          data-confirm='{% translate "delete this domain?"|capfirst context "verb" %}'
-        >
-          {% translate "delete"|capfirst context "verb" %}
-        </button>
-      </div>
-    </form>
   </header>
 
-  <div class="mb-6 flex items-start justify-between gap-4">
-    <p>
-      {% blocktranslate trimmed %}
-        Delegate the sender subdomain to relay. Sending and reporting do not work until the delegation is live.
-      {% endblocktranslate %}
-    </p>
-    {% include "domains/_zone_file_button.html" with group="delegation" %}
-  </div>
-  <div role="group" class="field mb-6">
-    {% include "domains/_check_error.html" with error=domain.nameserver_error %}
-    {% for ns in nameservers %}
-      {% include "domains/_record_row.html" with record_type="NS" record_name=domain.sender_domain record_value=ns status=domain.nameserver_status quote=False priority=None %}
-    {% endfor %}
-  </div>
-
-  <div class="tabs domain-record-tabs mb-6" id="domain-dns-tabs">
-    <nav role="tablist" aria-orientation="horizontal">
-      <button
-        type="button"
-        role="tab"
-        id="domain-dns-tab-sending"
-        aria-controls="domain-dns-panel-sending"
-        aria-selected="true"
-        tabindex="0"
-      >
-        {% translate "sending"|capfirst %}
-        {% include "domains/_status_mark.html" with passing=domain.sending_checks_passing total=domain.SENDING_READINESS_FIELDS|length only %}
-      </button>
-      <button
-        type="button"
-        role="tab"
-        id="domain-dns-tab-receiving"
-        aria-controls="domain-dns-panel-receiving"
-        aria-selected="false"
-        tabindex="-1"
-      >
-        {% translate "receiving"|capfirst %}
-        {% include "domains/_status_mark.html" with passing=domain.receiving_checks_passing total=domain.RECEIVING_CHECK_FIELDS|length only %}
-      </button>
-      <button
-        type="button"
-        role="tab"
-        id="domain-dns-tab-reporting"
-        aria-controls="domain-dns-panel-reporting"
-        aria-selected="false"
-        tabindex="-1"
-      >
-        {% translate "reporting"|capfirst %}
-        {% include "domains/_status_mark.html" with passing=domain.reporting_checks_passing total=domain.REPORTING_READINESS_FIELDS|length only %}
-      </button>
-    </nav>
-
-    <div
-      role="tabpanel"
-      id="domain-dns-panel-sending"
-      aria-labelledby="domain-dns-tab-sending"
-      tabindex="-1"
-    >
-      <section class="card p-6">
-        <div class="flex items-start justify-between gap-4">
-          <p>
-            {% blocktranslate trimmed %}
-              Publish the SPF and DKIM records below, then verify DNS again. This is everything this domain needs to
-              send authenticated email once the sender subdomain is delegated.
-            {% endblocktranslate %}
-          </p>
-          {% include "domains/_zone_file_button.html" with group="sending" %}
-        </div>
-        <div class="flex flex-col gap-4">
-          <div role="group" class="field">
-            {% include "domains/_check_error.html" with error=domain.spf_error %}
-            {% include "domains/_record_row.html" with record_type="TXT" record_name=domain.name record_value=domain.root_spf_record quote=True status=domain.spf_status priority=None %}
-          </div>
-
-          <div role="group" class="field">
-            {% include "domains/_check_error.html" with error=domain.dkim_rsa2048_error %}
-            {% include "domains/_record_row.html" with record_type="CNAME" record_name=dkim_cnames.dkim_rsa2048.0 record_value=dkim_cnames.dkim_rsa2048.1 status=domain.dkim_rsa2048_status quote=False priority=None %}
-          </div>
-
-          <div class="flex flex-col gap-4 border-t border-border pt-4">
-            <div role="group" class="field">
-              {% include "domains/_check_error.html" with error=domain.dkim_ed25519_error %}
-              {% include "domains/_record_row.html" with record_type="CNAME" record_name=dkim_cnames.dkim_ed25519.0 record_value=dkim_cnames.dkim_ed25519.1 status=domain.dkim_ed25519_status quote=False priority=None %}
+  <section class="mb-8" aria-labelledby="domain-monitoring-heading">
+    <header class="flex items-start justify-between gap-4">
+      <div class="flex flex-col gap-1">
+        <h3 id="domain-monitoring-heading" class="m-0">{% translate "monitoring"|capfirst %}</h3>
+        <p class="m-0 text-sm text-muted-foreground">
+          {% translate "Every hour, relay checks this domain and emails your organization when a record changes." %}
+        </p>
+      </div>
+      {% if domain_check %}
+        <form method="post" action="{% url 'domain_check:detail' domain_check.name %}">
+          {% csrf_token %}
+          <button type="submit" class="btn" data-size="sm" data-variant="outline">
+            {% translate "check now"|capfirst %}
+          </button>
+        </form>
+      {% endif %}
+    </header>
+    <div class="mt-4">
+      {% if domain_check and domain_check.status == "complete" %}
+        <div class="flex flex-wrap items-center gap-4">
+          <span
+            class="badge size-11 p-0 text-2xl"
+            data-variant="{{ domain_check.tier_variant }}"
+            data-tooltip="{{ domain_check.tier.label }}"
+            data-align="end"
+          >{{ domain_check.tier }}<span class="sr-only"> {% translate "tier" %}</span></span>
+          <div class="flex flex-1 flex-col gap-0.5">
+            <span class="font-medium">
+              {% if domain_check.issue_count %}
+                {% blocktranslate trimmed count counter=domain_check.issue_count %}
+                  {{ counter }} issue needs attention.
+                {% plural %}
+                  {{ counter }} issues need attention.
+                {% endblocktranslate %}
+              {% else %}
+                {% translate "All checks pass." %}
+              {% endif %}
+            </span>
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+              <span>{% translate "Last check:" %} {% timestamp domain_check.modified_at %}</span>
+              <div class="marker" data-inline>
+                {% tabler name="clock" %}
+                <span>{% translate "every hour" %}</span>
+              </div>
             </div>
           </div>
         </div>
-      </section>
+      {% elif domain_check and domain_check.status == "failed" %}
+        <p class="m-0 flex flex-wrap items-center gap-2">
+          <span class="badge" data-variant="destructive">{% translate "failed" %}</span>
+          <span>{% translate "The last check did not finish. The next run is within the hour." %}</span>
+        </p>
+      {% elif domain_check %}
+        <p class="m-0 flex flex-wrap items-center gap-2">
+          <span class="badge" data-variant="outline">
+            {% tabler name="loader-2" class="animate-spin" %}
+            {% translate "checking" %}
+          </span>
+          <span>{% translate "The first result appears here when the check finishes." %}</span>
+        </p>
+      {% else %}
+        <p class="m-0">{% translate "Monitoring has not started for this domain yet." %}</p>
+      {% endif %}
+    </div>
+    {% if domain_check and domain_check.status == "complete" %}
+      <div class="mt-6">
+        {% include "domain_check/partials/check_results.html" %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="border-t border-border pt-8" aria-labelledby="domain-setup-heading">
+    <header class="flex items-center justify-between gap-4 mb-4">
+      <h3 id="domain-setup-heading" class="m-0">{% translate "setup"|capfirst %}</h3>
+      <form method="post">
+        {% csrf_token %}
+        <div role="group" class="button-group">
+          <button
+            type="submit"
+            class="btn"
+            data-variant="primary"
+            formaction="{% url 'domains:domain-verify' org.slug domain.pk %}"
+          >
+            {% translate "verify DNS"|capfirst %}
+          </button>
+          <button
+            type="submit"
+            class="btn"
+            data-variant="destructive"
+            formaction="{% url 'domains:domain-delete' org.slug domain.pk %}"
+            data-confirm='{% translate "delete this domain?"|capfirst context "verb" %}'
+          >
+            {% translate "delete"|capfirst context "verb" %}
+          </button>
+        </div>
+      </form>
+    </header>
+
+    <div class="mb-6 flex items-start justify-between gap-4">
+      <p>
+        {% blocktranslate trimmed %}
+          Delegate the sender subdomain to relay. Sending and reporting do not work until the delegation is live.
+        {% endblocktranslate %}
+      </p>
+      {% include "domains/_zone_file_button.html" with group="delegation" %}
+    </div>
+    <div role="group" class="field mb-6">
+      {% include "domains/_check_error.html" with error=domain.nameserver_error %}
+      {% for ns in nameservers %}
+        {% include "domains/_record_row.html" with record_type="NS" record_name=domain.sender_domain record_value=ns status=domain.nameserver_status quote=False priority=None %}
+      {% endfor %}
     </div>
 
-    <div
-      role="tabpanel"
-      id="domain-dns-panel-receiving"
-      aria-labelledby="domain-dns-tab-receiving"
-      tabindex="-1"
-      hidden
-    >
-      <section class="card p-6">
-        <div class="flex items-start justify-between gap-4">
-          <p>
-            {% blocktranslate trimmed %}
-              Point the MX record at relay, then verify DNS again. A sending-only domain can leave this record out.
-            {% endblocktranslate %}
-          </p>
-          {% include "domains/_zone_file_button.html" with group="receiving" %}
-        </div>
-        <div class="flex flex-col gap-4">
-          <div role="group" class="field">
-            {% include "domains/_check_error.html" with error=domain.mx_error %}
-            {% for mx_hostname in mx_hostnames %}
-              {% include "domains/_record_row.html" with record_type="MX" record_name=domain.name priority=mx_priority record_value=mx_hostname status=domain.mx_status quote=False %}
-            {% endfor %}
-          </div>
-        </div>
-      </section>
-    </div>
+    <div class="tabs domain-record-tabs mb-6" id="domain-dns-tabs">
+      <nav role="tablist" aria-orientation="horizontal">
+        <button
+          type="button"
+          role="tab"
+          id="domain-dns-tab-sending"
+          aria-controls="domain-dns-panel-sending"
+          aria-selected="true"
+          tabindex="0"
+        >
+          {% translate "sending"|capfirst %}
+          {% include "domains/_status_mark.html" with passing=domain.sending_checks_passing total=domain.SENDING_READINESS_FIELDS|length only %}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="domain-dns-tab-receiving"
+          aria-controls="domain-dns-panel-receiving"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          {% translate "receiving"|capfirst %}
+          {% include "domains/_status_mark.html" with passing=domain.receiving_checks_passing total=domain.RECEIVING_CHECK_FIELDS|length only %}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="domain-dns-tab-reporting"
+          aria-controls="domain-dns-panel-reporting"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          {% translate "reporting"|capfirst %}
+          {% include "domains/_status_mark.html" with passing=domain.reporting_checks_passing total=domain.REPORTING_READINESS_FIELDS|length only %}
+        </button>
+      </nav>
 
-    <div
-      role="tabpanel"
-      id="domain-dns-panel-reporting"
-      aria-labelledby="domain-dns-tab-reporting"
-      tabindex="-1"
-      hidden
-    >
-      <section class="card p-6">
-        <div class="flex items-start justify-between gap-4">
-          <p>
-            {% blocktranslate trimmed %}
-              Publish the DMARC, MTA-STS, and TLS-RPT records to authenticate your domain, enforce TLS, and collect
-              reports. The `_mta-sts` and `_smtp._tls` CNAMEs point into the sender subdomain, so relay serves their TXT
-              values. If you already published a TXT record at either name, delete it before adding the CNAME. A
-              sending-only domain can leave these records out.
-            {% endblocktranslate %}
-          </p>
-          {% include "domains/_zone_file_button.html" with group="reporting" %}
-        </div>
-        <div class="flex flex-col gap-4">
-          <div role="group" class="field">
-            {% include "domains/_check_error.html" with error=domain.dmarc_error %}
-            {% include "domains/_record_row.html" with record_type="TXT" record_name=domain.dmarc_record_name record_value=domain.dmarc_record quote=True status=domain.dmarc_status priority=None %}
+      <div
+        role="tabpanel"
+        id="domain-dns-panel-sending"
+        aria-labelledby="domain-dns-tab-sending"
+        tabindex="-1"
+      >
+        <section class="card p-6">
+          <div class="flex items-start justify-between gap-4">
+            <p>
+              {% blocktranslate trimmed %}
+                Publish the SPF and DKIM records below, then verify DNS again. This is everything this domain needs to
+                send authenticated email once the sender subdomain is delegated.
+              {% endblocktranslate %}
+            </p>
+            {% include "domains/_zone_file_button.html" with group="sending" %}
           </div>
-
-          <div role="group" class="field">
-            {% include "domains/_check_error.html" with error=domain.mta_sts_error %}
-            {% include "domains/_record_row.html" with record_type="CNAME" record_name=domain.mta_sts_record_name record_value=domain.mta_sts_record_cname_target status=domain.mta_sts_status quote=False priority=None %}
-            {% include "domains/_record_row.html" with record_type="CNAME" record_name=domain.mta_sts_hostname record_value=domain.mta_sts_cname_target status=domain.mta_sts_status quote=False priority=None %}
-          </div>
-
-          <div role="group" class="field">
-            {% include "domains/_check_error.html" with error=domain.tls_rpt_error %}
-            {% include "domains/_record_row.html" with record_type="CNAME" record_name=domain.tls_rpt_record_name record_value=domain.tls_rpt_record_cname_target status=domain.tls_rpt_status quote=False priority=None %}
-          </div>
-
-          <form method="post" class="flex flex-col gap-3">
-            {% csrf_token %}
+          <div class="flex flex-col gap-4">
             <div role="group" class="field">
-              <label for="{{ mta_sts_form.mta_sts_mx_hostnames.id_for_label }}">
-                {{ mta_sts_form.mta_sts_mx_hostnames.label }}
-              </label>
-              {{ mta_sts_form.mta_sts_mx_hostnames }}
-              <p
-                class="text-sm text-muted-foreground"
-                id="{{ mta_sts_form.mta_sts_mx_hostnames.auto_id }}_helptext"
-              >
-                {{ mta_sts_form.mta_sts_mx_hostnames.help_text }}
-              </p>
-              {% for error in mta_sts_form.mta_sts_mx_hostnames.errors %}
-                <p class="text-sm text-destructive">{{ error }}</p>
+              {% include "domains/_check_error.html" with error=domain.spf_error %}
+              {% include "domains/_record_row.html" with record_type="TXT" record_name=domain.name record_value=domain.root_spf_record quote=True status=domain.spf_status priority=None %}
+            </div>
+
+            <div role="group" class="field">
+              {% include "domains/_check_error.html" with error=domain.dkim_rsa2048_error %}
+              {% include "domains/_record_row.html" with record_type="CNAME" record_name=dkim_cnames.dkim_rsa2048.0 record_value=dkim_cnames.dkim_rsa2048.1 status=domain.dkim_rsa2048_status quote=False priority=None %}
+            </div>
+
+            <div class="flex flex-col gap-4 border-t border-border pt-4">
+              <div role="group" class="field">
+                {% include "domains/_check_error.html" with error=domain.dkim_ed25519_error %}
+                {% include "domains/_record_row.html" with record_type="CNAME" record_name=dkim_cnames.dkim_ed25519.0 record_value=dkim_cnames.dkim_ed25519.1 status=domain.dkim_ed25519_status quote=False priority=None %}
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div
+        role="tabpanel"
+        id="domain-dns-panel-receiving"
+        aria-labelledby="domain-dns-tab-receiving"
+        tabindex="-1"
+        hidden
+      >
+        <section class="card p-6">
+          <div class="flex items-start justify-between gap-4">
+            <p>
+              {% blocktranslate trimmed %}
+                Point the MX record at relay, then verify DNS again. A sending-only domain can leave this record out.
+              {% endblocktranslate %}
+            </p>
+            {% include "domains/_zone_file_button.html" with group="receiving" %}
+          </div>
+          <div class="flex flex-col gap-4">
+            <div role="group" class="field">
+              {% include "domains/_check_error.html" with error=domain.mx_error %}
+              {% for mx_hostname in mx_hostnames %}
+                {% include "domains/_record_row.html" with record_type="MX" record_name=domain.name priority=mx_priority record_value=mx_hostname status=domain.mx_status quote=False %}
               {% endfor %}
             </div>
-            <div>
-              <button type="submit" class="btn" data-size="sm">
-                {% translate "save"|capfirst context "verb" %}
-              </button>
+          </div>
+        </section>
+      </div>
+
+      <div
+        role="tabpanel"
+        id="domain-dns-panel-reporting"
+        aria-labelledby="domain-dns-tab-reporting"
+        tabindex="-1"
+        hidden
+      >
+        <section class="card p-6">
+          <div class="flex items-start justify-between gap-4">
+            <p>
+              {% blocktranslate trimmed %}
+                Publish the DMARC, MTA-STS, and TLS-RPT records to authenticate your domain, enforce TLS, and collect
+                reports. The `_mta-sts` and `_smtp._tls` CNAMEs point into the sender subdomain, so relay serves their
+                TXT values. If you already published a TXT record at either name, delete it before adding the CNAME. A
+                sending-only domain can leave these records out.
+              {% endblocktranslate %}
+            </p>
+            {% include "domains/_zone_file_button.html" with group="reporting" %}
+          </div>
+          <div class="flex flex-col gap-4">
+            <div role="group" class="field">
+              {% include "domains/_check_error.html" with error=domain.dmarc_error %}
+              {% include "domains/_record_row.html" with record_type="TXT" record_name=domain.dmarc_record_name record_value=domain.dmarc_record quote=True status=domain.dmarc_status priority=None %}
             </div>
-          </form>
-        </div>
-      </section>
+
+            <div role="group" class="field">
+              {% include "domains/_check_error.html" with error=domain.mta_sts_error %}
+              {% include "domains/_record_row.html" with record_type="CNAME" record_name=domain.mta_sts_record_name record_value=domain.mta_sts_record_cname_target status=domain.mta_sts_status quote=False priority=None %}
+              {% include "domains/_record_row.html" with record_type="CNAME" record_name=domain.mta_sts_hostname record_value=domain.mta_sts_cname_target status=domain.mta_sts_status quote=False priority=None %}
+            </div>
+
+            <div role="group" class="field">
+              {% include "domains/_check_error.html" with error=domain.tls_rpt_error %}
+              {% include "domains/_record_row.html" with record_type="CNAME" record_name=domain.tls_rpt_record_name record_value=domain.tls_rpt_record_cname_target status=domain.tls_rpt_status quote=False priority=None %}
+            </div>
+
+            <form method="post" class="flex flex-col gap-3">
+              {% csrf_token %}
+              <div role="group" class="field">
+                <label for="{{ mta_sts_form.mta_sts_mx_hostnames.id_for_label }}">
+                  {{ mta_sts_form.mta_sts_mx_hostnames.label }}
+                </label>
+                {{ mta_sts_form.mta_sts_mx_hostnames }}
+                <p
+                  class="text-sm text-muted-foreground"
+                  id="{{ mta_sts_form.mta_sts_mx_hostnames.auto_id }}_helptext"
+                >
+                  {{ mta_sts_form.mta_sts_mx_hostnames.help_text }}
+                </p>
+                {% for error in mta_sts_form.mta_sts_mx_hostnames.errors %}
+                  <p class="text-sm text-destructive">{{ error }}</p>
+                {% endfor %}
+              </div>
+              <div>
+                <button type="submit" class="btn" data-size="sm">
+                  {% translate "save"|capfirst context "verb" %}
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
     </div>
-  </div>
+  </section>
+  {% esm '#js/ip-address.js' %}
 {% endblock %}

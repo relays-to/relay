@@ -27,7 +27,8 @@
       <div class="min-w-0 flex flex-col gap-1">
         <h1 class="m-0 break-all">{{ domain_check.name }}</h1>
         <p class="text-muted-foreground m-0">
-          {% translate "checked" %} {{ domain_check.modified_at|naturaltime }}
+          {% translate "checked" %}
+          {% timestamp domain_check.modified_at %}
         </p>
       </div>
       <div class="flex items-center gap-2">
@@ -57,22 +58,35 @@
           {% tabler name="share" %}
           <span class="sr-only">{% translate "share this result"|capfirst %}</span>
         </button>
-        <form method="post">
-          {% csrf_token %}
-          <button
-            type="submit"
-            class="btn"
-            data-variant="outline"
-            data-size="icon"
-            data-align="end"
-            data-tooltip="{% translate 'check again (login required)'|capfirst %}"
-          >
-            {% tabler name="refresh" %}
-            <span class="sr-only">{% translate "check again (login required)"|capfirst %}</span>
-          </button>
-        </form>
       </div>
     </header>
+
+    {% if domain_check.status == "complete" %}
+      <section class="card p-6 mb-6 border-primary/20 bg-primary/5">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex items-start gap-3">
+            <span
+              class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[var(--color-primary-text)]"
+            >
+              {% tabler name="bell-ringing" size="5" %}
+            </span>
+            <div>
+              <h2 class="m-0 text-xl">{% translate "Know when this score changes" %}</h2>
+              <p class="m-0 mt-1 text-sm text-muted-foreground">
+                {% blocktranslate trimmed %}
+                  Every hour, relay checks this domain and emails your organization when a record breaks or recovers.
+                {% endblocktranslate %}
+              </p>
+            </div>
+          </div>
+          <div class="shrink-0">
+            <a class="btn" data-variant="primary" href="{% url 'domain_check:monitor' domain_check.name %}">
+              {% translate "monitor this domain"|capfirst %}
+            </a>
+          </div>
+        </div>
+      </section>
+    {% endif %}
 
     {% if domain_check.status == "failed" %}
       <p class="mb-6">
@@ -80,112 +94,7 @@
         <a class="link" href="{% url 'domain_check:list' %}">{% translate "Check this domain again." %}</a>
       </p>
     {% elif domain_check.status == "complete" %}
-      <p class="flex items-center gap-2 mb-4">
-        {% if domain_check.issue_count %}
-          {% tabler name="alert-triangle" class="text-warning" %}
-          <span>
-            {% blocktranslate trimmed count counter=domain_check.issue_count %}
-              {{ counter }} issue needs attention. Open the check for the fix.
-            {% plural %}
-              {{ counter }} issues need attention. Open a check for the fix.
-            {% endblocktranslate %}
-          </span>
-        {% else %}
-          {% tabler name="circle-check" class="text-success" %}
-          <span>{% translate "All checks pass." %}</span>
-        {% endif %}
-      </p>
-      <section class="accordion" data-multiple>
-        {% for check in domain_check.check_rows %}
-          <details {% if check.status != "pass" %}open{% endif %}>
-            <summary>
-              <span class="flex flex-1 flex-wrap items-center justify-between gap-4">
-                <span>{{ check.label }}</span>
-                <span class="flex items-center gap-3">
-                  {% if check.issue_count %}
-                    <span class="text-muted-foreground font-normal">
-                      {% blocktranslate trimmed count counter=check.issue_count %}
-                        {{ counter }} issue.
-                      {% plural %}
-                        {{ counter }} issues.
-                      {% endblocktranslate %}
-                    </span>
-                  {% endif %}
-                  <span
-                    class="badge"
-                    data-variant="{% if check.status == 'pass' %}success{% elif check.status == 'partial' %}warning{% else %}destructive{% endif %}"
-                  >{% translate check.status %}</span>
-                </span>
-              </span>
-              {% tabler name="chevron-down" %}
-            </summary>
-            <section class="flex flex-col gap-2">
-              <ul class="m-0 flex list-none flex-col gap-2 p-0">
-                {% for subcheck in check.subchecks %}
-                  <li class="flex items-start gap-2">
-                    {% if subcheck.status == "pass" %}
-                      {% tabler name="circle-check" class="text-success shrink-0" %}
-                      <span class="sr-only">{% translate "pass" %}</span>
-                    {% elif subcheck.status == "fail" and subcheck.severity == "weak" %}
-                      {% tabler name="alert-triangle" class="text-warning shrink-0" %}
-                      <span class="sr-only">{% translate "weak" %}</span>
-                    {% elif subcheck.status == "fail" %}
-                      {% tabler name="circle-x" class="text-destructive shrink-0" %}
-                      <span class="sr-only">{% translate "error" %}</span>
-                    {% else %}
-                      {% tabler name="circle-dashed" class="text-muted-foreground shrink-0" %}
-                      <span class="sr-only">{% translate "not checked" %}</span>
-                    {% endif %}
-                    <div class="flex flex-col gap-1">
-                      <span>
-                        <span class="font-medium">{{ subcheck.label }}:</span>
-                        <span class="text-muted-foreground">{{ subcheck.detail }}</span>
-                      </span>
-                      {% if subcheck.addresses %}
-                        <div class="flex flex-wrap items-center gap-1">
-                          {% for address in subcheck.addresses %}
-                            <ip-address
-                              address="{{ address }}"
-                              data-map='{% translate "map"|capfirst %}'
-                              data-unavailable='{% translate "location unavailable" %}'
-                              data-retry='{% translate "retry"|capfirst %}'
-                            ></ip-address>
-                          {% endfor %}
-                        </div>
-                      {% endif %}
-                      {% if subcheck.status == "fail" and subcheck.hint %}
-                        <div class="text-sm [&_a]:text-[var(--color-link)] [&_a]:underline [&_a]:underline-offset-2 [&_p]:m-0 [&_p]:inline">
-                          <span class="font-medium">{% translate "Fix:" %}</span>
-                          {{ subcheck.hint|markdown }}
-                        </div>
-                      {% endif %}
-                    </div>
-                  </li>
-                {% empty %}
-                  <li class="m-0 text-muted-foreground">{{ check.detail }}</li>
-                {% endfor %}
-              </ul>
-              <p class="m-0 mt-2 text-sm text-muted-foreground">
-                {% if check.slug %}
-                  <a
-                    class="link"
-                    href="{% url 'know_how:detail' slug=check.slug %}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >{% translate "Learn more" %}</a>
-                  {% translate "or" %}
-                {% endif %}
-                <a
-                  class="link"
-                  href="{% url 'accounts:org-start' %}"
-                  rel="nofollow"
-                >{% translate "get started" %}</a>.
-                {% translate "We host DMARC reporting, MTA-STS, and TLS-RPT for free." %}
-              </p>
-            </section>
-          </details>
-        {% endfor %}
-      </section>
+      {% include "domain_check/partials/check_results.html" with public=True %}
     {% endif %}
 
     {% if domain_check.status == "complete" %}
@@ -210,27 +119,6 @@
         {% endif %}
       {% endwith %}
     {% endif %}
-
-    <section class="card mt-10">
-      <header>
-        <h2>{% translate "How does your domain score?" %}</h2>
-        <p class="text-muted-foreground">
-          {% translate "The same checks and the same tiers, for any domain. Free, and no signup." %}
-        </p>
-      </header>
-      <section>
-        <form method="post" action="{% url 'domain_check:submit' %}">
-          {% csrf_token %}
-          <label class="sr-only" for="cta-domain">{% translate "domain"|capfirst context "noun" %}</label>
-          <div class="input-group">
-            {% include "abstract/domain_input.html" with id="cta-domain" classless=True %}
-            <button type="submit" class="btn" data-size="xs" data-align="end">
-              {% translate "check domain"|capfirst %}
-            </button>
-          </div>
-        </form>
-      </section>
-    </section>
 
     <p class="mt-6 text-center">
       <a class="link" href="{% url 'domain_check:list' %}">

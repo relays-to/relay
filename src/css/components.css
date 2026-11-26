@@ -139,6 +139,24 @@
    }
 }
 
+/* Basecoat 1.1.0 does not ship the marker component yet. These are the
+   upstream defaults, with a gap so the icon and text do not touch. */
+.marker {
+  @apply relative flex w-full min-w-0 items-center gap-2;
+}
+
+.marker > svg {
+  @apply shrink-0;
+}
+
+.marker > span {
+  @apply min-w-0;
+}
+
+.marker[data-inline] {
+  @apply w-auto;
+}
+
 /* Basecoat pads a card's header, section, and footer inline, so a card that
    carries its own `p-6` indents those blocks twice. Keep the outer padding. */
 .card.p-6 > :is(header, section, footer) {
