@@ -1,15 +1,30 @@
 import base64
 import gzip
 import io
+import logging
+import lzma
 import re
 import zipfile
+import zlib
+from compression import zstd
 from email import message_from_bytes
 from email.errors import HeaderParseError
 from email.header import Header, decode_header
+from pathlib import PurePath
+
+logger = logging.getLogger(__name__)
 
 
 class MissingAttachmentError(ValueError):
     """The email contains no attachment."""
+
+
+class SkippedPartError(ValueError):
+    """The MIME part is not a report attachment."""
+
+
+class ReportAttachmentError(ValueError):
+    """The report attachment cannot produce a payload."""
 
 
 def decode_header_value(value: str | Header) -> str:
@@ -90,22 +105,88 @@ def extract_part_text(part):
     return ""
 
 
-def iter_attachments(raw_bytes):
-    """
-    Yield decompressed attachment payloads from a raw email.
+class ReportAttachment:
+    """An attachment carried by a raw report email."""
 
-    Handles gzip and zip decompression automatically.
-    """
-    msg = message_from_bytes(raw_bytes)
-    for part in msg.walk():
-        if part.get_content_disposition() == "attachment":
-            data = part.get_payload(decode=True)
-            if data is not None:
-                filename = part.get_filename() or ""
-                content_type = part.get_content_type()
-                if filename.endswith(".gz") or content_type == "application/gzip":
-                    data = gzip.decompress(data)
-                elif filename.endswith(".zip") or content_type == "application/zip":
-                    with zipfile.ZipFile(io.BytesIO(data)) as zf:
-                        data = zf.read(zf.namelist()[0])
-                yield data
+    MAX_BYTES = 10 * 1024 * 1024
+
+    DECOMPRESSION_ERRORS = (
+        OSError,
+        EOFError,
+        zlib.error,
+        zipfile.BadZipFile,
+        RuntimeError,
+        NotImplementedError,
+        lzma.LZMAError,
+        zstd.ZstdError,
+    )
+
+    CONTENT_TYPE_SUFFIXES = {
+        "application/gzip": ".gz",
+        "application/x-gzip": ".gz",
+        "application/zip": ".zip",
+        "application/x-zip-compressed": ".zip",
+    }
+    SUFFIXES = (".gz", ".zip", ".xml", ".json")
+    CONTENT_TYPES = {
+        *CONTENT_TYPE_SUFFIXES,
+        "application/xml",
+        "text/xml",
+        "application/json",
+    }
+
+    @classmethod
+    def iterate_from(cls, raw_bytes):
+        """Yield decompressed attachment payloads from a raw email."""
+        message = message_from_bytes(raw_bytes)
+        for part in message.walk():
+            try:
+                payload = cls.from_part(part)
+            except SkippedPartError:
+                pass
+            except ReportAttachmentError as error:
+                logger.warning("Skipped attachment %r: %s", part.get_filename(), error)
+            else:
+                yield payload
+
+    @classmethod
+    def from_part(cls, part):
+        """Return the decompressed payload of one report attachment."""
+        filename = part.get_filename() or ""
+        lower_filename = filename.lower()
+        content_type = part.get_content_type()
+        is_report_attachment = bool(lower_filename) and (
+            lower_filename.endswith(cls.SUFFIXES) or content_type in cls.CONTENT_TYPES
+        )
+        is_attachment = part.get_content_disposition() == "attachment"
+        if (is_attachment or is_report_attachment) and (
+            payload := part.get_payload(decode=True)
+        ):
+            suffix = PurePath(lower_filename).suffix
+            if suffix not in (".gz", ".zip"):
+                suffix = cls.CONTENT_TYPE_SUFFIXES.get(content_type, suffix)
+            try:
+                match suffix:
+                    case ".gz":
+                        with gzip.GzipFile(fileobj=io.BytesIO(payload)) as stream:
+                            payload = stream.read(cls.MAX_BYTES + 1)
+                    case ".zip":
+                        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+                            if entry := next(
+                                (
+                                    info
+                                    for info in archive.infolist()
+                                    if not info.is_dir()
+                                ),
+                                None,
+                            ):
+                                with archive.open(entry) as stream:
+                                    payload = stream.read(cls.MAX_BYTES + 1)
+                            else:
+                                raise ReportAttachmentError("no file entry")  # noqa: TRY003
+            except cls.DECOMPRESSION_ERRORS as error:
+                raise ReportAttachmentError("failed to decompress") from error  # noqa: TRY003
+            if len(payload) > cls.MAX_BYTES:
+                raise ReportAttachmentError("larger than the size limit")  # noqa: TRY003
+            return payload
+        raise SkippedPartError

@@ -182,30 +182,33 @@ def parse_tls_report(report_pk):
     """Parse a received TLS-RPT report and store its failures."""
     report = TlsReport.objects.get(pk=report_pk)
     raw_bytes = report.raw_body.read()
-    parsed_report, failures = TlsReport.parse_from_email(raw_bytes)
+    try:
+        parsed_report, failures = TlsReport.parse_from_email(raw_bytes)
+    except ValueError, AttributeError, TypeError:
+        logger.warning("TLS report %r could not be parsed", report_pk)
+    else:
+        report.reporting_org = parsed_report.reporting_org
+        report.reporting_email = parsed_report.reporting_email
+        report.report_id = parsed_report.report_id
+        report.begin_at = parsed_report.begin_at
+        report.end_at = parsed_report.end_at
+        report.successful_session_count = parsed_report.successful_session_count
+        report.failed_session_count = parsed_report.failed_session_count
+        report.save(
+            update_fields=[
+                "reporting_org",
+                "reporting_email",
+                "report_id",
+                "begin_at",
+                "end_at",
+                "successful_session_count",
+                "failed_session_count",
+            ]
+        )
 
-    report.reporting_org = parsed_report.reporting_org
-    report.reporting_email = parsed_report.reporting_email
-    report.report_id = parsed_report.report_id
-    report.begin_at = parsed_report.begin_at
-    report.end_at = parsed_report.end_at
-    report.successful_session_count = parsed_report.successful_session_count
-    report.failed_session_count = parsed_report.failed_session_count
-    report.save(
-        update_fields=[
-            "reporting_org",
-            "reporting_email",
-            "report_id",
-            "begin_at",
-            "end_at",
-            "successful_session_count",
-            "failed_session_count",
-        ]
-    )
-
-    for failure in failures:
-        failure.report = report
-    TlsFailure.objects.bulk_create(failures)
+        for failure in failures:
+            failure.report = report
+        TlsFailure.objects.bulk_create(failures)
 
 
 @task(queue_name="egress")

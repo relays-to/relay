@@ -1,13 +1,15 @@
 import base64
 import gzip
 import io
+import logging
 import zipfile
 from email import message_from_string
 from email.message import EmailMessage, Message
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
-from abstract.email_utils import decode_payload, extract_part_text, iter_attachments
+from abstract.email_utils import ReportAttachment, decode_payload, extract_part_text
 
 
 def make_email_with_attachment(filename, data, content_type="application/gzip"):
@@ -25,48 +27,61 @@ def make_email_with_attachment(filename, data, content_type="application/gzip"):
     return msg.as_bytes()
 
 
-class TestIterAttachments:
-    def test_iter_attachments__yields_plain_attachment(self):
+class TestReportAttachment:
+    def test_iterate_from__yields_plain_attachment(self):
         raw = make_email_with_attachment("report.xml", b"<feedback/>", "text/xml")
-        results = list(iter_attachments(raw))
+        results = list(ReportAttachment.iterate_from(raw))
         assert len(results) == 1
         assert results[0] == b"<feedback/>"
 
-    def test_iter_attachments__yields_gzip_attachment(self):
+    def test_iterate_from__yields_gzip_attachment(self):
         compressed = gzip.compress(b"<feedback/>")
         raw = make_email_with_attachment("report.xml.gz", compressed)
-        results = list(iter_attachments(raw))
+        results = list(ReportAttachment.iterate_from(raw))
         assert len(results) == 1
         assert results[0] == b"<feedback/>"
 
-    def test_iter_attachments__yields_zip_attachment(self):
+    def test_iterate_from__yields_inline_gzip_attachment(self):
+        message = MIMEMultipart()
+        message.attach(MIMEText("Report body"))
+        attachment = MIMEApplication(gzip.compress(b"<feedback/>"), _subtype="gzip")
+        attachment.add_header("Content-Disposition", "inline", filename="report.xml.gz")
+        message.attach(attachment)
+        results = list(ReportAttachment.iterate_from(message.as_bytes()))
+        assert results == [b"<feedback/>"]
+
+    def test_iterate_from__yields_zip_attachment(self):
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
             zf.writestr("report.xml", b"<feedback/>")
         raw = make_email_with_attachment(
             "report.zip", buf.getvalue(), "application/zip"
         )
-        results = list(iter_attachments(raw))
+        results = list(ReportAttachment.iterate_from(raw))
         assert len(results) == 1
         assert results[0] == b"<feedback/>"
 
-    def test_iter_attachments__returns_empty_for_no_attachment(self):
-        msg = EmailMessage()
-        msg["Subject"] = "Test"
-        msg.set_content("No attachment")
-        results = list(iter_attachments(msg.as_bytes()))
+    def test_iterate_from__empty_for_no_attachment(self):
+        message = EmailMessage()
+        message["Subject"] = "Test"
+        message.set_content("No attachment")
+        results = list(ReportAttachment.iterate_from(message.as_bytes()))
         assert results == []
 
-    def test_iter_attachments__yields_multiple_attachments(self):
-        msg = EmailMessage()
-        msg["Subject"] = "Test"
-        msg.set_content("body")
-        msg.add_attachment(b"data1", maintype="text", subtype="plain", filename="a.txt")
-        msg.add_attachment(b"data2", maintype="text", subtype="plain", filename="b.txt")
-        results = list(iter_attachments(msg.as_bytes()))
+    def test_iterate_from__yields_multiple_attachments(self):
+        message = EmailMessage()
+        message["Subject"] = "Test"
+        message.set_content("body")
+        message.add_attachment(
+            b"data1", maintype="text", subtype="plain", filename="a.txt"
+        )
+        message.add_attachment(
+            b"data2", maintype="text", subtype="plain", filename="b.txt"
+        )
+        results = list(ReportAttachment.iterate_from(message.as_bytes()))
         assert len(results) == 2
 
-    def test_iter_attachments__skips_multipart_attachment_parts(self):
+    def test_iterate_from__skips_multipart_attachment_parts(self):
         """An attachment-disposed multipart container yields no payload."""
         outer = MIMEMultipart()
         nested = MIMEMultipart()
@@ -75,7 +90,39 @@ class TestIterAttachments:
         attachment = MIMEApplication(b"payload", _subtype="json")
         attachment.add_header("Content-Disposition", "attachment", filename="a.json")
         outer.attach(attachment)
-        assert list(iter_attachments(outer.as_bytes())) == [b"payload"]
+        assert list(ReportAttachment.iterate_from(outer.as_bytes())) == [b"payload"]
+
+    def test_iterate_from__derives_gzip_from_the_content_type(self):
+        """Some reporters omit the suffix and label the part by content type only."""
+        compressed = gzip.compress(b"<feedback/>")
+        raw = make_email_with_attachment("report", compressed, "application/gzip")
+        assert list(ReportAttachment.iterate_from(raw)) == [b"<feedback/>"]
+
+    def test_iterate_from__logs_corrupt_gzip_attachment(self, caplog):
+        raw = make_email_with_attachment("report.xml.gz", b"not gzip")
+        with caplog.at_level(logging.WARNING):
+            assert list(ReportAttachment.iterate_from(raw)) == []
+        assert "report.xml.gz" in caplog.text
+        assert "failed to decompress" in caplog.text
+
+    def test_iterate_from__logs_zip_without_a_file_entry(self, caplog):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("empty/", b"")
+        raw = make_email_with_attachment(
+            "report.zip", buf.getvalue(), "application/zip"
+        )
+        with caplog.at_level(logging.WARNING):
+            assert list(ReportAttachment.iterate_from(raw)) == []
+        assert "report.zip" in caplog.text
+        assert "no file entry" in caplog.text
+
+    def test_iterate_from__logs_attachment_over_the_size_limit(self, caplog):
+        oversized = gzip.compress(b"a" * (ReportAttachment.MAX_BYTES + 1))
+        raw = make_email_with_attachment("report.xml.gz", oversized)
+        with caplog.at_level(logging.WARNING):
+            assert list(ReportAttachment.iterate_from(raw)) == []
+        assert "larger than the size limit" in caplog.text
 
 
 def make_multipart_with_sub_part(sub_part):
