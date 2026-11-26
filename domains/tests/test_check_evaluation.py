@@ -135,13 +135,14 @@ class TestCheck:
             "blocklists",
         )
 
-    def test_slugs__skips_a_check_without_a_slug(self):
+    def test_slugs__maps_every_check(self):
         assert Check.slugs() == {
             "mx": "mx",
             "spf": "spf",
             "dmarc": "dmarc",
             "mta_sts": "mta-sts",
             "tls_rpt": "tls-rpt",
+            "blocklists": "blocklists",
         }
 
     def test_hint_for__returns_the_check_hint(self):
