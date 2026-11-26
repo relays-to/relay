@@ -2,7 +2,7 @@
 name: Managed domains and DNS
 description: Use the managed sender domain, add your own domain, and verify the DNS records
 author: Johannes Maron
-modified_at: 2026-11-18
+modified_at: 2026-11-26
 ---
 
 # Managed domains and DNS
@@ -132,6 +132,21 @@ live MX records.
 Verification fails if a live MX record is not in the list. The policy id
 changes when you change the list. Senders then fetch the new policy.
 
+relay's domain check also tests the TLS handshake. It connects to port 25 on
+every MX host, up to five, and sends `STARTTLS`. A host fails when it does not
+offer `STARTTLS`, when its certificate is not valid for the MX name, or when it
+negotiates a protocol below TLS 1.2. TLS 1.0 and TLS 1.1 are deprecated
+([RFC 8996][rfc-8996]), and MTA-STS requires TLS 1.2 or later.
+
+The top tier needs a post-quantum key exchange on every MX host. A TLS 1.2
+handshake meets the floor but cannot be post-quantum, because the hybrid
+groups are defined for TLS 1.3. A host that negotiates a classical group such
+as `X25519` still completes the handshake, but the check shows a warning and
+the domain loses half a tier. Only a hybrid group such as `X25519MLKEM768`
+keeps the top tier in reach. The detail line shows the TLS version, the key
+exchange group, and the certificate key type, for example `RSA 2048`,
+`ECDSA secp256r1`, `Ed25519`, or `ML-DSA-65`.
+
 ## Receiving-only domain
 
 You can receive mail on a subdomain without sending from it. Add the subdomain
@@ -154,15 +169,17 @@ domain. relay manages those names.
 
 ## Troubleshooting
 
-| Symptom                                          | Likely cause                                                 | Fix                                                       |
-| ------------------------------------------------ | ------------------------------------------------------------ | --------------------------------------------------------- |
-| The delegation check fails                       | The NS records are missing or wrong.                         | Publish the NS records from the domain page.              |
-| The SPF check fails                              | The root TXT record is missing or has a typo.                | Publish the exact SPF value from the **Sending** tab.     |
-| A DKIM check fails                               | The CNAME name or target is wrong.                           | Copy the selector name and target from the page.          |
-| The DMARC check fails                            | The TXT record is missing or has no relay reporting address. | Publish the exact DMARC value from the **Reporting** tab. |
-| The MTA-STS check fails                          | A CNAME is wrong, or a live MX record is not in the policy.  | Publish both CNAMEs. Then add the MX host to the policy.  |
-| The TLS-RPT check fails                          | The `_smtp._tls` CNAME is missing or wrong.                  | Publish the CNAME from the **Reporting** tab.             |
-| A check stays pending after you publish a record | DNS caching.                                                 | Wait for the TTL of your zone. Then verify again.         |
+| Symptom                                          | Likely cause                                                                                 | Fix                                                            |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| The delegation check fails                       | The NS records are missing or wrong.                                                         | Publish the NS records from the domain page.                   |
+| The SPF check fails                              | The root TXT record is missing or has a typo.                                                | Publish the exact SPF value from the **Sending** tab.          |
+| A DKIM check fails                               | The CNAME name or target is wrong.                                                           | Copy the selector name and target from the page.               |
+| The DMARC check fails                            | The TXT record is missing or has no relay reporting address.                                 | Publish the exact DMARC value from the **Reporting** tab.      |
+| The MTA-STS check fails                          | A CNAME is wrong, or a live MX record is not in the policy.                                  | Publish both CNAMEs. Then add the MX host to the policy.       |
+| The STARTTLS check fails                         | An MX host offers no STARTTLS, presents an invalid certificate, or negotiates below TLS 1.2. | Enable STARTTLS with a valid certificate and TLS 1.2 or later. |
+| The STARTTLS check shows a warning               | An MX host negotiates a classical key exchange.                                              | Enable TLS 1.3 and a hybrid group such as `X25519MLKEM768`.    |
+| The TLS-RPT check fails                          | The `_smtp._tls` CNAME is missing or wrong.                                                  | Publish the CNAME from the **Reporting** tab.                  |
+| A check stays pending after you publish a record | DNS caching.                                                                                 | Wait for the TTL of your zone. Then verify again.              |
 
 ## Related pages
 
@@ -172,3 +189,5 @@ domain. relay manages those names.
   inbound mail and create webhook endpoints.
 - <a href="{% url 'docs:detail' slug='security' %}">Security</a>. TLS and
   domain ownership.
+
+[rfc-8996]: https://www.rfc-editor.org/info/rfc8996/

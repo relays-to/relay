@@ -1,5 +1,8 @@
 import datetime as dt
 import ipaddress
+import smtplib
+import socket
+import ssl
 
 import dns.exception
 import dns.name
@@ -7,6 +10,9 @@ import dns.rdatatype
 import dns.resolver
 import httpx
 import pytest
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, mldsa, rsa
 from django.core.cache import cache
 
 from abstract.blocklists import (
@@ -29,7 +35,7 @@ from domains.check.evaluation import (
     SubCheck,
     TlsRptCheck,
 )
-from domains.check.lookup import Lookup
+from domains.check.lookup import Lookup, MxLookup, MxRecord
 
 CONNECTION_REFUSED = "connection refused"
 INVALID_URL = "bad url"
@@ -73,6 +79,129 @@ class TtlLookup:
 
     def ttl(self, name, record_type):
         return self._ttl
+
+
+class StubSocket:
+    """Stand in for the TCP socket the probe connects, duplicates and closes."""
+
+    def __init__(self):
+        self.duplicates = []
+        self.shutdowns = []
+
+    def dup(self):
+        duplicate = StubSocket()
+        self.duplicates.append(duplicate)
+        return duplicate
+
+    def shutdown(self, how):
+        self.shutdowns.append(how)
+
+    def close(self):
+        pass
+
+
+class StubTlsSession:
+    """Stand in for the TLS session smtplib returns after the STARTTLS upgrade."""
+
+    def __init__(self, *, version="TLSv1.3", group="x25519", certificate=None):
+        self._version = version
+        self._group = group
+        self._certificate = certificate
+
+    def version(self):
+        return self._version
+
+    def group(self):
+        return self._group
+
+    def getpeercert(self, binary_form=False):
+        return self._certificate
+
+
+class StubSmtpServer:
+    """Serve one scripted SMTP dialogue and TLS upgrade to the probe."""
+
+    def __init__(self, *, greeting=220, error=None, session=None, connect_errors=()):
+        self.sock = StubSocket()
+        self.greeting = greeting
+        self.error = error
+        self.session = StubTlsSession() if session is None else session
+        self.connect_errors = list(connect_errors)
+        self.connects = []
+        self.closed = False
+
+    def connect(self, address, timeout):
+        self.connects.append((address, timeout))
+        if self.connect_errors:
+            raise self.connect_errors.pop(0)
+        return self.sock
+
+    def getreply(self):
+        return self.greeting, b""
+
+    def starttls(self, *, context=None):
+        if self.error is not None:
+            raise self.error
+        self.sock = self.session
+        return 220, b"Ready to start TLS"
+
+    def close(self):
+        self.closed = True
+
+
+def certificate(key, algorithm):
+    """Return a self-signed certificate for the key, encoded as DER."""
+    name = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "mx.example.com")])
+    now = dt.datetime.now(dt.UTC)
+    return (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - dt.timedelta(minutes=1))
+        .not_valid_after(now + dt.timedelta(days=1))
+        .sign(key, algorithm)
+    ).public_bytes(serialization.Encoding.DER)
+
+
+@pytest.fixture(scope="module")
+def rsa_certificate():
+    """Return an RSA certificate the probe describes as `RSA 2048`."""
+    return certificate(
+        rsa.generate_private_key(public_exponent=65537, key_size=2048),
+        hashes.SHA256(),
+    )
+
+
+@pytest.fixture
+def smtp_server(monkeypatch):
+    """Route the STARTTLS probe to a scripted SMTP server."""
+
+    def install(**kwargs):
+        server = StubSmtpServer(**kwargs)
+        monkeypatch.setattr(evaluation.smtplib, "SMTP", lambda **init: server)
+        monkeypatch.setattr(evaluation.socket, "create_connection", server.connect)
+        return server
+
+    return install
+
+
+@pytest.fixture
+def expired_watchdog(monkeypatch):
+    """Fire the probe's deadline watchdog at once, as an exhausted budget would."""
+
+    class ImmediateTimer:
+        def __init__(self, interval, function):
+            self._function = function
+
+        def start(self):
+            self._function()
+
+        def cancel(self):
+            pass
+
+    monkeypatch.setattr("domains.check.evaluation.threading.Timer", ImmediateTimer)
 
 
 class TestSubCheckStatus:
@@ -1045,6 +1174,259 @@ class TestMtaStsFetchPolicy:
         assert MtaStsCheck.fetch_policy("example.com", lookup) is None
 
 
+class TestMtaStsDescribeCertificateKey:
+    def test_describe_certificate_key__names_an_rsa_key(self):
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        session = StubTlsSession(certificate=certificate(key, hashes.SHA256()))
+
+        assert MtaStsCheck.describe_certificate_key(session) == "RSA 2048"
+
+    def test_describe_certificate_key__names_an_ecdsa_key(self):
+        key = ec.generate_private_key(ec.SECP256R1())
+        session = StubTlsSession(certificate=certificate(key, hashes.SHA256()))
+
+        assert MtaStsCheck.describe_certificate_key(session) == "ECDSA secp256r1"
+
+    @pytest.mark.parametrize(
+        ("key", "label"),
+        [
+            pytest.param(mldsa.MLDSA44PrivateKey.generate(), "ML-DSA-44", id="mldsa44"),
+            pytest.param(mldsa.MLDSA65PrivateKey.generate(), "ML-DSA-65", id="mldsa65"),
+            pytest.param(mldsa.MLDSA87PrivateKey.generate(), "ML-DSA-87", id="mldsa87"),
+        ],
+    )
+    def test_describe_certificate_key__names_a_ml_dsa_key(self, key, label):
+        session = StubTlsSession(certificate=certificate(key, None))
+
+        assert MtaStsCheck.describe_certificate_key(session) == label
+
+    def test_describe_certificate_key__falls_back_to_the_key_class(self):
+        key = ed25519.Ed25519PrivateKey.generate()
+        session = StubTlsSession(certificate=certificate(key, None))
+
+        assert MtaStsCheck.describe_certificate_key(session) == "Ed25519"
+
+
+class TestMtaStsProbeStartTls:
+    HOST = "mx.example.com"
+
+    def test_probe_starttls__skips_a_failed_lookup(self, lookup, dns_resolver):
+        dns_resolver.fail(self.HOST, "A", dns.exception.DNSException())
+        dns_resolver.fail(self.HOST, "AAAA", dns.exception.DNSException())
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS", "skip", f"{self.HOST}: lookup failed"
+        )
+
+    def test_probe_starttls__fails_without_a_global_address(self, lookup, dns_resolver):
+        dns_resolver.add(self.HOST, "A", "192.0.2.1")
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS", "fail", f"{self.HOST}: no global address"
+        )
+
+    def test_probe_starttls__times_out_before_connecting(
+        self, lookup, dns_resolver, monkeypatch
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        monkeypatch.setattr(MtaStsCheck, "PROBE_TIMEOUT", dt.timedelta(0))
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS", "fail", f"{self.HOST}: timed out"
+        )
+
+    def test_probe_starttls__fails_an_unreachable_address(
+        self, lookup, dns_resolver, smtp_server
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        smtp_server(connect_errors=[ConnectionRefusedError()])
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS", "fail", f"{self.HOST}: unreachable"
+        )
+
+    def test_probe_starttls__tries_the_next_address(
+        self, lookup, dns_resolver, smtp_server, rsa_certificate
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        dns_resolver.add(self.HOST, "AAAA", "2001:4860:4860::8888")
+        server = smtp_server(
+            connect_errors=[ConnectionRefusedError()],
+            session=StubTlsSession(group="X25519MLKEM768", certificate=rsa_certificate),
+        )
+
+        result = MtaStsCheck.probe_starttls(self.HOST, lookup)
+
+        assert result.status == "pass"
+        assert [address for address, _ in server.connects] == [
+            ("8.8.8.8", smtplib.SMTP_PORT),
+            ("2001:4860:4860::8888", smtplib.SMTP_PORT),
+        ]
+
+    def test_probe_starttls__fails_a_bad_greeting(
+        self, lookup, dns_resolver, smtp_server
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        server = smtp_server(greeting=554)
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS", "fail", f"{self.HOST}: SMTP 554"
+        )
+        assert server.closed
+
+    def test_probe_starttls__fails_without_starttls(
+        self, lookup, dns_resolver, smtp_server
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        smtp_server(error=smtplib.SMTPNotSupportedError())
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS", "fail", f"{self.HOST}: no STARTTLS"
+        )
+
+    def test_probe_starttls__fails_an_untrusted_certificate(
+        self, lookup, dns_resolver, smtp_server
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        smtp_server(error=ssl.SSLCertVerificationError())
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS", "fail", f"{self.HOST}: certificate not valid"
+        )
+
+    def test_probe_starttls__fails_a_tls_handshake(
+        self, lookup, dns_resolver, smtp_server
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        smtp_server(error=ssl.SSLError())
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS", "fail", f"{self.HOST}: TLS handshake failed"
+        )
+
+    def test_probe_starttls__reports_a_refused_starttls(
+        self, lookup, dns_resolver, smtp_server
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        smtp_server(error=smtplib.SMTPResponseException(454, b"TLS not available"))
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS", "fail", f"{self.HOST}: SMTP 454"
+        )
+
+    def test_probe_starttls__fails_a_dropped_connection(
+        self, lookup, dns_resolver, smtp_server
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        smtp_server(error=smtplib.SMTPServerDisconnected())
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS", "fail", f"{self.HOST}: connection failed"
+        )
+
+    def test_probe_starttls__times_out_a_stalled_handshake(
+        self, lookup, dns_resolver, smtp_server, expired_watchdog
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        server = smtp_server(error=ssl.SSLError())
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS", "fail", f"{self.HOST}: timed out"
+        )
+        assert server.sock.duplicates[0].shutdowns == [socket.SHUT_RDWR]
+
+    def test_probe_starttls__times_out_a_stalled_connection(
+        self, lookup, dns_resolver, smtp_server, expired_watchdog
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        smtp_server(error=TimeoutError())
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS", "fail", f"{self.HOST}: timed out"
+        )
+
+    def test_probe_starttls__passes_a_post_quantum_session(
+        self, lookup, dns_resolver, smtp_server, rsa_certificate
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        server = smtp_server(
+            session=StubTlsSession(group="X25519MLKEM768", certificate=rsa_certificate)
+        )
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS",
+            "pass",
+            f"{self.HOST}: TLSv1.3, X25519MLKEM768 (post-quantum), RSA 2048",
+        )
+        assert server._host == self.HOST
+
+    def test_probe_starttls__passes_a_kyber_session(
+        self, lookup, dns_resolver, smtp_server, rsa_certificate
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        smtp_server(
+            session=StubTlsSession(
+                group="X25519KYBER768DRAFT00", certificate=rsa_certificate
+            )
+        )
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS",
+            "pass",
+            f"{self.HOST}: TLSv1.3, X25519KYBER768DRAFT00 (post-quantum), RSA 2048",
+        )
+
+    def test_probe_starttls__weakens_a_classic_session(
+        self, lookup, dns_resolver, smtp_server, rsa_certificate
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        smtp_server(
+            session=StubTlsSession(
+                version="TLSv1.2", group="prime256v1", certificate=rsa_certificate
+            )
+        )
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS",
+            "fail",
+            f"{self.HOST}: TLSv1.2, prime256v1, RSA 2048, no PQ key exchange",
+            severity="weak",
+        )
+
+    def test_probe_starttls__labels_a_missing_group(
+        self, lookup, dns_resolver, smtp_server, rsa_certificate
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        smtp_server(session=StubTlsSession(group=None, certificate=rsa_certificate))
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "STARTTLS",
+            "fail",
+            f"{self.HOST}: TLSv1.3, no key exchange, RSA 2048, no PQ key exchange",
+            severity="weak",
+        )
+
+
+class TestMtaStsProbeSubchecks:
+    def test_probe_subchecks__returns_nothing_without_exchanges(self, lookup):
+        assert MtaStsCheck.probe_subchecks(MxLookup(), lookup) == []
+
+    def test_probe_subchecks__probes_the_first_five_exchanges(self, lookup):
+        mx = MxLookup(
+            records=tuple(
+                MxRecord(preference, f"mx{preference}.example.com")
+                for preference in range(1, 8)
+            )
+        )
+
+        results = MtaStsCheck.probe_subchecks(mx, lookup)
+
+        assert [result.detail for result in results] == [
+            f"mx{preference}.example.com: no global address"
+            for preference in range(1, 6)
+        ]
+
+
 class TestMtaStsRun:
     def test_run__skips_a_failed_lookup(self, lookup, dns_resolver):
         dns_resolver.fail("_mta-sts.example.com", "TXT", dns.exception.DNSException())
@@ -1127,6 +1509,32 @@ class TestMtaStsRun:
         result = MtaStsCheck.run("example.com", lookup)
 
         assert result.subchecks[3].status == "pass"
+
+    def test_run__appends_the_starttls_probe(
+        self, lookup, dns_resolver, http, smtp_server, rsa_certificate
+    ):
+        dns_resolver.add("_mta-sts.example.com", "TXT", '"v=STSv1; id=1"')
+        dns_resolver.add("mta-sts.example.com", "A", "8.8.8.8")
+        dns_resolver.add("example.com", "MX", "10 mx.example.com.")
+        dns_resolver.add("mx.example.com", "A", "8.8.8.8")
+        http(
+            lambda request: httpx.Response(
+                200,
+                content=b"version: STSv1\nmode: enforce\nmax_age: 86400\nmx: mx.example.com\n",
+            )
+        )
+        smtp_server(
+            session=StubTlsSession(group="X25519MLKEM768", certificate=rsa_certificate)
+        )
+
+        result = MtaStsCheck.run("example.com", lookup)
+
+        assert result.subchecks[-1] == SubCheck(
+            "STARTTLS",
+            "pass",
+            "mx.example.com: TLSv1.3, X25519MLKEM768 (post-quantum), RSA 2048",
+        )
+        assert result.status == "pass"
 
     def test_run__fails_a_mismatched_policy(self, lookup, dns_resolver, http):
         dns_resolver.add("_mta-sts.example.com", "TXT", '"v=STSv1; id=1"')
