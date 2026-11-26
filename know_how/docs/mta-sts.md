@@ -2,7 +2,7 @@
 name: MTA-STS
 description: Enforce TLS for incoming mail connections
 author: Johannes Maron
-modified_at: 2026-11-07
+modified_at: 2026-11-26
 ---
 
 # MTA-STS
@@ -52,12 +52,43 @@ When you change the policy, you update the `id=` tag in the DNS TXT record.[^pol
 
 In `enforce` mode, the sending server validates the TLS certificate of the receiving mail server. The certificate must be issued by a trusted certificate authority, and the hostname must match the MX record.[^dane-alternative] This prevents man-in-the-middle attacks where an attacker presents a self-signed certificate.
 
+## How an MTA-STS check works
+
+A conformance check reads the DNS record, the policy file, and the TLS handshake. The record must validate and the policy must be reachable. Every MX host must complete a TLS 1.2 or later handshake. A TLS 1.2 handshake passes the floor but cannot be post-quantum. Only a hybrid ML-KEM group on every MX host earns the full score.
+
+### The STARTTLS probe
+
+The check connects to port 25 on every MX host, up to five, and sends the `STARTTLS` command. It validates the certificate against the MX hostname and then records the protocol version, the key exchange group, and the certificate key. The probe fails for that host when:
+
+- The host does not offer `STARTTLS`.
+- The certificate is expired, self-signed, or issued for another name.
+- The host answers `STARTTLS` with an SMTP error.
+- The connection fails, the host greets with an SMTP error, or it has no public address.
+- The handshake fails or the probe exceeds ten seconds.
+
+MTA-STS is only a promise. A host that cannot complete a TLS handshake breaks that promise, so the check fails and lowers the domain grade. The check detail shows the measured values, for example `mx1.example.com: TLSv1.3, X25519MLKEM768 (post-quantum), RSA 2048`.
+
+### The TLS 1.2 floor
+
+The check requires TLS 1.2 or later. MTA-STS requires this version floor in [RFC 8461][rfc-8461] Section 7.2. [RFC 8996][rfc-8996] deprecates TLS 1.0 and TLS 1.1 because they lack current cipher suites. A host that offers only TLS 1.0 or TLS 1.1 fails the probe. A TLS 1.2 handshake meets the floor but cannot be post-quantum, because the standardized hybrid groups such as `X25519MLKEM768` are defined for TLS 1.3 only. The full score needs TLS 1.3 with a hybrid group. Most mail servers negotiate TLS 1.3 today.
+
+### Post-quantum grading
+
+A classical key exchange protects the connection today, but a future quantum computer can derive the same key from recorded traffic. The full score needs a hybrid post-quantum key exchange such as `X25519MLKEM768`.[^mlkem]
+
+A host that negotiates a classical group such as `X25519` or `secp256r1` finishes the handshake, but the check marks the finding as weak. The MTA-STS check then shows a warning, and the domain loses half a tier. A domain cannot reach the top tier without a post-quantum group on every MX host.
+
+### The certificate key
+
+The check names the key type from the certificate: RSA with its size, ECDSA with its curve, Ed25519, or ML-DSA with its parameter set. The key type does not change the grade by itself. The certificate must be valid for the MX name, and the key exchange decides the post-quantum score. Post-quantum certificates currently use ML-DSA.
+
 ## How to set up MTA-STS
 
 1. Create a policy file that lists your valid MX hosts and the enforcement mode.
 2. Serve the policy file over HTTPS at `mta-sts.<domain>/.well-known/mta-sts.txt`.
 3. Publish a TXT record at `_mta-sts.<domain>` with a unique policy ID, or publish a CNAME to the provider's `_mta-sts` record and let the provider maintain the ID.
 4. Publish a CNAME record for `mta-sts.<domain>` that points to the host that serves the policy file.
+5. Enable `STARTTLS` on every MX host with a certificate valid for its name. Require TLS 1.2 or later. Enable TLS 1.3 and a hybrid post-quantum key exchange such as `X25519MLKEM768` for the full score.
 
 RFC 8461 Section 8.2 calls the CNAME approach policy delegation. It lets the provider update the policy ID without an edit in your zone. A CNAME cannot coexist with a TXT record at the same name, so delete an existing TXT before you add the CNAME.
 
@@ -67,6 +98,8 @@ Start with `mode: testing` and monitor the reports. Then switch to `mode: enforc
 
 - [RFC 8461][rfc-8461]: SMTP MTA Strict Transport Security (MTA-STS)
 - [RFC 8461][rfc-8461] Section 3.2: Policy file format
+- [RFC 8461][rfc-8461] Section 7.2: Minimum TLS version support
+- [RFC 8996][rfc-8996]: Deprecating TLS 1.0 and TLS 1.1
 - <a href="{% url 'know_how:detail' slug='tls-rpt' %}">TLS-RPT</a>: TLS Reporting
 - <a href="{% url 'know_how:detail' slug='mx' %}">MX</a>: Mail Exchange records
 
@@ -76,6 +109,9 @@ Start with `mode: testing` and monitor the reports. Then switch to `mode: enforc
 
 [^dane-alternative]: DANE (DNS-Based Authentication of Named Entities) is an alternative approach to SMTP TLS that uses DNSSEC instead of certificate authorities. DANE is defined in [RFC 7672][rfc-7672]. MTA-STS and DANE can coexist, but MTA-STS is simpler to deploy because it does not require DNSSEC.
 
+[^mlkem]: ML-KEM is the key encapsulation mechanism standardized in FIPS 203. A hybrid group combines it with a classical exchange, so the key stays secure if either algorithm holds.
+
 [rfc-6797]: https://www.rfc-editor.org/info/rfc6797/
 [rfc-7672]: https://www.rfc-editor.org/info/rfc7672/
 [rfc-8461]: https://www.rfc-editor.org/info/rfc8461/
+[rfc-8996]: https://www.rfc-editor.org/info/rfc8996/

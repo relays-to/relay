@@ -1,9 +1,14 @@
 import concurrent.futures
+import contextlib
 import dataclasses
 import datetime as dt
 import functools
 import hashlib
 import ipaddress
+import smtplib
+import socket
+import ssl
+import threading
 import time
 import typing
 from collections.abc import Iterable, Iterator, Mapping
@@ -11,6 +16,8 @@ from urllib.parse import urlsplit, urlunsplit
 
 import dns.rdatatype
 import httpx
+from cryptography import x509
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from django.conf import settings
 from django.core.cache import cache
 
@@ -710,7 +717,12 @@ class DmarcCheck(Check):
 
 
 class MtaStsCheck(Check):
-    """Grade the MTA-STS record and the policy it points at."""
+    """
+    Grade the record, policy, and every MX host's STARTTLS handshake.
+
+    A domain without a post-quantum key exchange on every MX host loses the top
+    tier.
+    """
 
     KEY = "mta_sts"
     LABEL = "MTA-STS"
@@ -720,8 +732,14 @@ class MtaStsCheck(Check):
         "Policy": "Serve the policy at https://mta-sts.<domain>/.well-known/mta-sts.txt.",
         "Enforced mode": "Set mode: enforce in the MTA-STS policy.",
         "MX match": "List every MX host in the policy's mx: lines.",
+        "STARTTLS": (
+            "Enable STARTTLS on every MX host with a certificate valid for its "
+            "name, require TLS 1.2 or later (RFC 8996), and enable a hybrid "
+            "ML-KEM group such as X25519MLKEM768."
+        ),
     }
     FETCH_TIMEOUT = dt.timedelta(seconds=5)
+    PROBE_TIMEOUT = dt.timedelta(seconds=10)
     FETCH_CACHE = dt.timedelta(minutes=5)
     POLICY_LIMIT_BYTES = 64 * 1024
 
@@ -854,6 +872,130 @@ class MtaStsCheck(Check):
             return None
         return {"mode": mode, "mx": tuple(patterns)}
 
+    @staticmethod
+    def describe_certificate_key(session: ssl.SSLSocket) -> str:
+        """Name the algorithm and strength of the peer's credential."""
+        key = x509.load_der_x509_certificate(
+            session.getpeercert(binary_form=True)
+        ).public_key()
+        match key:
+            case rsa.RSAPublicKey():
+                return f"RSA {key.key_size}"
+            case ec.EllipticCurvePublicKey():
+                return f"ECDSA {key.curve.name}"
+            case _:
+                name = type(key).__name__.removesuffix("PublicKey")
+                return name.replace("MLDSA", "ML-DSA-")
+
+    @classmethod
+    def grade_session(cls, host: str, session: ssl.SSLSocket) -> SubCheck:
+        """
+        Score the negotiated TLS channel of an MX host.
+
+        The finding names the protocol version, the key exchange group, and the
+        certificate key.
+        """
+        group = session.group() or ""
+        pq = "MLKEM" in group.upper() or "KYBER" in group.upper()
+        group_label = f"{group} (post-quantum)" if pq else group or "no key exchange"
+        detail = (
+            f"{host}: {session.version()}, {group_label}, "
+            f"{cls.describe_certificate_key(session)}"
+        )
+        if pq:
+            return SubCheck("STARTTLS", "pass", detail)
+        return SubCheck(
+            "STARTTLS", "fail", f"{detail}, no PQ key exchange", severity="weak"
+        )
+
+    @classmethod
+    def failure_subcheck(
+        cls, host: str, exc: OSError, expired: threading.Event
+    ) -> SubCheck:
+        """Turn a probe error into a failing STARTTLS finding."""
+        match exc:
+            case smtplib.SMTPNotSupportedError():
+                detail = "no STARTTLS"
+            case ssl.SSLCertVerificationError():
+                detail = "certificate not valid"
+            case smtplib.SMTPResponseException(smtp_code=code):
+                detail = f"SMTP {code}"
+            case ssl.SSLError() if not expired.is_set():
+                detail = "TLS handshake failed"
+            case _ if not expired.is_set():
+                detail = "connection failed"
+            case _:
+                detail = "timed out"
+        return SubCheck("STARTTLS", "fail", f"{host}: {detail}")
+
+    @classmethod
+    def probe_address(cls, host: str, address: str, deadline: float) -> SubCheck | None:
+        """
+        Test one candidate for STARTTLS within the deadline.
+
+        Return `None` when the candidate refuses the connection, so the caller
+        can try the next one.
+        """
+        remaining = deadline - time.monotonic()
+        smtp = smtplib.SMTP(
+            local_hostname=settings.SMTP_PUBLIC_HOSTNAME, timeout=remaining
+        )
+        try:
+            smtp.sock = socket.create_connection(
+                (address, smtplib.SMTP_PORT), remaining
+            )
+        except OSError:
+            return None
+        guard = smtp.sock.dup()
+        expired = threading.Event()
+
+        def expire() -> None:
+            expired.set()
+            with contextlib.suppress(OSError):
+                guard.shutdown(socket.SHUT_RDWR)
+
+        watchdog = threading.Timer(max(deadline - time.monotonic(), 0), expire)
+        try:
+            watchdog.start()
+            smtp._host = host
+            if (code := smtp.getreply()[0]) != 220:
+                return SubCheck("STARTTLS", "fail", f"{host}: SMTP {code}")
+            smtp.starttls(context=ssl.create_default_context())
+        except OSError as exc:
+            return cls.failure_subcheck(host, exc, expired)
+        else:
+            return cls.grade_session(host, smtp.sock)
+        finally:
+            watchdog.cancel()
+            guard.close()
+            smtp.close()
+
+    @classmethod
+    def probe_starttls(cls, host: str, lookup: Lookup) -> SubCheck:
+        """Test an MX host for a TLS upgrade and score the resulting channel."""
+        addresses = tuple(filter(cls.is_global_address, lookup.addresses(host)))
+        if not addresses:
+            if all(
+                lookup.query(host, record_type).failed
+                for record_type in (dns.rdatatype.A, dns.rdatatype.AAAA)
+            ):
+                return SubCheck("STARTTLS", "skip", f"{host}: lookup failed")
+            return SubCheck("STARTTLS", "fail", f"{host}: no global address")
+        deadline = time.monotonic() + cls.PROBE_TIMEOUT.total_seconds()
+        for address in addresses:
+            if deadline <= time.monotonic():
+                return SubCheck("STARTTLS", "fail", f"{host}: timed out")
+            if (result := cls.probe_address(host, address, deadline)) is not None:
+                return result
+        return SubCheck("STARTTLS", "fail", f"{host}: unreachable")
+
+    @classmethod
+    def probe_subchecks(cls, mx: MxLookup, lookup: Lookup) -> list[SubCheck]:
+        """Collect one finding for the TLS upgrade of every MX exchange."""
+        probe = functools.partial(cls.probe_starttls, lookup=lookup)
+        with concurrent.futures.ThreadPoolExecutor(MxCheck.MAX_MX_EXCHANGES) as pool:
+            return list(pool.map(probe, mx.exchanges[: MxCheck.MAX_MX_EXCHANGES]))
+
     @classmethod
     def run(cls, name: str, lookup: Lookup) -> CheckResult:
         records = lookup.text(f"_mta-sts.{name}")
@@ -877,6 +1019,7 @@ class MtaStsCheck(Check):
                 detail="No valid MTA-STS record.",
             )
         subchecks = [SubCheck("MTA-STS record", "pass", f"id={tags['id']}")]
+        mx = lookup.mx(name)
         policy = cls.fetch_policy(name, lookup)
         if policy is None:
             subchecks.append(SubCheck("Policy", "fail", "No fetchable policy"))
@@ -891,7 +1034,6 @@ class MtaStsCheck(Check):
                     severity="weak",
                 )
             )
-            mx = lookup.mx(name)
             if mx.failed:
                 subchecks.append(SubCheck("MX match", "skip", "MX lookup failed"))
             else:
@@ -913,6 +1055,7 @@ class MtaStsCheck(Check):
                 "MTA-STS TTL", f"_mta-sts.{name}", dns.rdatatype.TXT, lookup
             )
         )
+        subchecks.extend(cls.probe_subchecks(mx, lookup))
         return cls.result(subchecks)
 
 
