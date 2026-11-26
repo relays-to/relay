@@ -223,6 +223,10 @@ jobs:
           dotenvx run --strict -f .env.production -- \
               sentry-cli releases set-commits "$release" --auto
           dotenvx run --strict -f .env.production -- \
+              sentry-cli sourcemaps upload --release "$release" \
+              --url-prefix "~/esm" staticfiles/esm ||
+              echo "::notice::Sentry source map upload failed for release $release"
+          dotenvx run --strict -f .env.production -- \
               sentry-cli releases finalize "$release"
       - name: Roll back the release
         if: failure()

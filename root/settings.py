@@ -52,6 +52,8 @@ TEST = env.bool("TEST", default=False)
 
 SENTRY_DSN = env("SENTRY_DSN", default="").strip()
 
+SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="").strip() or "production"
+
 # The image release, `sha-<commit>`, scoping the page cache validators.
 SENTRY_RELEASE = env("SENTRY_RELEASE", default="").strip()
 
@@ -135,11 +137,12 @@ SECURE_CSP = {
     "frame-ancestors": [CSP.NONE],
 }
 
-if SENTRY_DSN and not (TEST or DEBUG):
+if SENTRY_DSN:
     dsn = urlsplit(SENTRY_DSN)
-    host = dsn.netloc.rpartition("@")[2]
+    origin = f"{dsn.scheme}://{dsn.netloc.rpartition('@')[2]}"
+    SECURE_CSP["connect-src"].append(origin)
     SECURE_CSP["report-uri"] = [
-        f"{dsn.scheme}://{host}/api{dsn.path}/security/?sentry_key={dsn.username}"
+        f"{origin}/api{dsn.path}/security/?sentry_key={dsn.username}"
     ]
 
 # Application definition
@@ -619,7 +622,7 @@ LOGGING = {
 
 
 # Monitoring (Sentry)
-if SENTRY_DSN and not TEST and not DEBUG:
+if SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.asyncio import AsyncioIntegration
     from sentry_sdk.integrations.django import DjangoIntegration
@@ -629,7 +632,7 @@ if SENTRY_DSN and not TEST and not DEBUG:
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
-        environment=env("SENTRY_ENVIRONMENT", default="").strip() or "production",
+        environment=SENTRY_ENVIRONMENT,
         integrations=[
             DjangoIntegration(),
             AsyncioIntegration(),
