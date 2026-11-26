@@ -22,6 +22,9 @@ class TestAppMCPProvider:
         assert "email://messages/{message_id}" in {
             template.uri_template for template in templates
         }
+        assert "email://messages/{message_id}/transmissions" in {
+            template.uri_template for template in templates
+        }
         assert {"docs://security", "know-how://dmarc"} <= {
             str(resource.uri) for resource in resources
         }
