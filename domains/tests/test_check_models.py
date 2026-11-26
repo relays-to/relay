@@ -3,7 +3,13 @@ import datetime as dt
 import pytest
 from django.utils import timezone
 
-from domains.check.evaluation import Check, CheckResult, MxCheck, SubCheck
+from domains.check.evaluation import (
+    Check,
+    CheckResult,
+    MtaStsCheck,
+    MxCheck,
+    SubCheck,
+)
 from domains.check.tiers import Tier
 from domains.models import Domain, DomainCheck
 
@@ -118,6 +124,29 @@ class TestCheckRows:
         )
 
         assert row["subchecks"][0]["severity"] == "weak"
+
+    def test_build_check_row__upgrades_a_legacy_weak_starttls_finding(self):
+        row = DomainCheck.build_check_row(
+            make_row(
+                key="mta_sts",
+                subchecks=[
+                    {
+                        "label": "STARTTLS",
+                        "status": "fail",
+                        "detail": (
+                            "mx.example.com: TLSv1.3, x25519, RSA 2048, "
+                            "no PQ key exchange"
+                        ),
+                        "severity": "weak",
+                    }
+                ],
+            )
+        )
+
+        subcheck = row["subchecks"][0]
+        assert subcheck["label"] == "Post-quantum key exchange"
+        assert subcheck["detail"] == "mx.example.com: TLSv1.3, x25519, RSA 2048"
+        assert subcheck["hint"] == MtaStsCheck.HINTS["Post-quantum key exchange"]
 
     def test_build_check_row__copes_without_subchecks(self):
         row = DomainCheck.build_check_row({"key": "mx", "label": "MX", "detail": ""})
@@ -471,7 +500,7 @@ class TestForDomain:
         assert domain_check.pk == existing.pk
         assert domain_check.domain == domain
 
-    def test_for_domain__adopts_a_complete_free_check_as_the_baseline(self, org):
+    def test_for_domain__links_a_complete_free_check_without_a_baseline(self, org):
         domain = Domain.objects.create(name="example.com", org=org)
         DomainCheck.objects.all().delete()
         checks = [make_row(subchecks=[{"label": "MX record", "status": "pass"}])]
@@ -486,7 +515,8 @@ class TestForDomain:
         free_check.refresh_from_db()
         assert domain_check.pk == free_check.pk
         assert free_check.domain == domain
-        assert free_check.previous_checks == free_check.checks
+        assert free_check.checks == checks
+        assert free_check.previous_checks == []
 
     def test_for_domain__keeps_an_existing_baseline(self, org):
         domain = Domain.objects.create(name="example.com", org=org)

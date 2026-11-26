@@ -579,13 +579,7 @@ class DomainCheck(TimeStamped):
         )
         if domain_check.domain_id is not None:
             return domain_check
-        fields = {"domain": domain}
-        if (
-            domain_check.status == cls.Status.COMPLETE
-            and not domain_check.previous_checks
-        ):
-            fields["previous_checks"] = domain_check.checks
-        cls.objects.filter(pk=domain_check.pk).update(**fields)
+        cls.objects.filter(pk=domain_check.pk).update(domain=domain)
         domain_check.domain = domain
         return domain_check
 
@@ -640,14 +634,17 @@ class DomainCheck(TimeStamped):
 
     @staticmethod
     def build_check_row(check: dict) -> dict:
-        subchecks = [
-            {
-                "severity": "broken",
-                "hint": Check.hint_for(check["key"], subcheck["label"]),
-            }
-            | subcheck
-            for subcheck in check.get("subchecks", [])
-        ]
+        check_type = Check.by_key(check["key"])
+        subchecks = []
+        for subcheck in check.get("subchecks", []):
+            subcheck = check_type.upgrade_subcheck(subcheck)
+            subchecks.append(
+                {
+                    "severity": "broken",
+                    "hint": Check.hint_for(check["key"], subcheck["label"]),
+                }
+                | subcheck
+            )
         return check | {
             "slug": Check.slugs().get(check["key"]),
             "subchecks": subchecks,

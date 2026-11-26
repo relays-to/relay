@@ -11,10 +11,8 @@ def link_domain_checks(apps, schema_editor):
         except DomainCheck.DoesNotExist:
             DomainCheck.objects.create(name=domain.name, domain=domain)
         else:
-            if domain_check.status == "complete" and not domain_check.previous_checks:
-                domain_check.previous_checks = domain_check.checks
             domain_check.domain = domain
-            domain_check.save(update_fields=["domain", "previous_checks"])
+            domain_check.save(update_fields=["domain"])
 
 
 class Migration(migrations.Migration):

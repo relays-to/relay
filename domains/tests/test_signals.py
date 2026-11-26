@@ -77,7 +77,7 @@ class TestMonitorDomain:
             domain = Domain.objects.create(name="example.com", org=org)
 
         domain_check = DomainCheck.objects.get(domain=domain)
-        assert domain_check.previous_checks == domain_check.checks
+        assert domain_check.previous_checks == []
         assert queued == []
 
     def test_create__does_not_monitor_a_managed_domain(

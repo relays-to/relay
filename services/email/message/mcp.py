@@ -20,7 +20,7 @@ from abstract.scopes import Scope, scopes
 from accounts.mcp import get_authenticated_user
 
 from .events import MessageEvent
-from .models import Message
+from .models import Message, Transmission
 
 
 @scopes.register
@@ -61,6 +61,27 @@ def describe_message(message: Message) -> dict[str, object]:
         "kind_display": str(message.kind_display),
         "status": message.status,
         "status_display": str(message.status_display),
+    }
+
+
+def describe_transmission(transmission: Transmission) -> dict[str, object]:
+    """Return one SMTP leg with its reply and TLS details."""
+    return {
+        "status": transmission.status,
+        "status_display": str(transmission.get_status_display()),
+        "remote_host": transmission.remote_host,
+        "local_ip_address": transmission.local_ip_address,
+        "remote_ip_address": transmission.remote_ip_address,
+        "code": transmission.code,
+        "output": transmission.output,
+        "details": transmission.details,
+        "tls_mode": transmission.tls_mode,
+        "tls_mode_display": str(transmission.get_tls_mode_display()),
+        "tls_version": transmission.tls_version,
+        "tls_cipher": transmission.tls_cipher,
+        "started_at": transmission.started_at,
+        "finished_at": transmission.finished_at,
+        "duration_secs": transmission.duration.total_seconds(),
     }
 
 
@@ -163,6 +184,44 @@ def get_message(
             "created_at": message.created_at,
             # The MCP base URL is the public origin that also serves the web app.
             "web_url": f"{settings.MCP_BASE_URL}{message.get_absolute_url()}",
+        },
+        cls=DjangoJSONEncoder,
+    )
+
+
+@resource(
+    "email://messages/{message_id}/transmissions",
+    mime_type="application/json",
+    auth=require_scopes(MessageScope.read),
+)
+def get_message_transmissions(
+    message_id: UUID,
+    user: User = Depends(get_authenticated_user),  # noqa: B008 -- dependency
+) -> str:
+    """
+    Return every SMTP leg of one mail, oldest first.
+
+    Read the reply each remote host sent to explain a delayed or failed
+    delivery.
+
+    Args:
+        message_id: Identifier of the message whose transmissions to return.
+        user: The active user the access token was issued for.
+
+    """
+    try:
+        message = Message.objects.prefetch_related("transmissions").get(
+            id=message_id, org__in=user.organizations.all()
+        )
+    except Message.DoesNotExist as error:
+        raise MessageNotFoundError from error
+    return json.dumps(
+        {
+            "message_id": str(message.id),
+            "transmissions": [
+                describe_transmission(transmission)
+                for transmission in message.transmissions.all()
+            ],
         },
         cls=DjangoJSONEncoder,
     )
