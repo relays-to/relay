@@ -131,5 +131,5 @@ def send_org_weekly_digest(org_id):
                     )
                 except OSError:
                     logger.exception(
-                        "Weekly digest for user %r failed", membership.user_id
+                        "Weekly digest for user %r failed", membership.user
                     )
