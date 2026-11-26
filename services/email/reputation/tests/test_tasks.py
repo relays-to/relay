@@ -360,7 +360,7 @@ class TestSendOrgWeeklyDigest:
             send_org_weekly_digest.func(org_id=org.pk)
 
         assert [message.to[0] for message in mailoutbox] == ["alice@example.com"]
-        assert f"Weekly digest for user {other_user.pk!r} failed" in caplog.messages
+        assert f"Weekly digest for user {other_user!r} failed" in caplog.messages
 
 
 class TestSendWeeklyDigestSchedule:

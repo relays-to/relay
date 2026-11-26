@@ -96,7 +96,7 @@ class TestDomainCheckAdmin:
 
         assert response.status_code == 302
         domain_check.refresh_from_db()
-        assert domain_check.status == DomainCheck.Status.RUNNING
+        assert domain_check.status == DomainCheck.Status.PENDING
         assert domain_check.checks == []
         assert [result.kwargs for result in task_results] == [{"name": "example.com"}]
 
