@@ -10,7 +10,7 @@ class TestListArticles:
         articles = list(CaptainsLogContent.get_articles())
         dates = [metadata["date"] for _, metadata in articles]
         assert dates == sorted(dates, reverse=True)
-        assert articles[0][0] == "2026-10"
+        assert articles[0][1]["date"] == max(dates)
 
     def test_list_articles__orders_two_logs_newest_first(self, tmp_path, monkeypatch):
         (tmp_path / "2026-09.md").write_text(
@@ -45,7 +45,8 @@ class TestCaptainsLogListView:
         response = client.get(reverse("captains_log:list"))
         assert response.status_code == 200
         assert "articles" in response.context
-        assert response.context["articles"][0]["slug"] == "2026-10"
+        newest = next(iter(CaptainsLogContent.get_articles()))[0]
+        assert response.context["articles"][0]["slug"] == newest
 
 
 class TestCaptainsLogDetailView:

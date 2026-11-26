@@ -69,5 +69,6 @@ class TestStationLogEmail:
         assert station_log_notification.default
 
     def test_render_preview__uses_the_latest_log(self):
+        _, metadata = next(iter(CaptainsLogContent.get_articles()))
         email = StationLogEmail.render_preview()
-        assert "October 2026" in email.html
+        assert metadata["name"] in email.html
