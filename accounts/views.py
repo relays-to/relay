@@ -1,3 +1,4 @@
+import datetime as dt
 import zoneinfo
 
 from django.conf import settings
@@ -13,13 +14,17 @@ from django.forms import (
     SlugField,
     TextInput,
 )
-from django.http import Http404
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import NoReverseMatch, reverse, reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views import generic
 
-from abstract.views import BreadcrumbViewMixin, NoStoreCacheMixin
+from abstract.views import (
+    BreadcrumbViewMixin,
+    CacheControlMixin,
+    NoStoreCacheMixin,
+)
 
 from .models import Membership, Organization, UserPreference
 
@@ -100,6 +105,26 @@ class LoginView(NoStoreCacheMixin, generic.TemplateView):
         return super().get_context_data(**kwargs) | {
             "page_title": _("login"),
         }
+
+
+class UserProfileView(CacheControlMixin, generic.View):
+    cache_control = {
+        "private": True,
+        "max_age": dt.timedelta(minutes=5),
+        "must_revalidate": True,
+    }
+
+    def get(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return JsonResponse(
+                {
+                    "id": request.user.pk,
+                    "username": request.user.get_username(),
+                    "name": request.user.get_full_name() or request.user.get_username(),
+                    "email": request.user.email,
+                }
+            )
+        return HttpResponse(status=204)
 
 
 class OrganizationListView(LoginRequiredMixin, NoStoreCacheMixin, generic.ListView):

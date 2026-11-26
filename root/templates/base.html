@@ -40,6 +40,7 @@
     {% esm '#js/app.js' %}
     {% esm '#js/snippets.js' %}
     {% esm '#js/amount.js' %}
+    <meta name="user-profile-url" content="{% url 'accounts:profile-detail' %}">
     {% if SENTRY_DSN %}
       <meta name="sentry-dsn" content="{{ SENTRY_DSN }}">
       <meta name="sentry-environment" content="{{ SENTRY_ENVIRONMENT }}">
