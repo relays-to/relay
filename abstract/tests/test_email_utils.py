@@ -6,6 +6,7 @@ from email import message_from_string
 from email.message import EmailMessage, Message
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from abstract.email_utils import ReportAttachment, decode_payload, extract_part_text
 
@@ -38,6 +39,15 @@ class TestReportAttachment:
         results = list(ReportAttachment.iterate_from(raw))
         assert len(results) == 1
         assert results[0] == b"<feedback/>"
+
+    def test_iterate_from__yields_inline_gzip_attachment(self):
+        message = MIMEMultipart()
+        message.attach(MIMEText("Report body"))
+        attachment = MIMEApplication(gzip.compress(b"<feedback/>"), _subtype="gzip")
+        attachment.add_header("Content-Disposition", "inline", filename="report.xml.gz")
+        message.attach(attachment)
+        results = list(ReportAttachment.iterate_from(message.as_bytes()))
+        assert results == [b"<feedback/>"]
 
     def test_iterate_from__yields_zip_attachment(self):
         buf = io.BytesIO()
