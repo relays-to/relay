@@ -985,7 +985,7 @@ class MtaStsCheck(Check):
             case ssl.SSLCertVerificationError():
                 label, detail = "TLS certificate", "certificate not valid"
             case ssl.SSLError() if expired.is_set():
-                label, detail = "MX connection", "timed out"
+                label, detail = "TLS handshake", "timed out"
             case ssl.SSLError() if cls.is_version_error(exc):
                 label, detail = "TLS version", "no TLS 1.2 or later"
             case ssl.SSLError():
@@ -1064,7 +1064,6 @@ class MtaStsCheck(Check):
         for finding in findings:
             groups.setdefault(finding.label, []).append(finding)
         labels = [label for label in cls.PROBE_LABELS if label in groups]
-        labels += [label for label in groups if label not in cls.PROBE_LABELS]
         merged = []
         for label in labels:
             group = groups[label]

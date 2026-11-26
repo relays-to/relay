@@ -133,10 +133,13 @@ Verification fails if a live MX record is not in the list. The policy id
 changes when you change the list. Senders then fetch the new policy.
 
 relay's domain check also tests the TLS handshake. It connects to port 25 on
-every MX host, up to five, and sends `STARTTLS`. A host fails when it does not
-offer `STARTTLS`, when its certificate is not valid for the MX name, or when it
-negotiates a protocol below TLS 1.2. TLS 1.0 and TLS 1.1 are deprecated
-([RFC 8996][rfc-8996]), and MTA-STS requires TLS 1.2 or later.
+every MX host, up to five, and sends `STARTTLS`. The check reports one finding
+per TLS feature, and the detail lists every MX host that fails it. A host
+fails when it has no global address, refuses the connection or times out,
+greets without SMTP code 220, does not offer `STARTTLS`, presents a
+certificate that is not valid for the MX name, or negotiates a protocol below
+TLS 1.2. TLS 1.0 and TLS 1.1 are deprecated ([RFC 8996][rfc-8996]), and
+MTA-STS requires TLS 1.2 or later.
 
 The top tier needs a post-quantum key exchange on every MX host. A TLS 1.2
 handshake meets the floor but cannot be post-quantum, because the hybrid

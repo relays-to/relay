@@ -559,8 +559,7 @@ class DomainCheck(TimeStamped):
         check_type = Check.by_key(check["key"])
         subchecks = []
         for subcheck in check.get("subchecks", []):
-            if check_type is not None:
-                subcheck = check_type.upgrade_subcheck(subcheck)
+            subcheck = check_type.upgrade_subcheck(subcheck)
             subchecks.append(
                 {
                     "severity": "broken",

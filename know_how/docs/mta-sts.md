@@ -58,15 +58,15 @@ A conformance check reads the DNS record, the policy file, and the TLS handshake
 
 ### The STARTTLS probe
 
-The check connects to port 25 on every MX host, up to five, and sends the `STARTTLS` command. It validates the certificate against the MX hostname and then records the protocol version, the key exchange group, and the certificate key. The probe fails for that host with one of these findings:
+The check connects to port 25 on every MX host, up to five, and sends the `STARTTLS` command. It validates the certificate against the MX hostname and then records the protocol version, the key exchange group, and the certificate key. The probe reports one of these findings for that host:
 
-- `MX address`: The host has no global address, or the DNS lookup fails.
-- `MX connection`: The connection fails or the probe exceeds ten seconds.
+- `MX address`: The host has no global address. A failed DNS lookup skips this finding.
+- `MX connection`: The host refuses the connection, or the probe times out before the handshake starts.
 - `SMTP greeting`: The host does not answer with SMTP code 220.
 - `STARTTLS`: The host does not offer `STARTTLS` or answers the command with an SMTP error.
 - `TLS certificate`: The certificate is expired, self-signed, or issued for another name.
 - `TLS version`: The host does not negotiate TLS 1.2 or later.
-- `TLS handshake`: The handshake fails for another reason.
+- `TLS handshake`: The handshake fails, or the host stalls it until the probe times out.
 - `Post-quantum key exchange`: The host negotiates a classical group. This finding is a warning, not a blocking failure.
 
 The check reports each finding once. The detail lists every MX host that fails the finding.

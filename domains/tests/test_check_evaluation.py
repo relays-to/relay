@@ -1353,7 +1353,7 @@ class TestMtaStsProbeStartTls:
         server = smtp_server(error=ssl.SSLError())
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "MX connection", "fail", f"{self.HOST}: timed out"
+            "TLS handshake", "fail", f"{self.HOST}: timed out"
         )
         assert server.sock.duplicates[0].shutdowns == [socket.SHUT_RDWR]
 
@@ -1554,6 +1554,50 @@ class TestMtaStsMergeSubchecks:
                 "mx1.example.com: lookup failed; mx2.example.com: lookup failed",
             )
         ]
+
+
+class TestMtaStsUpgradeSubcheck:
+    def test_upgrade_subcheck__keeps_a_current_finding(self):
+        subcheck = {
+            "label": "TLS certificate",
+            "status": "fail",
+            "detail": "mx.example.com: certificate not valid",
+        }
+
+        assert MtaStsCheck.upgrade_subcheck(subcheck) == subcheck
+
+    def test_upgrade_subcheck__maps_a_legacy_pass_to_the_handshake(self):
+        subcheck = {
+            "label": "STARTTLS",
+            "status": "pass",
+            "detail": "mx.example.com: TLSv1.3, X25519MLKEM768 (post-quantum)",
+        }
+
+        assert MtaStsCheck.upgrade_subcheck(subcheck) == subcheck | {
+            "label": "TLS handshake"
+        }
+
+    def test_upgrade_subcheck__maps_a_legacy_failure_by_its_detail(self):
+        subcheck = {
+            "label": "STARTTLS",
+            "status": "fail",
+            "detail": "mx.example.com: certificate not valid",
+        }
+
+        assert MtaStsCheck.upgrade_subcheck(subcheck) == subcheck | {
+            "label": "TLS certificate"
+        }
+
+    def test_upgrade_subcheck__keeps_an_unmapped_legacy_failure(self):
+        subcheck = {
+            "label": "STARTTLS",
+            "status": "fail",
+            "detail": "mx.example.com: SMTP 554",
+        }
+
+        assert MtaStsCheck.upgrade_subcheck(subcheck) == subcheck | {
+            "label": "STARTTLS"
+        }
 
 
 class TestMtaStsRun:
