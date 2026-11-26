@@ -556,14 +556,17 @@ class DomainCheck(TimeStamped):
 
     @staticmethod
     def build_check_row(check: dict) -> dict:
-        subchecks = [
-            {
-                "severity": "broken",
-                "hint": Check.hint_for(check["key"], subcheck["label"]),
-            }
-            | subcheck
-            for subcheck in check.get("subchecks", [])
-        ]
+        check_type = Check.by_key(check["key"])
+        subchecks = []
+        for subcheck in check.get("subchecks", []):
+            subcheck = check_type.upgrade_subcheck(subcheck)
+            subchecks.append(
+                {
+                    "severity": "broken",
+                    "hint": Check.hint_for(check["key"], subcheck["label"]),
+                }
+                | subcheck
+            )
         return check | {
             "slug": Check.slugs().get(check["key"]),
             "subchecks": subchecks,
