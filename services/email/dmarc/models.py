@@ -9,7 +9,7 @@ from django.db import models
 from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
-from abstract.email_utils import MissingAttachmentError, iter_attachments
+from abstract.email_utils import MissingAttachmentError, ReportAttachment
 from abstract.hostnames import is_relay_address
 from abstract.models import TimeStamped
 from domains.models import Domain
@@ -74,7 +74,7 @@ class DmarcReport(IncomingMessage):
 
         Raises `ValueError` if no XML attachment is found.
         """
-        data = next(iter_attachments(raw_bytes), None)
+        data = next(ReportAttachment.iterate_from(raw_bytes), None)
         if data is None:
             raise MissingAttachmentError
         parsed = parse_dmarc_xml(data)

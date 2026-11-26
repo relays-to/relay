@@ -5,37 +5,30 @@ import json
 from django.utils import dateparse, timezone
 
 
-def snake_case_keys(value):
-    """
-    Recursively convert dashed TLS-RPT keys to snake_case field names.
-
-    RFC 8460 uses dashed key names ("organization-name").
-    """
-    if isinstance(value, list):
-        return [snake_case_keys(item) for item in value]
-    if not isinstance(value, dict):
-        return value
-    return {key.replace("-", "_"): snake_case_keys(item) for key, item in value.items()}
-
-
 def parse_datetime(value):
     """
     Return an aware datetime from an RFC 3339 string, or None.
 
     Raises `ValueError` for a well-formed but invalid datetime.
     """
-    parsed = dateparse.parse_datetime(value) if isinstance(value, str) else None
-    if parsed is None:
-        return None
-    return timezone.make_aware(parsed) if timezone.is_naive(parsed) else parsed
+    try:
+        parsed = dateparse.parse_datetime(value)
+    except TypeError:
+        parsed = None
+    return (
+        timezone.make_aware(parsed)
+        if parsed is not None and timezone.is_naive(parsed)
+        else parsed
+    )
 
 
 def parse_count(value):
     """Return a session count as an int, or 0 when missing or malformed."""
     try:
-        return int(value)
-    except TypeError, ValueError:
-        return 0
+        count = int(value)
+    except TypeError, ValueError, OverflowError:
+        count = 0
+    return count
 
 
 def parse_tls_report(data):
@@ -44,7 +37,12 @@ def parse_tls_report(data):
 
     Missing fields fall back to the RFC 8460 defaults.
     """
-    report = snake_case_keys(json.loads(data))
+    report = json.loads(
+        data,
+        object_hook=lambda item: {
+            key.replace("-", "_"): value for key, value in item.items()
+        },
+    )
     date_range = report.get("date_range") or {}
     metadata = {
         "reporting_org": report.get("organization_name", ""),
@@ -54,7 +52,7 @@ def parse_tls_report(data):
         "end_at": parse_datetime(date_range.get("end_datetime")),
     }
     policies = []
-    for entry in report.get("policies", []):
+    for entry in report.get("policies") or []:
         policy = entry.get("policy") or {}
         summary = entry.get("summary") or {}
         policies.append(
@@ -78,7 +76,7 @@ def parse_tls_report(data):
                         "count": parse_count(detail.get("failed_session_count")),
                         "additional_info": detail.get("additional_information", ""),
                     }
-                    for detail in entry.get("failure_details", [])
+                    for detail in entry.get("failure_details") or []
                 ],
             }
         )
