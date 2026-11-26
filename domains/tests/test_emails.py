@@ -125,7 +125,7 @@ class TestDomainMonitorEmailRender:
 
         assert "Ends with ~all." in email.html
         assert "End the SPF record with -all instead of ~all." in email.html
-        assert "acme.com" in email.html
+        assert ">acme.com</div>" in email.html
 
     def test_render__drops_a_check_label_the_subcheck_repeats(self):
         email = make_email(
@@ -147,7 +147,7 @@ class TestDomainMonitorEmailRender:
         email = DomainMonitorEmail.render_preview()
 
         assert email.subject == "acme.com: 2 changes"
-        assert "acme.com" in email.html
+        assert ">acme.com</div>" in email.html
 
     def test_render_preview__uses_the_given_changes(self):
         email = DomainMonitorEmail.render_preview(changes=[make_change()])
