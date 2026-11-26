@@ -2,7 +2,12 @@
 
 from django.conf import settings
 
-EXPOSED_SETTINGS = ("DEBUG",)
+EXPOSED_SETTINGS = (
+    "DEBUG",
+    "SENTRY_DSN",
+    "SENTRY_ENVIRONMENT",
+    "SENTRY_RELEASE",
+)
 
 
 def settings_context(request):
