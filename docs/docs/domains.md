@@ -1,6 +1,6 @@
 ---
 name: Managed domains and DNS
-description: Use the managed sender domain, add your own domain, and verify the DNS records
+description: Use the managed sender domain, add your own domain, verify the DNS records, and monitor them
 author: Johannes Maron
 modified_at: 2026-11-26
 ---
@@ -118,6 +118,41 @@ Each tab has a **Zone file** download. If your DNS provider imports zone
 files, use it. The file lists the records for that group with an explicit
 TTL.
 
+## Monitor your domain
+
+relay checks every custom domain about once an hour. The check starts when
+you add the domain. The first result shows every check and its state.
+
+Open **Domains**. The list shows the tier and the number of open issues for
+each checked domain. Then open the domain. The **Monitoring** section at the
+top shows the tier, the last check, and every check result. The **Setup**
+section below it holds the sending, receiving, and reporting tabs. Click
+**Check now** to run a check before the next hourly run. To update the Setup
+tabs, click **Verify DNS**.
+
+relay emails the members of your organization when a check changes. The
+email shows the current tier, lists the checks that now fail and the checks
+that pass again, and gives the fix for each new issue. Turn the email off in
+**Notifications**.
+
+relay does not monitor the managed sender domain, because relay controls its
+DNS.
+
+## Monitor a domain from the free checker
+
+Open the <a href="{% url 'domain_check:list' %}">domain check</a>. Check the
+domain. The monitoring banner under the score offers **Monitor this domain**.
+If your organization already manages the domain, the link takes you to the
+domain page.
+
+Sign in with GitHub when the page asks. Choose the organization when you
+belong to more than one. If you have no organization, relay sends you to
+create one. The domain joins that organization and relay starts the
+monitoring.
+
+A domain belongs to one organization. relay rejects a domain that another
+organization owns.
+
 ## MTA-STS
 
 relay serves an MTA-STS policy in `enforce` mode for every domain that
@@ -189,6 +224,8 @@ domain. relay manages those names.
 | The post-quantum key exchange check shows a warning | The MX host negotiates a classical key exchange.                     | Enable TLS 1.3 and a hybrid post-quantum ML-KEM group such as `X25519MLKEM768` on every MX host. |
 | The TLS-RPT check fails                             | The `_smtp._tls` CNAME is missing or wrong.                          | Publish the CNAME from the **Reporting** tab.                                                    |
 | A check stays pending after you publish a record    | DNS caching.                                                         | Wait for the TTL of your zone. Then verify again.                                                |
+| The monitor email does not arrive                   | The **Domain monitoring** notification is off.                       | Turn on **Domain monitoring** in **Notifications**.                                              |
+| The monitor email never arrives                     | Your account has no email address.                                   | Contact support to add an address.                                                               |
 
 ## Related pages
 

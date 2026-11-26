@@ -110,6 +110,28 @@ relay signs with the sending domain only. Each signature covers the
 the mail type, and the platform, so Gmail can group its complaint rates
 per stream.
 
+## Domain monitoring
+
+Every custom domain added to an organization is checked about once an hour.
+The first check starts when the domain is added. The domain list shows the
+current tier and the open issues. The domain page shows the last check time
+and every result.
+
+When a check changes, relay emails the organization members who kept the
+**Domain monitoring** notification. The mail lists the checks that now fail
+and the checks that pass again, with the fix for each new failure. Members
+turn it off in **Notifications**. The managed sender domain stays out of the
+sweep, because relay controls its DNS.
+
+The public checker attaches a checked domain to an organization with
+**Monitor this domain**. A domain belongs to one organization.
+
+`monitor_domains` runs on the cron scheduler every five minutes. It marks
+checks that are older than `DomainCheck.MONITOR_INTERVAL` as pending and
+enqueues `check_domain`. Each completed run compares the result with
+`previous_checks` and enqueues `send_domain_check_changes` on the default
+queue.
+
 ## Architecture
 
 ```
@@ -118,6 +140,7 @@ Organization → Domain, SmtpCredential
 
 - **Organization**: Owns resources (domains, credentials). Each user gets a personal org on signup.
 - **Domain**: Root domain verified once with NS delegation + DMARC. Holds shared DKIM keys.
+- **DomainCheck**: Hourly DNS, authentication, TLS, and blocklist check of a custom domain. Emails the organization when a result changes.
 - **SendingDomain**: Envelope-from domain (for example, acme.com or app.acme.com) with SPF + DKIM CNAME. Shares the root domain's NS delegation.
 - **ReceivingDomain**: Receiving domain with MX record pointing to the relay MX hostnames
 - **SmtpCredential**: Per-org API key used to authenticate outgoing SMTP submissions
@@ -253,7 +276,7 @@ own worker and scale on its own:
   scan and the postmaster forward.
 - `delivery`: SMTP delivery to remote MX hosts. The sender worker is the only
   consumer, so it can be given dedicated outbound addresses.
-- `default`: everything else, so DMARC and reputation reporting.
+- `default`: everything else, so DMARC, reputation, and domain monitor mail.
 
 `TASKS["default"]["QUEUES"]` in `root/settings.py` holds the queue list. A task
 whose queue is missing there fails at import time.

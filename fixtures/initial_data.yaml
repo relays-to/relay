@@ -297,6 +297,143 @@
     dns_checked_at: null
     dkim_key_rsa2048: 1
     dkim_key_ed25519: 3
+- model: domains.domaincheck
+  pk: 1
+  fields:
+    modified_at: 2026-11-26 18:30:00+00:00
+    created_at: 2026-07-15 09:00:00+00:00
+    name: acme.com
+    domain: 1
+    status: complete
+    penalty: 1
+    previous_checks: []
+    checks:
+      - key: mx
+        label: MX
+        status: pass
+        detail: "MX record: mx1.relays.to, mx2.relays.to; MX TTL: 1 hour."
+        subchecks:
+          - label: MX record
+            status: pass
+            detail: "mx1.relays.to, mx2.relays.to"
+            severity: broken
+          - label: MX TTL
+            status: pass
+            detail: "1 hour"
+            severity: broken
+      - key: spf
+        label: SPF
+        status: partial
+        detail: "SPF record: 1 record; Lookup limit: 3 DNS lookups (limit 10); Strict all: ~all; Reverse DNS: Matches; SPF TTL: 1 hour."
+        subchecks:
+          - label: SPF record
+            status: pass
+            detail: "1 record"
+            severity: broken
+          - label: Lookup limit
+            status: pass
+            detail: "3 DNS lookups (limit 10)"
+            severity: blocking
+          - label: Strict all
+            status: fail
+            detail: "~all"
+            severity: weak
+          - label: Reverse DNS
+            status: pass
+            detail: "Matches"
+            severity: weak
+          - label: SPF TTL
+            status: pass
+            detail: "1 hour"
+            severity: broken
+      - key: dmarc
+        label: DMARC
+        status: pass
+        detail: "DMARC record: 1 record; Policy: p=reject; Aggregate reports: mailto:dmarc@mail.relay.acme.com; Full coverage: pct=100; DMARC TTL: 1 hour."
+        subchecks:
+          - label: DMARC record
+            status: pass
+            detail: "1 record"
+            severity: broken
+          - label: Policy
+            status: pass
+            detail: "p=reject"
+            severity: weak
+          - label: Aggregate reports
+            status: pass
+            detail: "mailto:dmarc@mail.relay.acme.com"
+            severity: weak
+          - label: Full coverage
+            status: pass
+            detail: "pct=100"
+            severity: weak
+          - label: DMARC TTL
+            status: pass
+            detail: "1 hour"
+            severity: broken
+      - key: mta_sts
+        label: MTA-STS
+        status: pass
+        detail: "MTA-STS record: id=20260715T090000; Policy: Fetched; Enforced mode: enforce; MX match: All MX hosts match; MTA-STS TTL: 1 hour; STARTTLS: TLSv1.3, X25519MLKEM768, RSA 2048."
+        subchecks:
+          - label: MTA-STS record
+            status: pass
+            detail: "id=20260715T090000"
+            severity: broken
+          - label: Policy
+            status: pass
+            detail: "Fetched"
+            severity: broken
+          - label: Enforced mode
+            status: pass
+            detail: "enforce"
+            severity: weak
+          - label: MX match
+            status: pass
+            detail: "All MX hosts match"
+            severity: broken
+          - label: MTA-STS TTL
+            status: pass
+            detail: "1 hour"
+            severity: broken
+          - label: STARTTLS
+            status: pass
+            detail: "mx1.relays.to: TLSv1.3, X25519MLKEM768, RSA 2048"
+            severity: broken
+          - label: STARTTLS
+            status: pass
+            detail: "mx2.relays.to: TLSv1.3, X25519MLKEM768, RSA 2048"
+            severity: broken
+      - key: tls_rpt
+        label: TLS-RPT
+        status: pass
+        detail: "TLS-RPT record: 1 record; Reporting address: mailto:tls@mail.relay.acme.com; TLS-RPT TTL: 1 hour."
+        subchecks:
+          - label: TLS-RPT record
+            status: pass
+            detail: "1 record"
+            severity: broken
+          - label: Reporting address
+            status: pass
+            detail: "mailto:tls@mail.relay.acme.com"
+            severity: broken
+          - label: TLS-RPT TTL
+            status: pass
+            detail: "1 hour"
+            severity: broken
+      - key: blocklists
+        label: Blocklists
+        status: pass
+        detail: "Domain not listed, 2 addresses not listed."
+        subchecks:
+          - label: Domain blocklists
+            status: pass
+            detail: "Not listed"
+            severity: blocking
+          - label: SPF address blocklists
+            status: pass
+            detail: "2 addresses not listed"
+            severity: blocking
 - model: message.message
   pk: 019fbe8f-5edc-75f9-a9ed-9c379741e432
   fields:

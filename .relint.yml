@@ -119,9 +119,9 @@
   pattern: 'logger\.\w+\([^,)%]*%s[^,)]*,\s+\w+\s*[,)]'
   hint: 'Use %r instead of %s for logging objects. %r calls repr() which gives better debugging output (type, quotes, structure). Use %s only for string values or attribute accesses (e.g. obj.name).'
   filePattern: .*\.py
-- name: Use %r instead of logging pk or id
-  pattern: 'logger\.\w+\((?:[^()]|\([^()]*\))*?[,(]\s*[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\.(?:pk|id)\b'
-  hint: 'Log the object with `%r` instead of its `.pk` or `.id`. Message models define a repr without personal data, and `%r` keeps the type visible.'
+- name: Use %r instead of logging pk, id, or a foreign key id
+  pattern: 'logger\.\w+\((?:[^()]|\([^()]*\))*?[,(]\s*[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\.(?:pk|id|\w+_id)\b'
+  hint: 'Log the object with `%r` instead of its `.pk`, `.id`, or `_id` attribute. Message models define a repr without personal data, and `%r` keeps the type visible.'
   filePattern: .*\.py
 - name: No "relay" brand mentions in how-to docs
   pattern: '(?i)\brelay\b'

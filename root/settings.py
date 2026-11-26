@@ -373,8 +373,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Relay config
 
-PLATFORM_DOMAIN = env("HOSTNAME", default="localhost")
-PLATFORM_URL = f"{'http' if DEBUG else 'https'}://{PLATFORM_DOMAIN}"
+HOSTNAME = env("HOSTNAME", default="localhost")
+PLATFORM_DOMAIN = env("PLATFORM_DOMAIN", default=HOSTNAME.split(":")[0])
+PLATFORM_URL = f"{'http' if DEBUG else 'https'}://{HOSTNAME}"
 
 STORAGE_DOMAIN = env("STORAGE_DOMAIN", default=f"storage.{PLATFORM_DOMAIN}")
 if AWS_STORAGE_BUCKET_NAME:

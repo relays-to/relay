@@ -12,6 +12,11 @@ urlpatterns = [
         include(
             [
                 path("", views.DomainCheckDetailView.as_view(), name="detail"),
+                path(
+                    "monitor",
+                    views.DomainCheckMonitorView.as_view(),
+                    name="monitor",
+                ),
                 path("og.png", views.DomainCheckOgImageView.as_view(), name="og-image"),
             ]
         ),

@@ -1,0 +1,312 @@
+{% extends "emails/base.html" %}
+{% load abstract django_letter i18n %}
+
+{% block extra_header %}
+  {{ block.super }}
+  <style media="all" type="text/css">
+    .monitor-score {
+      margin: 0 0 24px;
+      border: 1px solid #e6e1f2;
+      border-radius: 12px;
+      background-color: #f8f6fc;
+    }
+
+    .monitor-score td {
+      vertical-align: middle;
+    }
+
+    .monitor-score-badge-cell {
+      width: 52px;
+      padding: 12px 0 12px 12px;
+    }
+
+    .monitor-score-badge {
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 20px;
+      line-height: 24px;
+      text-align: center;
+    }
+
+    .monitor-score-badge--primary {
+      background-color: #ede4ff;
+      color: #4f00a8;
+    }
+
+    .monitor-score-badge--success {
+      background-color: #e7f5ec;
+      color: #157a3f;
+    }
+
+    .monitor-score-badge--warning {
+      background-color: #fdf1df;
+      color: #a35a00;
+    }
+
+    .monitor-score-badge--destructive {
+      background-color: #fbeaea;
+      color: #b3261e;
+    }
+
+    .monitor-score-badge--outline {
+      background-color: #eef0f3;
+      color: #3f4652;
+    }
+
+    .monitor-score-label {
+      padding: 12px;
+    }
+
+    .monitor-score-domain {
+      color: #1f2937;
+      font-weight: 600;
+      font-size: 16px;
+      line-height: 22px;
+    }
+
+    .monitor-score-caption {
+      color: #3f4652;
+      font-size: 14px;
+      line-height: 20px;
+    }
+
+    .monitor-changes {
+      margin: 0 0 24px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .monitor-change {
+      margin: 0 0 12px;
+      padding: 14px 16px;
+      border: 1px solid #e5e7eb;
+      border-left: 4px solid #d1d5db;
+      border-radius: 10px;
+      background-color: #ffffff;
+    }
+
+    .monitor-change--bad {
+      border-left-color: #b3261e;
+    }
+
+    .monitor-change--good {
+      border-left-color: #157a3f;
+    }
+
+    .monitor-change-status {
+      display: inline-block;
+      margin: 0 0 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      line-height: 18px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .monitor-change-status--bad {
+      background-color: #fbeaea;
+      color: #b3261e;
+    }
+
+    .monitor-change-status--good {
+      background-color: #e7f5ec;
+      color: #157a3f;
+    }
+
+    .monitor-change-kicker {
+      margin: 0 0 2px;
+      color: #6b7280;
+      font-weight: 600;
+      font-size: 12px;
+      line-height: 18px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .monitor-change-name {
+      margin: 0;
+      color: #1f2937;
+      font-weight: 600;
+      font-size: 17px;
+      line-height: 24px;
+    }
+
+    .monitor-change-detail {
+      margin: 4px 0 0;
+      color: #5d6470;
+      font-size: 14px;
+      line-height: 21px;
+    }
+
+    .monitor-change-hint {
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background-color: #f8f6fc;
+      color: #3f2a66;
+      font-size: 14px;
+      line-height: 21px;
+    }
+
+    .monitor-change-hint p {
+      display: inline !important;
+      margin: 0 !important;
+      font-size: 14px !important;
+      line-height: 21px !important;
+    }
+
+    .monitor-change-hint-label {
+      margin-right: 4px;
+      color: #6200d1;
+      font-weight: 700;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .monitor-score {
+        border-color: #3a2f4d !important;
+        background-color: #221b2f !important;
+      }
+
+      .monitor-score-badge--primary {
+        background-color: #35265a !important;
+        color: #bb80ff !important;
+      }
+
+      .monitor-score-badge--success {
+        background-color: #17301f !important;
+        color: #7bd99a !important;
+      }
+
+      .monitor-score-badge--warning {
+        background-color: #3a2a13 !important;
+        color: #f2b45c !important;
+      }
+
+      .monitor-score-badge--destructive {
+        background-color: #3a1d1b !important;
+        color: #f28b82 !important;
+      }
+
+      .monitor-score-badge--outline {
+        background-color: #26282c !important;
+        color: #c7cbd1 !important;
+      }
+
+      .monitor-score-domain {
+        color: #f4f4f5 !important;
+      }
+
+      .monitor-score-caption {
+        color: #d4cfe0 !important;
+      }
+
+      .monitor-change {
+        border-color: #3f3f46 !important;
+        background-color: #18181b !important;
+      }
+
+      .monitor-change--bad {
+        border-left-color: #f28b82 !important;
+      }
+
+      .monitor-change--good {
+        border-left-color: #7bd99a !important;
+      }
+
+      .monitor-change-status--bad {
+        background-color: #3a1d1b !important;
+        color: #f28b82 !important;
+      }
+
+      .monitor-change-status--good {
+        background-color: #17301f !important;
+        color: #7bd99a !important;
+      }
+
+      .monitor-change-kicker {
+        color: #a1a1aa !important;
+      }
+
+      .monitor-change-name {
+        color: #f4f4f5 !important;
+      }
+
+      .monitor-change-detail {
+        color: #c7cbd1 !important;
+      }
+
+      .monitor-change-hint {
+        background-color: #2a1f3d !important;
+        color: #d9c8f5 !important;
+      }
+
+      .monitor-change-hint-label {
+        color: #bb80ff !important;
+      }
+    }
+  </style>
+{% endblock extra_header %}
+
+{% block content %}
+  <h1 class="first">
+    {% if broken_count and fixed_count %}
+      {% blocktranslate trimmed with broken=broken_count fixed=fixed_count %}
+        {{ broken }} new, {{ fixed }} fixed.
+      {% endblocktranslate %}
+    {% elif broken_count %}
+      {% blocktranslate trimmed count counter=broken_count %}
+        {{ counter }} new issue.
+      {% plural %}
+        {{ counter }} new issues.
+      {% endblocktranslate %}
+    {% elif fixed_count %}
+      {% blocktranslate trimmed count counter=fixed_count %}
+        {{ counter }} issue fixed.
+      {% plural %}
+        {{ counter }} issues fixed.
+      {% endblocktranslate %}
+    {% endif %}
+  </h1>
+  <table role="presentation" class="monitor-score" width="100%">
+    <tr>
+      <td class="monitor-score-badge-cell">
+        <div class="monitor-score-badge monitor-score-badge--{{ tier_variant }}">{{ tier }}</div>
+      </td>
+      <td class="monitor-score-label">
+        <div class="monitor-score-domain">{{ domain_name }}</div>
+        <div class="monitor-score-caption">{% translate "Current score" %}</div>
+      </td>
+    </tr>
+  </table>
+  <ul class="monitor-changes">
+    {% for change in changes %}
+      <li class="monitor-change monitor-change--{% if change.current_status == 'fail' %}bad{% else %}good{% endif %}">
+        <div class="monitor-change-status monitor-change-status--{% if change.current_status == 'fail' %}bad{% else %}good{% endif %}">
+          {% if change.current_status == "fail" %}
+            {% translate "New issue" %}
+          {% else %}
+            {% translate "Fixed" %}
+          {% endif %}
+        </div>
+        {% if change.check_label %}
+          <div class="monitor-change-kicker">{{ change.check_label }}</div>
+        {% endif %}
+        <div class="monitor-change-name">{{ change.subcheck_label }}</div>
+        {% if change.current_status == "fail" and change.detail %}
+          <div class="monitor-change-detail">{{ change.detail }}</div>
+        {% endif %}
+        {% if change.current_status == "fail" and change.hint %}
+          <div class="monitor-change-hint">
+            <span class="monitor-change-hint-label">{% translate "Fix:" %}</span>
+            {{ change.hint|markdown }}
+          </div>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  {% translate "Review the records" as button_label %}
+  {% button href=detail_url value=button_label primary=True %}
+{% endblock content %}

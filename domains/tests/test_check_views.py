@@ -3,11 +3,15 @@ import re
 from urllib.parse import quote
 
 import pytest
+from django.conf import settings
+from django.contrib.auth.models import User
 from django.contrib.messages import get_messages
 from django.core.cache import cache
+from django.urls import reverse
 from django.utils import timezone
 
-from domains.models import DomainCheck
+from accounts.models import Membership, Organization
+from domains.models import Domain, DomainCheck, canonicalize_domain_name
 
 
 class Queue:
@@ -21,7 +25,7 @@ class Queue:
 @pytest.fixture
 def queue(monkeypatch):
     stub = Queue()
-    monkeypatch.setattr("domains.check.views.check_domain", stub)
+    monkeypatch.setattr("domains.check.tasks.check_domain", stub)
     return stub
 
 
@@ -411,20 +415,6 @@ class TestDomainCheckDetailView:
         assert response.status_code == 302
         assert response.headers["Location"] == "/domain-check/?name=example.com"
 
-    def test_get__labels_the_recheck_for_anonymous_users(self, client):
-        make_check()
-
-        response = client.get("/domain-check/example.com/")
-
-        assert "Check again (login required)" in response.content.decode()
-
-    def test_get__labels_the_recheck_for_logged_in_users(self, admin_client):
-        make_check()
-
-        response = admin_client.get("/domain-check/example.com/")
-
-        assert "Check again (login required)" in response.content.decode()
-
     def test_post__requires_login(self, client, queue):
         make_check()
 
@@ -454,7 +444,7 @@ class TestDomainCheckDetailView:
         response = admin_client.post("/domain-check/example.com/")
 
         check.refresh_from_db()
-        assert check.status == DomainCheck.Status.RUNNING
+        assert check.status == DomainCheck.Status.PENDING
         assert check.checks == []
         assert queue.calls == [{"name": "example.com"}]
         assert response.headers["Location"] == "/domain-check/example.com/"
@@ -465,7 +455,7 @@ class TestDomainCheckDetailView:
         admin_client.post("/domain-check/example.com/")
 
         check.refresh_from_db()
-        assert check.status == DomainCheck.Status.RUNNING
+        assert check.status == DomainCheck.Status.PENDING
         assert queue.calls == [{"name": "example.com"}]
 
 
@@ -534,3 +524,181 @@ class TestInvalidNames:
         response = client.get(f"/domain-check/{quote('❤')}/og.png")
 
         assert response.status_code == 404
+
+
+@pytest.mark.django_db
+class TestDomainCheckMonitorView:
+    def test_get__requires_login(self, client):
+        make_check()
+
+        response = client.get("/domain-check/example.com/monitor")
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == (
+            "/account/login?next=/domain-check/example.com/monitor"
+        )
+
+    def test_get__forwards_an_unknown_name(self, admin_client):
+        response = admin_client.get("/domain-check/example.com/monitor")
+
+        assert response.status_code == 404
+
+    def test_get__sends_an_orgless_user_to_create_one(self, client, queue):
+        make_check()
+        client.force_login(User.objects.create_user(username="carol"))
+
+        response = client.get("/domain-check/example.com/monitor")
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == reverse("accounts:org-list")
+        assert [str(message) for message in get_messages(response.wsgi_request)] == [
+            "Create an organization first. Then add the domain to it."
+        ]
+        assert queue.calls == []
+
+    def test_get__offers_the_org_picker_for_several_orgs(
+        self, admin_client, user, org, queue
+    ):
+        make_check()
+        Membership.objects.create(
+            org=Organization.objects.create(slug="second"), user=user
+        )
+
+        response = admin_client.get("/domain-check/example.com/monitor")
+
+        assert response.status_code == 200
+        html = response.content.decode()
+        assert '<option value="test-org">test-org</option>' in html
+        assert '<option value="second">second</option>' in html
+        assert "Monitor example.com | relay" in html
+        assert queue.calls == []
+
+    def test_get__monitors_the_only_org(self, admin_client, org, queue):
+        make_check()
+
+        response = admin_client.get("/domain-check/example.com/monitor")
+
+        domain = Domain.objects.get(org=org, name="example.com")
+        assert response.status_code == 302
+        assert response.headers["Location"] == domain.get_absolute_url()
+        assert domain.domain_check.name == "example.com"
+        assert queue.calls == []
+
+    def test_get__queues_a_stale_monitored_check(self, admin_client, org, queue):
+        Domain.objects.create(name="example.com", org=org)
+
+        response = admin_client.get("/domain-check/example.com/monitor")
+
+        assert response.status_code == 302
+        assert queue.calls == [{"name": "example.com"}]
+
+    def test_post__requires_login(self, client, queue):
+        make_check()
+
+        response = client.post("/domain-check/example.com/monitor")
+
+        assert response.status_code == 302
+        assert queue.calls == []
+
+    def test_post__rejects_an_org_the_user_does_not_belong_to(
+        self, admin_client, org, write_org, queue
+    ):
+        make_check()
+
+        response = admin_client.post(
+            "/domain-check/example.com/monitor", {"org": write_org.slug}
+        )
+
+        assert response.status_code == 404
+        assert not Domain.objects.filter(org=org, name="example.com").exists()
+        assert queue.calls == []
+
+    def test_post__rejects_the_platform_domain(self, admin_client, org, queue):
+        platform = canonicalize_domain_name(settings.PLATFORM_DOMAIN)
+        check = make_check(name=platform)
+
+        response = admin_client.post(
+            f"/domain-check/{platform}/monitor", {"org": org.slug}
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == check.get_absolute_url()
+        assert [str(message) for message in get_messages(response.wsgi_request)] == [
+            f"Cannot add {platform}. relay manages that zone."
+        ]
+        assert not Domain.objects.filter(org=org, name=platform).exists()
+
+    def test_post__reports_the_rejection_of_the_domain(self, admin_client, org, queue):
+        check = make_check(name="printer.open.localhost")
+
+        response = admin_client.post(
+            "/domain-check/printer.open.localhost/monitor", {"org": org.slug}
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == check.get_absolute_url()
+        assert [
+            (message.level_tag, str(message))
+            for message in get_messages(response.wsgi_request)
+        ] == [
+            (
+                "error",
+                "Cannot add a subdomain of open.localhost. relay manages these automatically.",
+            )
+        ]
+        assert not Domain.objects.filter(
+            org=org, name="printer.open.localhost"
+        ).exists()
+
+    def test_post__rejects_a_name_another_org_already_owns(
+        self, admin_client, org, write_org, queue
+    ):
+        Domain.objects.create(name="example.com", org=write_org)
+        check = DomainCheck.objects.get(name="example.com")
+
+        response = admin_client.post(
+            "/domain-check/example.com/monitor", {"org": org.slug}
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == check.get_absolute_url()
+        assert not Domain.objects.filter(org=org, name="example.com").exists()
+        assert queue.calls == []
+
+    def test_post__creates_and_monitors_a_new_domain(self, admin_client, org, queue):
+        make_check()
+
+        response = admin_client.post(
+            "/domain-check/example.com/monitor", {"org": org.slug}
+        )
+
+        domain = Domain.objects.get(org=org, name="example.com")
+        assert response.status_code == 302
+        assert response.headers["Location"] == domain.get_absolute_url()
+        assert domain.domain_check.name == "example.com"
+        assert queue.calls == []
+
+    def test_post__monitors_an_existing_domain(self, admin_client, org, queue):
+        Domain.objects.create(name="example.com", org=org)
+
+        response = admin_client.post(
+            "/domain-check/example.com/monitor", {"org": org.slug}
+        )
+
+        domain = Domain.objects.get(org=org, name="example.com")
+        assert response.status_code == 302
+        assert response.headers["Location"] == domain.get_absolute_url()
+        assert queue.calls == [{"name": "example.com"}]
+
+    def test_post__keeps_a_fresh_check(self, admin_client, org, queue):
+        Domain.objects.create(name="example.com", org=org)
+        DomainCheck.objects.filter(name="example.com").update(
+            status=DomainCheck.Status.COMPLETE
+        )
+
+        response = admin_client.post(
+            "/domain-check/example.com/monitor", {"org": org.slug}
+        )
+
+        assert response.status_code == 302
+        assert queue.calls == []

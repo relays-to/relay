@@ -99,9 +99,14 @@ class MarkdownConditionalGetMixin:
 class ConditionalGetMixin(RevalidationCacheMixin):
     """Answer conditional GETs with an ETag and `Last-Modified` from the object."""
 
+    def get_last_modified(self, obj) -> dt.datetime:
+        """Return the timestamp of `obj`'s newest change."""
+        return obj.modified_at
+
     def get_etag(self, obj) -> str:
         """Return the ETag for `obj`."""
-        return f'"{int(obj.pk):x}-{int(obj.modified_at.timestamp() * 1e6):x}"'
+        modified_at = self.get_last_modified(obj)
+        return f'"{int(obj.pk):x}-{int(modified_at.timestamp() * 1e6):x}"'
 
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
@@ -109,7 +114,9 @@ class ConditionalGetMixin(RevalidationCacheMixin):
             etag_func=lambda request, *a, **kw: get_release_etag(
                 self.get_etag(self.object)
             ),
-            last_modified_func=lambda request, *a, **kw: self.object.modified_at,
+            last_modified_func=lambda request, *a, **kw: self.get_last_modified(
+                self.object
+            ),
         )(
             lambda request: self.render_to_response(
                 self.get_context_data(object=self.object)

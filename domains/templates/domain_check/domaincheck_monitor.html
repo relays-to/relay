@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load abstract i18n %}
+{% block title %}{% translate "monitor"|capfirst %} {{ domain_check.name }} | relay{% endblock %}
+{% block content %}
+  <div class="py-8 max-w-xl mx-auto">
+    <section class="card p-6">
+      <header>
+        <h1 class="m-0 text-2xl">{% translate "Monitor this domain" %}</h1>
+        <p class="m-0 mt-2 text-muted-foreground">
+          {% blocktranslate with name=domain_check.name trimmed %}
+            Choose the organization that monitors {{ name }}.
+          {% endblocktranslate %}
+        </p>
+      </header>
+      <section class="mt-6">
+        <form
+          method="post"
+          action="{% url 'domain_check:monitor' domain_check.name %}"
+          class="flex flex-col gap-4"
+        >
+          {% csrf_token %}
+          <div role="group" class="field">
+            <label for="monitor-org">{% translate "organization"|capfirst context "noun" %}</label>
+            <select id="monitor-org" name="org" class="select w-full">
+              {% for org in user_orgs %}
+                <option value="{{ org.slug }}">{{ org.slug }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <button type="submit" class="btn" data-variant="primary">
+              {% translate "monitor this domain"|capfirst %}
+            </button>
+          </div>
+        </form>
+      </section>
+    </section>
+  </div>
+{% endblock %}

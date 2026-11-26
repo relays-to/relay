@@ -1,8 +1,12 @@
+import datetime as dt
+
 import pytest
 from django.conf import settings
 from django.contrib.messages import get_messages
+from django.utils import timezone
+from django.utils.http import http_date
 
-from domains.models import Domain
+from domains.models import Domain, DomainCheck
 
 QUICK_START_FIELDS = ("nameserver", "spf", "dkim_rsa2048")
 SENDING_FIELDS = (*QUICK_START_FIELDS, "dkim_ed25519")
@@ -163,6 +167,69 @@ class TestDomainListView:
         response = admin_client.get(url, headers={"If-None-Match": etag})
         assert response.status_code == 200
         assert response.headers["ETag"] != etag
+
+    def test_get__fresh_response_when_a_check_changed(self, admin_client, org):
+        Domain.objects.create(name="example.com", org=org)
+        url = f"/org/{org.slug}/email/domains/"
+        etag = admin_client.get(url).headers["ETag"]
+
+        DomainCheck.objects.filter(name="example.com").update(
+            status=DomainCheck.Status.COMPLETE,
+            checks=[],
+            modified_at=timezone.now() + dt.timedelta(minutes=1),
+        )
+
+        response = admin_client.get(url, headers={"If-None-Match": etag})
+        assert response.status_code == 200
+        assert response.headers["ETag"] != etag
+
+    def test_get__renders_the_tier_and_the_issue_phrase(self, admin_client, org):
+        Domain.objects.create(name="example.com", org=org)
+        DomainCheck.objects.filter(name="example.com").update(
+            status=DomainCheck.Status.COMPLETE,
+            penalty=2,
+            checks=[failing_mx_row()],
+        )
+
+        response = admin_client.get(f"/org/{org.slug}/email/domains/")
+
+        content = response.content.decode()
+        assert "1 issue needs attention" in content
+        assert 'data-variant="success">A</span>' in content
+
+    def test_get__renders_a_failed_check_badge(self, admin_client, org):
+        Domain.objects.create(name="example.com", org=org)
+        DomainCheck.objects.filter(name="example.com").update(
+            status=DomainCheck.Status.FAILED
+        )
+
+        response = admin_client.get(f"/org/{org.slug}/email/domains/")
+
+        assert "check failed" in response.content.decode()
+
+
+def failing_mx_row():
+    return {
+        "key": "mx",
+        "label": "MX",
+        "detail": "",
+        "status": "fail",
+        "subchecks": [
+            {
+                "label": "MX record",
+                "status": "fail",
+                "detail": "none",
+                "severity": "broken",
+                "addresses": [],
+            }
+        ],
+    }
+
+
+def make_complete_check(domain, **fields):
+    updates = {"status": DomainCheck.Status.COMPLETE, "checks": [], "penalty": 0}
+    updates.update(fields)
+    DomainCheck.objects.filter(name=domain.name).update(**updates)
 
 
 @pytest.mark.django_db
@@ -464,6 +531,89 @@ class TestDomainDetailView:
         domain = Domain.objects.create(name="other.com", org=write_org)
         response = admin_client.get(f"/org/{org.slug}/email/domains/{domain.pk}/")
         assert response.status_code == 404
+
+    def test_get__renders_the_monitoring_summary(self, admin_client, org):
+        domain = Domain.objects.create(name="example.com", org=org)
+        make_complete_check(domain)
+
+        response = admin_client.get(f"/org/{org.slug}/email/domains/{domain.pk}/")
+
+        content = response.content.decode()
+        assert "All checks pass." in content
+        assert "every hour" in content
+        assert f'action="/domain-check/{domain.name}/"' in content
+
+    def test_get__renders_the_monitoring_issues_without_the_public_pitch(
+        self, admin_client, org
+    ):
+        domain = Domain.objects.create(name="example.com", org=org)
+        make_complete_check(domain, penalty=2, checks=[failing_mx_row()])
+
+        response = admin_client.get(f"/org/{org.slug}/email/domains/{domain.pk}/")
+
+        content = response.content.decode()
+        assert "1 issue needs attention" in content
+        assert "Open the check for the fix" not in content
+        assert "Learn more" not in content
+
+    def test_get__renders_a_failed_monitoring_check(self, admin_client, org):
+        domain = Domain.objects.create(name="example.com", org=org)
+        DomainCheck.objects.filter(name=domain.name).update(
+            status=DomainCheck.Status.FAILED
+        )
+
+        response = admin_client.get(f"/org/{org.slug}/email/domains/{domain.pk}/")
+
+        assert "The last check did not finish. The next run is within the hour." in (
+            response.content.decode()
+        )
+
+    def test_get__renders_a_running_monitoring_check(self, admin_client, org):
+        domain = Domain.objects.create(name="example.com", org=org)
+
+        response = admin_client.get(f"/org/{org.slug}/email/domains/{domain.pk}/")
+
+        assert "The result appears here when the check finishes." in (
+            response.content.decode()
+        )
+
+    def test_get__renders_without_a_monitoring_check(self, admin_client, org):
+        domain = Domain.objects.create(name="example.com", org=org)
+        DomainCheck.objects.filter(name=domain.name).delete()
+
+        response = admin_client.get(f"/org/{org.slug}/email/domains/{domain.pk}/")
+
+        content = response.content.decode()
+        assert "Monitoring has not started for this domain yet." in content
+        assert "check now" not in content
+
+    def test_get__last_modified_follows_the_linked_check(self, admin_client, org):
+        domain = Domain.objects.create(name="example.com", org=org)
+        old = timezone.now() - dt.timedelta(days=2)
+        Domain.objects.filter(pk=domain.pk).update(modified_at=old)
+        DomainCheck.objects.filter(name=domain.name).update(
+            status=DomainCheck.Status.COMPLETE
+        )
+        url = f"/org/{org.slug}/email/domains/{domain.pk}/"
+
+        response = admin_client.get(
+            url, headers={"If-Modified-Since": http_date(old.timestamp() + 1)}
+        )
+
+        assert response.status_code == 200
+
+    def test_get__not_modified_without_a_monitoring_check(self, admin_client, org):
+        domain = Domain.objects.create(name="example.com", org=org)
+        DomainCheck.objects.filter(name=domain.name).delete()
+        old = timezone.now() - dt.timedelta(days=2)
+        Domain.objects.filter(pk=domain.pk).update(modified_at=old)
+        url = f"/org/{org.slug}/email/domains/{domain.pk}/"
+
+        response = admin_client.get(
+            url, headers={"If-Modified-Since": http_date(timezone.now().timestamp())}
+        )
+
+        assert response.status_code == 304
 
 
 @pytest.mark.django_db

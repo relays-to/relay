@@ -80,6 +80,15 @@ class TestDocsDetailView:
         assert '<pre class="mermaid">' in content
         assert MERMAID_TAG.search(content)
 
+    def test_get__renders_the_domain_monitoring_links(self, client):
+        response = client.get(reverse("docs:detail", args=["domains"]))
+        content = response.content.decode()
+        domain_check_url = reverse("domain_check:list")
+        assert response.status_code == 200
+        assert '<a href="#monitor-your-domain">Monitor your domain</a>' in content
+        assert '<a href="#monitor-a-domain-from-the-free-checker">' in content
+        assert f'<a href="{domain_check_url}">domain check</a>' in content
+
     def test_get__not_found(self, client):
         response = client.get(reverse("docs:detail", args=["nonexistent"]))
         assert response.status_code == 404

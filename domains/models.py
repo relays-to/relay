@@ -505,6 +505,7 @@ class Domain(TimeStamped):
 
 class DomainCheck(TimeStamped):
     CHECK_INTERVAL = dt.timedelta(days=1)
+    MONITOR_INTERVAL = dt.timedelta(hours=1)
 
     class Status(models.TextChoices):
         PENDING = "pending", _("pending")
@@ -535,6 +536,19 @@ class DomainCheck(TimeStamped):
         default=list,
         help_text=_("One result per authentication check."),
     )
+    domain = models.OneToOneField(
+        "Domain",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="domain_check",
+        help_text=_("Domain this check monitors."),
+    )
+    previous_checks = models.JSONField(
+        _("previous checks"),
+        default=list,
+        help_text=_("The last completed result, compared against each new run."),
+    )
 
     class Meta(TimeStamped.Meta):
         ordering = ["penalty", "-modified_at"]
@@ -550,9 +564,73 @@ class DomainCheck(TimeStamped):
 
     @property
     def is_stale(self) -> bool:
-        if self.status in {self.Status.PENDING, self.Status.FAILED}:
+        if self.status == self.Status.PENDING:
+            return True
+        if self.domain_id is not None:
+            return timezone.now() - self.modified_at > self.MONITOR_INTERVAL
+        if self.status == self.Status.FAILED:
             return True
         return timezone.now() - self.modified_at > self.CHECK_INTERVAL
+
+    @classmethod
+    def for_domain(cls, domain: Domain) -> DomainCheck:
+        domain_check, _created = cls.objects.get_or_create(
+            name=domain.name, defaults={"domain": domain}
+        )
+        if domain_check.domain_id is not None:
+            return domain_check
+        cls.objects.filter(pk=domain_check.pk).update(domain=domain)
+        domain_check.domain = domain
+        return domain_check
+
+    @staticmethod
+    def flatten_checks(
+        checks: Iterable[Mapping],
+    ) -> dict[tuple[str, int], tuple[str, str, str, str]]:
+        return {
+            (check["key"], index): (
+                check["label"],
+                subcheck["label"],
+                subcheck["status"],
+                subcheck.get("detail", ""),
+            )
+            for check in checks
+            for index, subcheck in enumerate(check.get("subchecks", []))
+        }
+
+    def calculate_changes(self, previous_checks: Iterable[Mapping]) -> list[dict]:
+        previous = self.flatten_checks(previous_checks)
+        changes = []
+        for (check_key, subcheck_index), (
+            check_label,
+            subcheck_label,
+            current_status,
+            detail,
+        ) in self.flatten_checks(self.checks).items():
+            _, _, previous_status, _ = previous.get(
+                (check_key, subcheck_index), (None, None, None, None)
+            )
+            if (previous_status, current_status) in {
+                ("pass", "fail"),
+                ("fail", "pass"),
+                (None, "fail"),
+            }:
+                changes.append(
+                    {
+                        "check_key": check_key,
+                        "check_label": check_label,
+                        "subcheck_label": subcheck_label,
+                        "detail": detail,
+                        "hint": (
+                            Check.hint_for(check_key, subcheck_label)
+                            if current_status == "fail"
+                            else ""
+                        ),
+                        "previous_status": previous_status,
+                        "current_status": current_status,
+                    }
+                )
+        return changes
 
     @staticmethod
     def build_check_row(check: dict) -> dict:
@@ -642,22 +720,35 @@ class DomainCheck(TimeStamped):
         return data | {"status": result.status}
 
     @classmethod
-    def store(cls, name: str, results: Iterable[CheckResult]) -> None:
+    def store(cls, name: str, results: Iterable[CheckResult]) -> list[dict] | None:
         with transaction.atomic():
             domain_check = cls.objects.select_for_update().get(name=name)
-            if domain_check.status == cls.Status.RUNNING:
-                merged = {check["key"]: check for check in domain_check.checks}
-                merged.update(
-                    {result.key: cls.serialize_result(result) for result in results}
-                )
-                checks = [merged[key] for key in Check.order() if key in merged]
-                update_fields = ["checks"]
-                if len(checks) == len(Check.order()):
-                    domain_check.penalty = cls.penalty_for(checks)
-                    domain_check.status = cls.Status.COMPLETE
-                    update_fields += ["penalty", "status"]
-                domain_check.checks = checks
-                domain_check.save(update_fields=update_fields)
+            if domain_check.status != cls.Status.RUNNING:
+                return None
+            merged = {check["key"]: check for check in domain_check.checks}
+            merged.update(
+                {result.key: cls.serialize_result(result) for result in results}
+            )
+            checks = [merged[key] for key in Check.order() if key in merged]
+            domain_check.checks = checks
+            update_fields = ["checks"]
+            changes = None
+            if len(checks) == len(Check.order()):
+                domain_check.penalty = cls.penalty_for(checks)
+                domain_check.status = cls.Status.COMPLETE
+                update_fields += ["penalty", "status"]
+                if domain_check.domain_id is not None:
+                    changes = (
+                        domain_check.calculate_changes(domain_check.previous_checks)
+                        if domain_check.previous_checks
+                        else []
+                    )
+                    domain_check.previous_checks = checks
+                    update_fields.append("previous_checks")
+                else:
+                    changes = []
+            domain_check.save(update_fields=update_fields)
+            return changes
 
     @classmethod
     def penalty_for(cls, checks: Iterable[Mapping]) -> int:

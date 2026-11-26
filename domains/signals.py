@@ -1,11 +1,24 @@
 from django.conf import settings
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
 from accounts.models import Organization
 
-from .models import Domain
+from .check.tasks import enqueue_check
+from .models import Domain, DomainCheck
+
+
+@receiver(post_save, sender=Domain)
+def monitor_domain(sender, instance, created, **kwargs):
+    if (
+        not instance.is_managed
+        and not kwargs.get("raw")
+        and created
+        and (domain_check := DomainCheck.for_domain(instance)).is_stale
+    ):
+        transaction.on_commit(lambda: enqueue_check(domain_check.name))
 
 
 @receiver(post_save, sender=Organization)
