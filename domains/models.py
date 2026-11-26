@@ -592,12 +592,13 @@ class DomainCheck(TimeStamped):
     @staticmethod
     def flatten_checks(
         checks: Iterable[Mapping],
-    ) -> dict[tuple[str, int], tuple[str, str, str]]:
+    ) -> dict[tuple[str, int], tuple[str, str, str, str]]:
         return {
             (check["key"], index): (
                 check["label"],
                 subcheck["label"],
                 subcheck["status"],
+                subcheck.get("detail", ""),
             )
             for check in checks
             for index, subcheck in enumerate(check.get("subchecks", []))
@@ -610,9 +611,10 @@ class DomainCheck(TimeStamped):
             check_label,
             subcheck_label,
             current_status,
+            detail,
         ) in self.flatten_checks(self.checks).items():
-            _, _, previous_status = previous.get(
-                (check_key, subcheck_index), (None, None, None)
+            _, _, previous_status, _ = previous.get(
+                (check_key, subcheck_index), (None, None, None, None)
             )
             if (previous_status, current_status) in {
                 ("pass", "fail"),
@@ -624,6 +626,12 @@ class DomainCheck(TimeStamped):
                         "check_key": check_key,
                         "check_label": check_label,
                         "subcheck_label": subcheck_label,
+                        "detail": detail,
+                        "hint": (
+                            Check.hint_for(check_key, subcheck_label)
+                            if current_status == "fail"
+                            else ""
+                        ),
                         "previous_status": previous_status,
                         "current_status": current_status,
                     }

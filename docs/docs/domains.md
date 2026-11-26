@@ -129,8 +129,9 @@ below it holds the sending, receiving, and reporting tabs. Click **Check
 now** to run a check before the next hourly run.
 
 relay emails the members of your organization when a record changes. The
-email shows the new tier and lists the records that now fail and the records
-that pass again. Turn the email off in **Notifications**.
+email shows the current tier, lists the records that now fail and the records
+that pass again, and gives the fix for each new issue. Turn the email off in
+**Notifications**.
 
 relay does not monitor the managed sender domain, because relay controls its
 DNS.

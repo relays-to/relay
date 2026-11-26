@@ -19,9 +19,10 @@ domain_monitor_notification = Notification(
 @domain_monitor_notification
 class DomainMonitorEmail(TemplateEmail):
     template_name = "emails/domain_monitor.html"
-    subject = _("%(domain_name)s: %(change_count)d checks changed")
-    subject_one = _("%(domain_name)s: one check changed")
-    preheader = _("%(domain_name)s is now %(tier)s tier.")
+    subject = _("%(domain_name)s: %(change_count)d changes")
+    subject_broke = _("%(domain_name)s: %(subcheck_label)s needs attention")
+    subject_fixed = _("%(domain_name)s: %(subcheck_label)s is fixed")
+    preheader = _("See what changed and how to fix it.")
 
     def __init__(
         self,
@@ -53,7 +54,7 @@ class DomainMonitorEmail(TemplateEmail):
             "domain_check",
             DomainCheck(
                 name="acme.com",
-                penalty=1,
+                penalty=2,
                 status=DomainCheck.Status.COMPLETE,
             ),
         )
@@ -63,7 +64,9 @@ class DomainMonitorEmail(TemplateEmail):
                 {
                     "check_key": "spf",
                     "check_label": "SPF",
-                    "subcheck_label": "SPF record",
+                    "subcheck_label": "Strict all",
+                    "detail": "Ends with ~all.",
+                    "hint": "End the SPF record with -all instead of ~all.",
                     "previous_status": "pass",
                     "current_status": "fail",
                 },
@@ -71,6 +74,8 @@ class DomainMonitorEmail(TemplateEmail):
                     "check_key": "dmarc",
                     "check_label": "DMARC",
                     "subcheck_label": "DMARC record",
+                    "detail": "DMARC record found.",
+                    "hint": "",
                     "previous_status": "fail",
                     "current_status": "pass",
                 },
@@ -81,28 +86,41 @@ class DomainMonitorEmail(TemplateEmail):
         )
 
     def get_context_data(self) -> dict[str, typing.Any]:
-        any_broken = any(change["current_status"] == "fail" for change in self.changes)
+        changes = [
+            change
+            | {
+                "check_label": (
+                    ""
+                    if change["check_label"].casefold()
+                    in change["subcheck_label"].casefold()
+                    else change["check_label"]
+                )
+            }
+            for change in self.changes
+        ]
+        broken_count = sum(change["current_status"] == "fail" for change in changes)
         return super().get_context_data() | {
             "domain": self.domain,
             "domain_name": self.domain.name,
-            "changes": self.changes,
-            "change_count": len(self.changes),
+            "changes": changes,
+            "change_count": len(changes),
+            "broken_count": broken_count,
+            "fixed_count": len(changes) - broken_count,
             "tier": self.domain_check.tier,
             "tier_variant": self.domain_check.tier_variant,
-            "headline": (
-                _("%(domain)s needs a look.") % {"domain": self.domain.name}
-                if any_broken
-                else _("%(domain)s is looking better.") % {"domain": self.domain.name}
-            ),
-            "verdict": (
-                _("The score is now %(tier)s tier.") % {"tier": self.domain_check.tier}
-            ),
             "detail_url": self.domain.get_absolute_url(),
         }
 
+    def get_preheader(self, **context) -> str:
+        if context["broken_count"]:
+            return _("See what changed and how to fix it.")
+        return _("Everything passes again.")
+
     def get_subject(self, **context) -> str:
-        match context["change_count"]:
-            case 1:
-                return self.subject_one % context
+        match context["changes"]:
+            case [change] if change["current_status"] == "fail":
+                return self.subject_broke % (context | change)
+            case [change]:
+                return self.subject_fixed % (context | change)
             case _:
                 return super().get_subject(**context)
