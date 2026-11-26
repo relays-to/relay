@@ -58,13 +58,18 @@ A conformance check reads the DNS record, the policy file, and the TLS handshake
 
 ### The STARTTLS probe
 
-The check connects to port 25 on every MX host, up to five, and sends the `STARTTLS` command. It validates the certificate against the MX hostname and then records the protocol version, the key exchange group, and the certificate key. The probe fails for that host when:
+The check connects to port 25 on every MX host, up to five, and sends the `STARTTLS` command. It validates the certificate against the MX hostname and then records the protocol version, the key exchange group, and the certificate key. The probe fails for that host with one of these findings:
 
-- The host does not offer `STARTTLS`.
-- The certificate is expired, self-signed, or issued for another name.
-- The host answers `STARTTLS` with an SMTP error.
-- The connection fails, the host greets with an SMTP error, or it has no public address.
-- The handshake fails or the probe exceeds ten seconds.
+- `MX address`: The host has no global address, or the DNS lookup fails.
+- `MX connection`: The connection fails or the probe exceeds ten seconds.
+- `SMTP greeting`: The host does not answer with SMTP code 220.
+- `STARTTLS`: The host does not offer `STARTTLS` or answers the command with an SMTP error.
+- `TLS certificate`: The certificate is expired, self-signed, or issued for another name.
+- `TLS version`: The host does not negotiate TLS 1.2 or later.
+- `TLS handshake`: The handshake fails for another reason.
+- `Post-quantum key exchange`: The host negotiates a classical group. This finding is a warning, not a blocking failure.
+
+The check reports each finding once. The detail lists every MX host that fails the finding.
 
 MTA-STS is only a promise. A host that cannot complete a TLS handshake breaks that promise, so the check fails and lowers the domain grade. The check detail shows the measured values, for example `mx1.example.com: TLSv1.3, X25519MLKEM768 (post-quantum), RSA 2048`.
 
@@ -76,7 +81,7 @@ The check requires TLS 1.2 or later. MTA-STS requires this version floor in [RFC
 
 A classical key exchange protects the connection today, but a future quantum computer can derive the same key from recorded traffic. The full score needs a hybrid post-quantum key exchange such as `X25519MLKEM768`.[^mlkem]
 
-A host that negotiates a classical group such as `X25519` or `secp256r1` finishes the handshake, but the check marks the finding as weak. The MTA-STS check then shows a warning, and the domain loses half a tier. A domain cannot reach the top tier without a post-quantum group on every MX host.
+A host that negotiates a classical group such as `X25519` or `secp256r1` finishes the handshake, but the check marks the `Post-quantum key exchange` finding as weak. The MTA-STS check then shows a warning, and the domain loses half a tier. A domain cannot reach the top tier without a post-quantum group on every MX host.
 
 ### The certificate key
 

@@ -242,6 +242,13 @@ class TestCheck:
     def test_hint__returns_an_empty_string_for_an_unknown_label(self):
         assert MxCheck.hint("Unknown") == ""
 
+    def test_hint__returns_a_specific_post_quantum_fix(self):
+        hint = MtaStsCheck.hint("Post-quantum key exchange")
+
+        assert "post-quantum" in hint
+        assert "X25519MLKEM768" in hint
+        assert "STARTTLS" not in hint
+
     def test_evaluate__yields_every_check_in_order(self, dns_resolver):
         results = list(Check.evaluate("example.com"))
 
@@ -1215,14 +1222,14 @@ class TestMtaStsProbeStartTls:
         dns_resolver.fail(self.HOST, "AAAA", dns.exception.DNSException())
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS", "skip", f"{self.HOST}: lookup failed"
+            "MX address", "skip", f"{self.HOST}: lookup failed"
         )
 
     def test_probe_starttls__fails_without_a_global_address(self, lookup, dns_resolver):
         dns_resolver.add(self.HOST, "A", "192.0.2.1")
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS", "fail", f"{self.HOST}: no global address"
+            "MX address", "fail", f"{self.HOST}: no global address"
         )
 
     def test_probe_starttls__times_out_before_connecting(
@@ -1232,7 +1239,7 @@ class TestMtaStsProbeStartTls:
         monkeypatch.setattr(MtaStsCheck, "PROBE_TIMEOUT", dt.timedelta(0))
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS", "fail", f"{self.HOST}: timed out"
+            "MX connection", "fail", f"{self.HOST}: timed out"
         )
 
     def test_probe_starttls__fails_an_unreachable_address(
@@ -1242,7 +1249,7 @@ class TestMtaStsProbeStartTls:
         smtp_server(connect_errors=[ConnectionRefusedError()])
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS", "fail", f"{self.HOST}: unreachable"
+            "MX connection", "fail", f"{self.HOST}: unreachable"
         )
 
     def test_probe_starttls__tries_the_next_address(
@@ -1270,7 +1277,7 @@ class TestMtaStsProbeStartTls:
         server = smtp_server(greeting=554)
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS", "fail", f"{self.HOST}: SMTP 554"
+            "SMTP greeting", "fail", f"{self.HOST}: SMTP 554"
         )
         assert server.closed
 
@@ -1291,7 +1298,7 @@ class TestMtaStsProbeStartTls:
         smtp_server(error=ssl.SSLCertVerificationError())
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS", "fail", f"{self.HOST}: certificate not valid"
+            "TLS certificate", "fail", f"{self.HOST}: certificate not valid"
         )
 
     def test_probe_starttls__fails_a_tls_handshake(
@@ -1301,7 +1308,22 @@ class TestMtaStsProbeStartTls:
         smtp_server(error=ssl.SSLError())
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS", "fail", f"{self.HOST}: TLS handshake failed"
+            "TLS handshake", "fail", f"{self.HOST}: TLS handshake failed"
+        )
+
+    def test_probe_starttls__names_a_tls_version_error(
+        self, lookup, dns_resolver, smtp_server
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        smtp_server(
+            error=ssl.SSLError(
+                1,
+                "[SSL: TLSV1_ALERT_PROTOCOL_VERSION] tlsv1 alert protocol version",
+            )
+        )
+
+        assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
+            "TLS version", "fail", f"{self.HOST}: no TLS 1.2 or later"
         )
 
     def test_probe_starttls__reports_a_refused_starttls(
@@ -1321,7 +1343,7 @@ class TestMtaStsProbeStartTls:
         smtp_server(error=smtplib.SMTPServerDisconnected())
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS", "fail", f"{self.HOST}: connection failed"
+            "MX connection", "fail", f"{self.HOST}: connection failed"
         )
 
     def test_probe_starttls__times_out_a_stalled_handshake(
@@ -1331,7 +1353,7 @@ class TestMtaStsProbeStartTls:
         server = smtp_server(error=ssl.SSLError())
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS", "fail", f"{self.HOST}: timed out"
+            "MX connection", "fail", f"{self.HOST}: timed out"
         )
         assert server.sock.duplicates[0].shutdowns == [socket.SHUT_RDWR]
 
@@ -1342,7 +1364,7 @@ class TestMtaStsProbeStartTls:
         smtp_server(error=TimeoutError())
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS", "fail", f"{self.HOST}: timed out"
+            "MX connection", "fail", f"{self.HOST}: timed out"
         )
 
     def test_probe_starttls__passes_a_post_quantum_session(
@@ -1354,7 +1376,7 @@ class TestMtaStsProbeStartTls:
         )
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS",
+            "TLS handshake",
             "pass",
             f"{self.HOST}: TLSv1.3, X25519MLKEM768 (post-quantum), RSA 2048",
         )
@@ -1371,7 +1393,7 @@ class TestMtaStsProbeStartTls:
         )
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS",
+            "TLS handshake",
             "pass",
             f"{self.HOST}: TLSv1.3, X25519KYBER768DRAFT00 (post-quantum), RSA 2048",
         )
@@ -1387,9 +1409,9 @@ class TestMtaStsProbeStartTls:
         )
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS",
+            "Post-quantum key exchange",
             "fail",
-            f"{self.HOST}: TLSv1.2, prime256v1, RSA 2048, no PQ key exchange",
+            f"{self.HOST}: TLSv1.2, prime256v1 (classical), RSA 2048",
             severity="weak",
         )
 
@@ -1400,9 +1422,9 @@ class TestMtaStsProbeStartTls:
         smtp_server(session=StubTlsSession(group=None, certificate=rsa_certificate))
 
         assert MtaStsCheck.probe_starttls(self.HOST, lookup) == SubCheck(
-            "STARTTLS",
+            "Post-quantum key exchange",
             "fail",
-            f"{self.HOST}: TLSv1.3, no key exchange, RSA 2048, no PQ key exchange",
+            f"{self.HOST}: TLSv1.3, no key exchange, RSA 2048",
             severity="weak",
         )
 
@@ -1411,7 +1433,7 @@ class TestMtaStsProbeSubchecks:
     def test_probe_subchecks__returns_nothing_without_exchanges(self, lookup):
         assert MtaStsCheck.probe_subchecks(MxLookup(), lookup) == []
 
-    def test_probe_subchecks__probes_the_first_five_exchanges(self, lookup):
+    def test_probe_subchecks__merges_the_first_five_exchanges(self, lookup):
         mx = MxLookup(
             records=tuple(
                 MxRecord(preference, f"mx{preference}.example.com")
@@ -1421,9 +1443,116 @@ class TestMtaStsProbeSubchecks:
 
         results = MtaStsCheck.probe_subchecks(mx, lookup)
 
-        assert [result.detail for result in results] == [
-            f"mx{preference}.example.com: no global address"
-            for preference in range(1, 6)
+        assert results == [
+            SubCheck(
+                "MX address",
+                "fail",
+                "; ".join(
+                    f"mx{preference}.example.com: no global address"
+                    for preference in range(1, 6)
+                ),
+            )
+        ]
+
+
+class TestMtaStsMergeSubchecks:
+    def test_merge_subchecks__fails_a_feature_once(self):
+        findings = [
+            SubCheck(
+                "Post-quantum key exchange",
+                "fail",
+                "mx1.example.com: x25519",
+                severity="weak",
+            ),
+            SubCheck(
+                "Post-quantum key exchange",
+                "fail",
+                "mx2.example.com: x25519",
+                severity="weak",
+            ),
+        ]
+
+        assert MtaStsCheck.merge_subchecks(findings) == [
+            SubCheck(
+                "Post-quantum key exchange",
+                "fail",
+                "mx1.example.com: x25519; mx2.example.com: x25519",
+                severity="weak",
+            )
+        ]
+
+    def test_merge_subchecks__lists_only_the_failing_hosts(self):
+        findings = [
+            SubCheck(
+                "Post-quantum key exchange",
+                "fail",
+                "mx1.example.com: x25519",
+                severity="weak",
+            ),
+            SubCheck(
+                "Post-quantum key exchange",
+                "pass",
+                "mx2.example.com: X25519MLKEM768",
+            ),
+        ]
+
+        assert MtaStsCheck.merge_subchecks(findings) == [
+            SubCheck(
+                "Post-quantum key exchange",
+                "fail",
+                "mx1.example.com: x25519",
+                severity="weak",
+            )
+        ]
+
+    def test_merge_subchecks__keeps_distinct_features(self):
+        findings = [
+            SubCheck(
+                "TLS certificate",
+                "fail",
+                "mx1.example.com: certificate not valid",
+            ),
+            SubCheck(
+                "Post-quantum key exchange",
+                "fail",
+                "mx2.example.com: x25519",
+                severity="weak",
+            ),
+        ]
+
+        merged = MtaStsCheck.merge_subchecks(findings)
+
+        assert [finding.label for finding in merged] == [
+            "TLS certificate",
+            "Post-quantum key exchange",
+        ]
+
+    def test_merge_subchecks__keeps_one_passing_feature(self):
+        findings = [
+            SubCheck("TLS handshake", "pass", "mx1.example.com: TLSv1.3"),
+            SubCheck("TLS handshake", "pass", "mx2.example.com: TLSv1.3"),
+        ]
+
+        assert MtaStsCheck.merge_subchecks(findings) == [
+            SubCheck(
+                "TLS handshake",
+                "pass",
+                "mx1.example.com: TLSv1.3; mx2.example.com: TLSv1.3",
+            )
+        ]
+
+    def test_merge_subchecks__skips_when_every_host_skips(self):
+        findings = [
+            SubCheck("MX address", "skip", "mx1.example.com: lookup failed"),
+            SubCheck("MX address", "skip", "mx2.example.com: lookup failed"),
+        ]
+
+        assert MtaStsCheck.merge_subchecks(findings) == [
+            SubCheck(
+                "MX address",
+                "skip",
+                "mx1.example.com: lookup failed; mx2.example.com: lookup failed",
+            )
         ]
 
 
@@ -1530,7 +1659,7 @@ class TestMtaStsRun:
         result = MtaStsCheck.run("example.com", lookup)
 
         assert result.subchecks[-1] == SubCheck(
-            "STARTTLS",
+            "TLS handshake",
             "pass",
             "mx.example.com: TLSv1.3, X25519MLKEM768 (post-quantum), RSA 2048",
         )

@@ -99,6 +99,11 @@ class Check:
         return cls.HINTS.get(label, "")
 
     @classmethod
+    def upgrade_subcheck(cls, subcheck: dict[str, typing.Any]) -> dict[str, typing.Any]:
+        """Map a stored subcheck from an older check version to the current label."""
+        return subcheck
+
+    @classmethod
     def evaluate(cls, name: str) -> Iterator[CheckResult]:
         lookup = Lookup()
         for check in CHECKS:
@@ -732,16 +737,66 @@ class MtaStsCheck(Check):
         "Policy": "Serve the policy at https://mta-sts.<domain>/.well-known/mta-sts.txt.",
         "Enforced mode": "Set mode: enforce in the MTA-STS policy.",
         "MX match": "List every MX host in the policy's mx: lines.",
-        "STARTTLS": (
-            "Enable STARTTLS on every MX host with a certificate valid for its "
-            "name, require TLS 1.2 or later (RFC 8996), and enable a hybrid "
-            "ML-KEM group such as X25519MLKEM768."
+        "MX address": "Publish a global IPv4 or IPv6 address for the MX host.",
+        "MX connection": "Make sure that the MX host accepts connections on port 25.",
+        "SMTP greeting": "Make sure that the MX host answers with SMTP code 220.",
+        "STARTTLS": "Enable STARTTLS on the MX host.",
+        "TLS certificate": "Use a certificate that is valid for the MX host name.",
+        "TLS version": "Enable TLS 1.2 or later on the MX host.",
+        "TLS handshake": (
+            "Enable TLS 1.2 or later on the MX host with a certificate valid "
+            "for its name."
+        ),
+        "Post-quantum key exchange": (
+            "Enable TLS 1.3 and a hybrid post-quantum ML-KEM group such as "
+            "X25519MLKEM768 on every MX host."
         ),
     }
+    LEGACY_LABELS = {
+        "certificate not valid": "TLS certificate",
+        "TLS handshake failed": "TLS handshake",
+        "connection failed": "MX connection",
+        "timed out": "MX connection",
+        "unreachable": "MX connection",
+        "no global address": "MX address",
+        "lookup failed": "MX address",
+    }
+    TLS_VERSION_ERRORS = (
+        "NO_PROTOCOLS_AVAILABLE",
+        "PROTOCOL_VERSION",
+        "UNSUPPORTED_PROTOCOL",
+        "VERSION_TOO_LOW",
+    )
+    PROBE_LABELS = (
+        "MX address",
+        "MX connection",
+        "SMTP greeting",
+        "STARTTLS",
+        "TLS certificate",
+        "TLS version",
+        "TLS handshake",
+        "Post-quantum key exchange",
+    )
     FETCH_TIMEOUT = dt.timedelta(seconds=5)
     PROBE_TIMEOUT = dt.timedelta(seconds=10)
     FETCH_CACHE = dt.timedelta(minutes=5)
     POLICY_LIMIT_BYTES = 64 * 1024
+
+    @classmethod
+    def upgrade_subcheck(cls, subcheck: dict[str, typing.Any]) -> dict[str, typing.Any]:
+        """Map a stored STARTTLS finding to its current label and detail."""
+        if subcheck["label"] != "STARTTLS":
+            return subcheck
+        if subcheck.get("status") == "pass":
+            label = "TLS handshake"
+        elif subcheck.get("severity") == "weak":
+            label = "Post-quantum key exchange"
+            detail = subcheck.get("detail", "").replace(", no PQ key exchange", "")
+            return subcheck | {"label": label, "detail": detail}
+        else:
+            detail = subcheck.get("detail", "").rsplit(": ", 1)[-1]
+            label = cls.LEGACY_LABELS.get(detail, "STARTTLS")
+        return subcheck | {"label": label}
 
     @classmethod
     def fetch_policy(cls, name: str, lookup: Lookup) -> dict | None:
@@ -896,37 +951,50 @@ class MtaStsCheck(Check):
         certificate key.
         """
         group = session.group() or ""
-        pq = "MLKEM" in group.upper() or "KYBER" in group.upper()
-        group_label = f"{group} (post-quantum)" if pq else group or "no key exchange"
+        post_quantum = "MLKEM" in group.upper() or "KYBER" in group.upper()
+        if not group:
+            group_label = "no key exchange"
+        elif post_quantum:
+            group_label = f"{group} (post-quantum)"
+        else:
+            group_label = f"{group} (classical)"
         detail = (
             f"{host}: {session.version()}, {group_label}, "
             f"{cls.describe_certificate_key(session)}"
         )
-        if pq:
-            return SubCheck("STARTTLS", "pass", detail)
-        return SubCheck(
-            "STARTTLS", "fail", f"{detail}, no PQ key exchange", severity="weak"
-        )
+        if post_quantum:
+            return SubCheck("TLS handshake", "pass", detail)
+        return SubCheck("Post-quantum key exchange", "fail", detail, severity="weak")
+
+    @classmethod
+    def is_version_error(cls, exc: ssl.SSLError) -> bool:
+        """Return whether OpenSSL rejected the protocol version."""
+        message = str(exc).upper()
+        return any(name in message for name in cls.TLS_VERSION_ERRORS)
 
     @classmethod
     def failure_subcheck(
         cls, host: str, exc: OSError, expired: threading.Event
     ) -> SubCheck:
-        """Turn a probe error into a failing STARTTLS finding."""
+        """Turn a probe error into a failing finding with a specific label."""
         match exc:
             case smtplib.SMTPNotSupportedError():
-                detail = "no STARTTLS"
-            case ssl.SSLCertVerificationError():
-                detail = "certificate not valid"
+                label, detail = "STARTTLS", "no STARTTLS"
             case smtplib.SMTPResponseException(smtp_code=code):
-                detail = f"SMTP {code}"
-            case ssl.SSLError() if not expired.is_set():
-                detail = "TLS handshake failed"
-            case _ if not expired.is_set():
-                detail = "connection failed"
+                label, detail = "STARTTLS", f"SMTP {code}"
+            case ssl.SSLCertVerificationError():
+                label, detail = "TLS certificate", "certificate not valid"
+            case ssl.SSLError() if expired.is_set():
+                label, detail = "MX connection", "timed out"
+            case ssl.SSLError() if cls.is_version_error(exc):
+                label, detail = "TLS version", "no TLS 1.2 or later"
+            case ssl.SSLError():
+                label, detail = "TLS handshake", "TLS handshake failed"
+            case _ if expired.is_set():
+                label, detail = "MX connection", "timed out"
             case _:
-                detail = "timed out"
-        return SubCheck("STARTTLS", "fail", f"{host}: {detail}")
+                label, detail = "MX connection", "connection failed"
+        return SubCheck(label, "fail", f"{host}: {detail}")
 
     @classmethod
     def probe_address(cls, host: str, address: str, deadline: float) -> SubCheck | None:
@@ -959,7 +1027,7 @@ class MtaStsCheck(Check):
             watchdog.start()
             smtp._host = host
             if (code := smtp.getreply()[0]) != 220:
-                return SubCheck("STARTTLS", "fail", f"{host}: SMTP {code}")
+                return SubCheck("SMTP greeting", "fail", f"{host}: SMTP {code}")
             smtp.starttls(context=ssl.create_default_context())
         except OSError as exc:
             return cls.failure_subcheck(host, exc, expired)
@@ -979,22 +1047,62 @@ class MtaStsCheck(Check):
                 lookup.query(host, record_type).failed
                 for record_type in (dns.rdatatype.A, dns.rdatatype.AAAA)
             ):
-                return SubCheck("STARTTLS", "skip", f"{host}: lookup failed")
-            return SubCheck("STARTTLS", "fail", f"{host}: no global address")
+                return SubCheck("MX address", "skip", f"{host}: lookup failed")
+            return SubCheck("MX address", "fail", f"{host}: no global address")
         deadline = time.monotonic() + cls.PROBE_TIMEOUT.total_seconds()
         for address in addresses:
             if deadline <= time.monotonic():
-                return SubCheck("STARTTLS", "fail", f"{host}: timed out")
+                return SubCheck("MX connection", "fail", f"{host}: timed out")
             if (result := cls.probe_address(host, address, deadline)) is not None:
                 return result
-        return SubCheck("STARTTLS", "fail", f"{host}: unreachable")
+        return SubCheck("MX connection", "fail", f"{host}: unreachable")
+
+    @classmethod
+    def merge_subchecks(cls, findings: Iterable[SubCheck]) -> list[SubCheck]:
+        """Collapse one finding per MX host into one finding per feature."""
+        groups: dict[str, list[SubCheck]] = {}
+        for finding in findings:
+            groups.setdefault(finding.label, []).append(finding)
+        labels = [label for label in cls.PROBE_LABELS if label in groups]
+        labels += [label for label in groups if label not in cls.PROBE_LABELS]
+        merged = []
+        for label in labels:
+            group = groups[label]
+            failures = [finding for finding in group if finding.status == "fail"]
+            if failures:
+                severity = (
+                    "broken"
+                    if any(finding.severity != "weak" for finding in failures)
+                    else "weak"
+                )
+                merged.append(
+                    SubCheck(
+                        label,
+                        "fail",
+                        "; ".join(finding.detail for finding in failures),
+                        severity=severity,
+                    )
+                )
+                continue
+            status = (
+                "pass" if any(finding.status == "pass" for finding in group) else "skip"
+            )
+            merged.append(
+                SubCheck(
+                    label,
+                    status,
+                    "; ".join(finding.detail for finding in group),
+                )
+            )
+        return merged
 
     @classmethod
     def probe_subchecks(cls, mx: MxLookup, lookup: Lookup) -> list[SubCheck]:
-        """Collect one finding for the TLS upgrade of every MX exchange."""
+        """Collect one finding per TLS feature across every MX exchange."""
         probe = functools.partial(cls.probe_starttls, lookup=lookup)
         with concurrent.futures.ThreadPoolExecutor(MxCheck.MAX_MX_EXCHANGES) as pool:
-            return list(pool.map(probe, mx.exchanges[: MxCheck.MAX_MX_EXCHANGES]))
+            findings = list(pool.map(probe, mx.exchanges[: MxCheck.MAX_MX_EXCHANGES]))
+        return cls.merge_subchecks(findings)
 
     @classmethod
     def run(cls, name: str, lookup: Lookup) -> CheckResult:
