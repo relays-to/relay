@@ -1270,6 +1270,20 @@ class TestMtaStsProbeStartTls:
             ("2001:4860:4860::8888", smtplib.SMTP_PORT),
         ]
 
+    def test_probe_starttls__reuses_the_result_for_a_host(
+        self, lookup, dns_resolver, smtp_server, rsa_certificate
+    ):
+        dns_resolver.add(self.HOST, "A", "8.8.8.8")
+        server = smtp_server(
+            session=StubTlsSession(group="X25519MLKEM768", certificate=rsa_certificate)
+        )
+
+        first = MtaStsCheck.probe_starttls(self.HOST, lookup)
+        second = MtaStsCheck.probe_starttls(self.HOST, Lookup())
+
+        assert second == first
+        assert len(server.connects) == 1
+
     def test_probe_starttls__fails_a_bad_greeting(
         self, lookup, dns_resolver, smtp_server
     ):
