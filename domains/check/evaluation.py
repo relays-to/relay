@@ -777,9 +777,10 @@ class MtaStsCheck(Check):
         "TLS handshake",
         "Post-quantum key exchange",
     )
-    FETCH_TIMEOUT = dt.timedelta(seconds=5)
-    PROBE_TIMEOUT = dt.timedelta(seconds=10)
-    FETCH_CACHE = dt.timedelta(minutes=5)
+    FETCH_TIMEOUT = dt.timedelta(seconds=30)
+    PROBE_TIMEOUT = dt.timedelta(seconds=30)
+    FETCH_CACHE = dt.timedelta(hours=1)
+    PROBE_CACHE = dt.timedelta(hours=1)
     POLICY_LIMIT_BYTES = 64 * 1024
 
     @classmethod
@@ -1040,7 +1041,16 @@ class MtaStsCheck(Check):
 
     @classmethod
     def probe_starttls(cls, host: str, lookup: Lookup) -> SubCheck:
-        """Test an MX host for a TLS upgrade and score the resulting channel."""
+        """Test an MX host for a TLS upgrade and cache the result per host."""
+        cache_key = f"domain_check:starttls:{host.lower().rstrip('.')}"
+        if (result := cache.get(cache_key)) is None:
+            result = cls.probe_host(host, lookup)
+            cache.set(cache_key, result, cls.PROBE_CACHE.total_seconds())
+        return result
+
+    @classmethod
+    def probe_host(cls, host: str, lookup: Lookup) -> SubCheck:
+        """Score the TLS channel of the host's first reachable address."""
         addresses = tuple(filter(cls.is_global_address, lookup.addresses(host)))
         if not addresses:
             if all(
