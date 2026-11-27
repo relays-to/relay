@@ -58,6 +58,20 @@
           {% tabler name="share" %}
           <span class="sr-only">{% translate "share this result"|capfirst %}</span>
         </button>
+        <form method="post">
+          {% csrf_token %}
+          <button
+            type="submit"
+            class="btn"
+            data-variant="outline"
+            data-size="icon"
+            data-align="end"
+            data-tooltip="{% translate 'check again (login required)'|capfirst %}"
+          >
+            {% tabler name="refresh" %}
+            <span class="sr-only">{% translate "check again (login required)"|capfirst %}</span>
+          </button>
+        </form>
       </div>
     </header>
 
